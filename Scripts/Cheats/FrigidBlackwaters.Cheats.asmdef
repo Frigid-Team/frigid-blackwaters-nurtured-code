@@ -1,0 +1,36 @@
+{
+    "name": "FrigidBlackwaters.Cheats",
+    "rootNamespace": "",
+    "references": [
+        "GUID:510f83eb16e4f2e4dbf0ef5d745c9562",
+        "GUID:7c6a25492a0900c42be2ab26b8150ba5",
+        "GUID:109434f8ac5ecee40a70a6f9423d7da1",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:3de88c88fbbb8f944b9210d496af9762",
+        "GUID:466e67dabd1db22468246c39eddb6c3f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [
+        "Android",
+        "CloudRendering",
+        "EmbeddedLinux",
+        "GameCoreScarlett",
+        "GameCoreXboxOne",
+        "iOS",
+        "Lumin",
+        "PS4",
+        "PS5",
+        "Stadia",
+        "Switch",
+        "tvOS",
+        "WebGL",
+        "XboxOne"
+    ],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
