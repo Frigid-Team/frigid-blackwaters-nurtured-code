@@ -13,4 +13,6 @@ Frigid Blackwaters is separated into 4 major assemblies:
 
 Each of these assemblies has their own folder within the scripts folder, and each system is commonly grouped under a folder as well. For example, the Mobs system that concerns itself with all logic pertaining to enemies, the player and NPCs in the game is located under Scripts/Game/Mobs. 
 
+The top level of the scripts folder also contains some base classes that much of the game extends from. 
+
 The entrypoint of the game is in TiledLevel. This is where all the code for the level is spawned (as 1x1 tiles in the world), which all the creatures in the game follow. We also have UI code in Scripts/Game/HUD and Scripts/Game/Menus.  
