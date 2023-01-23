@@ -1,6 +1,8 @@
-# Frigid Blackwaters Code
+![Frigid_Banner_Title_Middle](https://user-images.githubusercontent.com/23221908/214085389-5d0628eb-97e1-43ae-a14c-3dcb0f95f039.png)
 
 More about the game: http://frigidblackwaters.com/
+
+![rune_line](https://user-images.githubusercontent.com/23221908/214085243-9aead466-9e98-4ba5-bf4a-91967d969173.png)
 
 ## An Overview
 Hello! This repo contains all of the C# script files used in Frigid Blackwaters, including scripts used for tools and gameplay. 
