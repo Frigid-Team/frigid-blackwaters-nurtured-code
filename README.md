@@ -1,6 +1,6 @@
 # Frigid Blackwaters Code
 
-http://frigidblackwaters.com/
+More about the game: http://frigidblackwaters.com/
 
 ## An Overview
 Hello! This repo contains all of the C# script files used in Frigid Blackwaters, including scripts used for tools and gameplay. 
