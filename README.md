@@ -3,7 +3,7 @@
 More about the game: http://frigidblackwaters.com/
 
 ## An Overview
-Hello! This repo contains all of the C# script files used in Frigid Blackwaters, including scripts used for tools and gameplay. 
+Hello! This repo contains all of the C# script files used in Frigid Blackwaters, including scripts used for tools and gameplay. It does not contain any other assets, including art, audio, prefabs, and raw data files in the form of scriptable objects. 
 
 Frigid Blackwaters is separated into 4 major assemblies:
 - Game: This is the primary location for all scripts associated with gameplay systems. Some examples include mobs, level generation, and damage detection. 
