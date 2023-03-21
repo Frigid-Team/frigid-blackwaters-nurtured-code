@@ -16,6 +16,19 @@ namespace FrigidBlackwaters.Utility
             this.items = new List<Nested2DList<T>>();
         }
 
+        public Nested3DList(IEnumerable<Nested2DList<T>> items)
+        {
+            this.items = new List<Nested2DList<T>>(items);
+        }
+
+        public List<Nested2DList<T>> Items
+        {
+            get
+            {
+                return this.items;
+            }
+        }
+
         public Nested2DList<T> this[int index]
         {
             get

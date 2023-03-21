@@ -10,6 +10,11 @@ namespace FrigidBlackwaters.Game
         [HideInInspector]
         private Nested3DList<int> sortingOrders;
 
+        public abstract int CurrentSortingOrder
+        {
+            get;
+        }
+
         public int GetSortingOrder(int animationIndex, int frameIndex, int orientationIndex)
         {
             return this.sortingOrders[animationIndex][frameIndex][orientationIndex];

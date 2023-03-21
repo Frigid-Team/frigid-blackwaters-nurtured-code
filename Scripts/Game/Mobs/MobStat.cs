@@ -4,8 +4,8 @@ namespace FrigidBlackwaters.Game
     {
         Vitality,
         Might,
-        Agility,
         Armour,
+        Agility,
         Count
     }
 }

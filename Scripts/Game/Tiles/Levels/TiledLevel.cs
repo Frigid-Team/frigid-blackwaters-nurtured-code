@@ -33,8 +33,8 @@ namespace FrigidBlackwaters.Game
 
         static TiledLevel()
         {
-            spawnedTiledLevels = new SceneVariable<HashSet<TiledLevel>>(() => { return new HashSet<TiledLevel>(); });
-            levelSpawnQueue = new SceneVariable<Queue<TiledLevel>>(() => { return new Queue<TiledLevel>(); });
+            spawnedTiledLevels = new SceneVariable<HashSet<TiledLevel>>(() => new HashSet<TiledLevel>());
+            levelSpawnQueue = new SceneVariable<Queue<TiledLevel>>(() => new Queue<TiledLevel>());
             currentFocusedTiledLevel = null;
             TiledArea.OnFocusedTiledAreaChanged += 
                 () => 
@@ -103,7 +103,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Vector2 AbsoluteCenterPosition
+        public Vector2 CenterPosition
         {
             get
             {
@@ -138,7 +138,7 @@ namespace FrigidBlackwaters.Game
             focusedTiledLevel = null;
             return 
                 TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && 
-                TryGetTiledLevelAtPosition(focusedTiledArea.AbsoluteCenterPosition, out focusedTiledLevel);
+                TryGetTiledLevelAtPosition(focusedTiledArea.CenterPosition, out focusedTiledLevel);
         }
         
         protected override void Awake()
@@ -190,16 +190,22 @@ namespace FrigidBlackwaters.Game
                         SpawnLevel(
                             () =>
                             {
-                                spawnedTiledLevels.Current.Add(this);
-                                onTiledLevelSpawned?.Invoke(this);
-                                if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && this.wallBounds.Contains(focusedTiledArea.AbsoluteCenterPosition))
+                                if (spawnedTiledLevels.Current.Add(this))
                                 {
-                                    currentFocusedTiledLevel = this;
-                                    onFocusedTiledLevelChanged?.Invoke();
+                                    onTiledLevelSpawned?.Invoke(this);
+                                    if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && this.wallBounds.Contains(focusedTiledArea.CenterPosition))
+                                    {
+                                        currentFocusedTiledLevel = this;
+                                        onFocusedTiledLevelChanged?.Invoke();
+                                    }
+                                    levelSpawnQueue.Current.Dequeue();
+                                    if (levelSpawnQueue.Current.Count > 0) levelSpawnQueue.Current.Peek().ContinueLevelSpawnQueue();
+                                    LoadingOverlay.ReleaseLoad();
                                 }
-                                levelSpawnQueue.Current.Dequeue();
-                                if (levelSpawnQueue.Current.Count > 0) levelSpawnQueue.Current.Peek().ContinueLevelSpawnQueue();
-                                LoadingOverlay.ReleaseLoad();
+                                else
+                                {
+                                    Debug.LogError("Tiled Level " + this.name + " seems to have been spawned twice.");
+                                }
                             }
                             ),
                         this.gameObject
@@ -209,9 +215,8 @@ namespace FrigidBlackwaters.Game
         }
 
 #if UNITY_EDITOR
-        protected override void OnDrawGizmos()
+        private void OnDrawGizmos()
         {
-            base.OnDrawGizmos();
             Gizmos.DrawWireCube(this.wallBounds.center, this.wallBounds.size);
         }
 #endif
@@ -231,64 +236,88 @@ namespace FrigidBlackwaters.Game
 
             foreach (TiledLevelPlanArea planArea in tiledLevelPlan.Areas)
             {
-                TiledArea spawnedTiledArea = SpawnTiledArea(
+                TiledArea spawnedArea = SpawnTiledArea(
                     planArea.TiledAreaPrefab,
                     planArea.ChosenBlueprint,
                     localSpawnPositionPerPlanAreas[planArea],
                     planArea == this.tiledLevelPlan.StartingArea && !this.tiledLevelPlan.IsSubLevel
                     );
-                this.spawnedAreaPerPlanAreas.Add(planArea, spawnedTiledArea);
+                this.spawnedAreaPerPlanAreas.Add(planArea, spawnedArea);
                 
-                // TODO: renable after this.tiledLevelPlan.MobGenerator.GenerateMobs(planArea, spawnedTiledArea);
-                // Stagger spawns of areas per frame.
+                this.tiledLevelPlan.MobGenerator.GenerateMobs(planArea, spawnedArea);
                 yield return null;
             }
 
             this.spawnedEntrancePerPlanEntrances = new Dictionary<TiledLevelPlanEntrance, TiledAreaEntrance>();
+
             foreach (TiledLevelPlanConnection planConnection in tiledLevelPlan.Connections)
             {
-                for (int i = 0; i < planConnection.NumberEntrances; i++)
+                if (planConnection.FirstEntrance.IsSubLevelEntrance)
                 {
-                    if (planConnection.PlanEntrances[i].IsSubLevelEntrance)
+                    if (this.subLevelEntrancesAndContainedAreas.TryGetValue(planConnection.FirstEntrance.SublevelEntrance, out TiledArea containedArea))
                     {
-                        if (this.subLevelEntrancesAndContainedAreas.TryGetValue(planConnection.PlanEntrances[i].SublevelEntrance, out TiledArea containedArea))
-                        {
-                            TiledAreaEntrance subLevelEntrance = InitializeSubLevelEntrance(
-                                containedArea,
-                                planConnection.PlanEntrances[i].SublevelEntrance,
-                                planConnection.EntryDirections[i],
-                                planConnection.ConnectionTerrain
-                                );
-                            this.spawnedEntrancePerPlanEntrances.Add(planConnection.PlanEntrances[i], subLevelEntrance);
-                        }
-                        else
-                        {
-                            Debug.LogError("Should never reach here, either the level added a new sub level entrance or there was an error at a previous step.");
-                            break;
-                        }
+                        TiledAreaEntrance subLevelEntrance = InitializeSubLevelEntrance(
+                            containedArea,
+                            planConnection.FirstEntrance.SublevelEntrance,
+                            planConnection.Direction,
+                            planConnection.ConnectionTerrain
+                            );
+                        this.spawnedEntrancePerPlanEntrances.Add(planConnection.FirstEntrance, subLevelEntrance);
                     }
                     else
                     {
-                        TiledLevelPlanArea entrancePlanArea = planConnection.PlanEntrances[i].Area;
-                        TiledArea spawnedTiledArea = this.spawnedAreaPerPlanAreas[planConnection.PlanEntrances[i].Area];
-                        TileTerrain entranceTerrain = entrancePlanArea.ChosenBlueprint.GetEntranceTerrain(planConnection.EntryDirections[i]);
-                        TiledAreaEntrance spawnedEntrance = SpawnWallEntrance(
-                            spawnedTiledArea,
-                            planConnection.PlanEntrances[i].EntrancePrefab,
-                            planConnection.EntryDirections[i],
-                            entranceTerrain
-                            );
-                        this.spawnedEntrancePerPlanEntrances.Add(planConnection.PlanEntrances[i], spawnedEntrance);
+                        Debug.LogError("Should never reach here, either the level added a new sub level entrance or there was an error at a previous step.");
+                        break;
                     }
+                }
+                else
+                {
+                    TiledLevelPlanArea entrancePlanArea = planConnection.FirstEntrance.Area;
+                    TiledArea spawnedArea = this.spawnedAreaPerPlanAreas[planConnection.FirstEntrance.Area];
+                    TileTerrain entranceTerrain = entrancePlanArea.ChosenBlueprint.GetEntranceTerrain(planConnection.Direction);
+                    TiledAreaEntrance spawnedEntrance = SpawnWallEntrance(
+                        spawnedArea,
+                        planConnection.FirstEntrance.EntrancePrefab,
+                        planConnection.Direction,
+                        entranceTerrain
+                        );
+                    this.spawnedEntrancePerPlanEntrances.Add(planConnection.FirstEntrance, spawnedEntrance);
                 }
 
-                foreach (TiledLevelPlanEntrance planEntrance in planConnection.PlanEntrances)
+                if (planConnection.SecondEntrance.IsSubLevelEntrance)
                 {
-                    foreach (TiledLevelPlanEntrance otherPlanEntrance in planConnection.PlanEntrances)
+                    if (this.subLevelEntrancesAndContainedAreas.TryGetValue(planConnection.SecondEntrance.SublevelEntrance, out TiledArea containedArea))
                     {
-                        if (planEntrance != otherPlanEntrance) this.spawnedEntrancePerPlanEntrances[planEntrance].AddConnectedEntrance(this.spawnedEntrancePerPlanEntrances[otherPlanEntrance]);
+                        TiledAreaEntrance subLevelEntrance = InitializeSubLevelEntrance(
+                            containedArea,
+                            planConnection.SecondEntrance.SublevelEntrance,
+                            -planConnection.Direction,
+                            planConnection.ConnectionTerrain
+                            );
+                        this.spawnedEntrancePerPlanEntrances.Add(planConnection.SecondEntrance, subLevelEntrance);
+                    }
+                    else
+                    {
+                        Debug.LogError("Should never reach here, either the level added a new sub level entrance or there was an error at a previous step.");
+                        break;
                     }
                 }
+                else
+                {
+                    TiledLevelPlanArea entrancePlanArea = planConnection.SecondEntrance.Area;
+                    TiledArea spawnedArea = this.spawnedAreaPerPlanAreas[planConnection.SecondEntrance.Area];
+                    TileTerrain entranceTerrain = entrancePlanArea.ChosenBlueprint.GetEntranceTerrain(-planConnection.Direction);
+                    TiledAreaEntrance spawnedEntrance = SpawnWallEntrance(
+                        spawnedArea,
+                        planConnection.SecondEntrance.EntrancePrefab,
+                        -planConnection.Direction,
+                        entranceTerrain
+                        );
+                    this.spawnedEntrancePerPlanEntrances.Add(planConnection.SecondEntrance, spawnedEntrance);
+                }
+
+                this.spawnedEntrancePerPlanEntrances[planConnection.FirstEntrance].ConnectedEntrance = this.spawnedEntrancePerPlanEntrances[planConnection.SecondEntrance];
+                this.spawnedEntrancePerPlanEntrances[planConnection.SecondEntrance].ConnectedEntrance = this.spawnedEntrancePerPlanEntrances[planConnection.FirstEntrance];
 
                 // Stagger spawns of entrances per frame.
                 yield return null;
@@ -302,7 +331,7 @@ namespace FrigidBlackwaters.Game
             this.subLevelEntrancesAndContainedAreas = new Dictionary<TiledAreaEntrance, TiledArea>();
             foreach (TiledAreaEntrance subLevelEntrance in this.subLevelEntrances)
             {
-                if (TiledArea.TryGetTiledAreaAtPosition(subLevelEntrance.transform.position, out TiledArea tiledArea))
+                if (TiledArea.TryGetTiledAreaAtPosition(subLevelEntrance.EntryPosition, out TiledArea tiledArea))
                 {
                     this.subLevelEntrancesAndContainedAreas.Add(subLevelEntrance, tiledArea);
                 }
@@ -344,29 +373,31 @@ namespace FrigidBlackwaters.Game
                     if (planConnection.IsSubLevelConnection) continue;
 
                     bool isConnected = false;
-
-                    for (int i = 0; i < planConnection.NumberEntrances; i++)
+                    TiledLevelPlanArea connectedPlanArea = null;
+                    Vector2Int adjacentDirection = Vector2Int.zero;
+                    if (planConnection.FirstEntrance.Area == dequeuedPlanArea) isConnected = true;
+                    else
                     {
-                        if (planConnection.PlanEntrances[i].Area == dequeuedPlanArea)
-                        {
-                            isConnected = true;
-                        }
+                        connectedPlanArea = planConnection.FirstEntrance.Area;
+                        adjacentDirection = -planConnection.Direction;
+                    }
+
+                    if (planConnection.SecondEntrance.Area == dequeuedPlanArea) isConnected = true;
+                    else
+                    {
+                        connectedPlanArea = planConnection.SecondEntrance.Area;
+                        adjacentDirection = planConnection.Direction;
                     }
 
                     if (isConnected)
                     {
-                        for (int i = 0; i < planConnection.NumberEntrances; i++)
+                        if (!localSpawnPositionPerPlanAreas.ContainsKey(connectedPlanArea))
                         {
-                            TiledLevelPlanArea adjacentPlanArea = planConnection.PlanEntrances[i].Area;
-                            if (!localSpawnPositionPerPlanAreas.ContainsKey(adjacentPlanArea))
-                            {
-                                Vector2Int adjacentDirection = -planConnection.EntryDirections[i];
-                                queuedPlanAreas.Enqueue(adjacentPlanArea);
-                                localSpawnPositionPerPlanAreas.Add(
-                                    adjacentPlanArea,
-                                    localSpawnPositionPerPlanAreas[dequeuedPlanArea] + new Vector2(adjacentDirection.x * wallAreaDimensionsMaxX, adjacentDirection.y * wallAreaDimensionsMaxY) * GameConstants.UNIT_WORLD_SIZE
-                                    );
-                            }
+                            queuedPlanAreas.Enqueue(connectedPlanArea);
+                            localSpawnPositionPerPlanAreas.Add(
+                                connectedPlanArea,
+                                localSpawnPositionPerPlanAreas[dequeuedPlanArea] + new Vector2(adjacentDirection.x * wallAreaDimensionsMaxX, adjacentDirection.y * wallAreaDimensionsMaxY) * GameConstants.UNIT_WORLD_SIZE
+                                );
                         }
                     }
                 }
@@ -395,13 +426,13 @@ namespace FrigidBlackwaters.Game
                 float maxX = float.MinValue;
                 foreach (TiledLevel tiledLevel in spawnedTiledLevels.Current)
                 {
-                    if (tiledLevel.AbsoluteCenterPosition.x - tiledLevel.WallBoundsSize.x / 2 < minX)
+                    if (tiledLevel.CenterPosition.x - tiledLevel.WallBoundsSize.x / 2 < minX)
                     {
-                        minX = tiledLevel.AbsoluteCenterPosition.x - tiledLevel.WallBoundsSize.x / 2;
+                        minX = tiledLevel.CenterPosition.x - tiledLevel.WallBoundsSize.x / 2;
                     }
-                    if (tiledLevel.AbsoluteCenterPosition.x + tiledLevel.WallBoundsSize.x / 2 > maxX)
+                    if (tiledLevel.CenterPosition.x + tiledLevel.WallBoundsSize.x / 2 > maxX)
                     {
-                        maxX = tiledLevel.AbsoluteCenterPosition.x + tiledLevel.WallBoundsSize.x / 2;
+                        maxX = tiledLevel.CenterPosition.x + tiledLevel.WallBoundsSize.x / 2;
                     }
                 }
 
@@ -430,14 +461,14 @@ namespace FrigidBlackwaters.Game
             float zRotation = Mathf.Atan2(entryDirection.y, entryDirection.x) * Mathf.Rad2Deg - 90;
             Vector2 localSpawnPosition = TilePositioning.LocalWallCenterPosition(entryDirection, tiledArea.MainAreaDimensions + Vector2Int.one);
             TiledAreaEntrance spawnedEntrance = FrigidInstancing.CreateInstance<TiledAreaEntrance>(entrancePrefab, tiledArea.transform.position + (Vector3)localSpawnPosition, Quaternion.Euler(0, 0, zRotation), tiledArea.ContentsTransform);
-            spawnedEntrance.Populate(entryDirection, entranceTerrain);
+            spawnedEntrance.Populate(entryDirection, entranceTerrain, tiledArea);
             tiledArea.PlaceEntrance(spawnedEntrance);
             return spawnedEntrance;
         }
 
         private TiledAreaEntrance InitializeSubLevelEntrance(TiledArea tiledArea, TiledAreaEntrance subLevelEntrance, Vector2Int entryDirection, TileTerrain entranceTerrain)
         {
-            subLevelEntrance.Populate(entryDirection, entranceTerrain);
+            subLevelEntrance.Populate(entryDirection, entranceTerrain, tiledArea);
             tiledArea.PlaceEntrance(subLevelEntrance);
             return subLevelEntrance;
         }

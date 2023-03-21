@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    public class ItemInterface : FrigidMonoBehaviour
+    public class ItemInterface : FrigidMonoBehaviourWithUpdate
     {
         [Header("Grids")]
         [SerializeField]
@@ -72,8 +72,8 @@ namespace FrigidBlackwaters.Game
                 this.mappedBars[storage].TransitionOnScreen();
             }
 
-            this.hand.CreateHeldItemStash();
-            if (this.hand.TryGetHeldItemStash(out HoldingItemStash heldItemStash))
+            this.hand.CreateHoldingStash();
+            if (this.hand.TryGetHoldingStash(out HoldingItemStash heldItemStash))
             {
                 this.handSlot.PopulateForDisplay(heldItemStash);
             }
@@ -89,7 +89,7 @@ namespace FrigidBlackwaters.Game
 
             this.handSlot.gameObject.SetActive(false);
             this.hand.RestoreHeldItems();
-            this.hand.EraseHeldItemStash();
+            this.hand.EraseHoldingStash();
 
             foreach (ItemStorage storage in this.currentStorages)
             {
@@ -115,6 +115,7 @@ namespace FrigidBlackwaters.Game
         protected override void Awake()
         {
             base.Awake();
+
             this.currentStorages = new List<ItemStorage>();
 
             this.gridPool = new RecyclePool<ItemInterfaceGrid>(
@@ -210,8 +211,8 @@ namespace FrigidBlackwaters.Game
                     xInterval, 
                     (int index) => RotateGrids(storage, index), 
                     storage.StorageGrids,
-                    storage.ItemPowerBudget,
-                    storage.ItemCurrencyWallet,
+                    storage.PowerBudget,
+                    storage.CurrencyWallet,
                     this.gridIndexes[storage],
                     localCenterPosition
                     );
@@ -226,7 +227,7 @@ namespace FrigidBlackwaters.Game
             this.gridIndexes[storage] = newIndex;
             this.mappedGrids[storage.StorageGrids[this.gridIndexes[storage]]].TransitionOnScreen(moveUpwards);
             this.mappedBars[storage].Scroll(this.gridIndexes[storage]);
-            this.rotateAudioSource.clip = storage.StorageGrids[this.gridIndexes[storage]].ItemContainer.RustleAudioClip;
+            this.rotateAudioSource.clip = storage.StorageGrids[this.gridIndexes[storage]].Container.RustleAudioClip;
             this.rotateAudioSource.Play();
         }
     }

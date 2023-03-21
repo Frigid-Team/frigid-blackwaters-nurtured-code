@@ -22,6 +22,16 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public void AddHitModifier(HitModifier hitModifier)
+        {
+            this.DamageReceiverBox.AddHitModifier(hitModifier);
+        }
+
+        public void RemoveHitModifier(HitModifier hitModifier)
+        {
+            this.DamageReceiverBox.RemoveHitModifier(hitModifier);
+        }
+
         public int GetDamageMitigation(int animationIndex, int frameIndex)
         {
             return this.damageMitigations[animationIndex][frameIndex];
@@ -48,6 +58,7 @@ namespace FrigidBlackwaters.Game
                     this.damageMitigations[animationIndex].Add(0);
                 }
             }
+            this.gameObject.layer = (int)FrigidLayer.HurtBoxes;
             base.Created();
         }
 
@@ -93,16 +104,16 @@ namespace FrigidBlackwaters.Game
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
 
-        public override void SetFrameEnter(int animationIndex, int frameIndex, float elapsedDuration, int loopsElapsed)
+        public override void FrameEnter()
         {
-            this.DamageReceiverBox.DamageMitigation += GetDamageMitigation(animationIndex, frameIndex);
-            base.SetFrameEnter(animationIndex, frameIndex, elapsedDuration, loopsElapsed);
+            this.DamageReceiverBox.DamageMitigation += GetDamageMitigation(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            base.FrameEnter();
         }
 
-        public override void SetFrameExit(int animationIndex, int frameIndex)
+        public override void FrameExit()
         {
-            this.DamageReceiverBox.DamageMitigation -= GetDamageMitigation(animationIndex, frameIndex);
-            base.SetFrameExit(animationIndex, frameIndex);
+            this.DamageReceiverBox.DamageMitigation -= GetDamageMitigation(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            base.FrameExit();
         }
     }
 }

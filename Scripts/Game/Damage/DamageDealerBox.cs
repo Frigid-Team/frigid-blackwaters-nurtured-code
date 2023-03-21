@@ -3,13 +3,16 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    public abstract class DamageDealerBox<DB, RB, I> : FrigidMonoBehaviour where DB : DamageDealerBox<DB, RB, I> where RB : DamageReceiverBox<RB, DB, I>
+    public abstract class DamageDealerBox<DB, RB, I> : FrigidMonoBehaviourWithPhysics where DB : DamageDealerBox<DB, RB, I> where RB : DamageReceiverBox<RB, DB, I> where I : DamageInfo
     {
         [SerializeField]
         private DamageAlignment damageAlignment;
         [SerializeField]
+        private DamageChannel damageChannel;
+        [SerializeField]
         private bool isIgnoringDamage;
 
+        private bool isIgnoringDamageLastFixedTimeStep;
         private Action<I> onDealt;
 
         public DamageAlignment DamageAlignment
@@ -21,6 +24,18 @@ namespace FrigidBlackwaters.Game
             set
             {
                 this.damageAlignment = value;
+            }
+        }
+
+        public DamageChannel DamageChannel
+        {
+            get
+            {
+                return this.damageChannel;
+            }
+            set
+            {
+                this.damageChannel = value;
             }
         }
 
@@ -48,14 +63,27 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        protected override void Awake()
+        {
+            base.Awake();
+            this.isIgnoringDamageLastFixedTimeStep = this.isIgnoringDamage;
+        }
+
+        protected override void FixedUpdate()
+        {
+            base.FixedUpdate();
+            this.isIgnoringDamageLastFixedTimeStep = this.isIgnoringDamage;
+        }
+
         protected override void OnTriggerEnter2D(Collider2D collision)
         {
-            if (!this.isIgnoringDamage && collision.TryGetComponent<RB>(out RB damageReceiverBox))
+            if (!this.isIgnoringDamageLastFixedTimeStep && collision.TryGetComponent<RB>(out RB damageReceiverBox))
             {
                 if (damageReceiverBox.TryDamage(
                     (DB)this, 
                     collision.ClosestPoint(this.transform.position),
                     (collision.bounds.center - this.transform.position).normalized, 
+                    collision,
                     out I info 
                     ))
                 {

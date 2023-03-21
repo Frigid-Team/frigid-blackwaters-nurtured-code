@@ -12,11 +12,11 @@ namespace FrigidBlackwaters.Game
         private static Action<TiledArea> onExploredNewTiledArea;
 
         [SerializeField]
-        private List<TiledAreaOccupier> tiledAreaOccupiers;
+        private Mob mob;
 
         static TiledWorldExplorer()
         {
-            exploredTiledAreas = new SceneVariable<HashSet<TiledArea>>(() => { return new HashSet<TiledArea>(); });
+            exploredTiledAreas = new SceneVariable<HashSet<TiledArea>>(() => new HashSet<TiledArea>());
         }
 
         public static HashSet<TiledArea> ExploredTiledAreas
@@ -39,28 +39,27 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected override void OnEnable()
+        protected override void Awake()
         {
-            base.OnEnable();
-            foreach (TiledAreaOccupier tiledAreaOccupier in this.tiledAreaOccupiers)
-            {
-                tiledAreaOccupier.OnCurrentTiledAreaChanged += ExploreTiledArea;
-                if (tiledAreaOccupier.TryGetCurrentTiledArea(out TiledArea tiledArea)) ExploreTiledArea(tiledArea);
-            }
+            base.Awake();
+            this.mob.OnTiledAreaChanged += ExploreTiledArea;
         }
 
-        protected override void OnDisable()
+        protected override void OnDestroy()
         {
-            base.OnDisable();
-            foreach (TiledAreaOccupier tiledAreaOccupier in this.tiledAreaOccupiers)
-            {
-                tiledAreaOccupier.OnCurrentTiledAreaChanged -= ExploreTiledArea;
-            }
+            base.OnDestroy();
+            this.mob.OnTiledAreaChanged -= ExploreTiledArea;
         }
 
-        private void ExploreTiledArea(bool hasOldTiledArea, TiledArea oldTiledArea, bool hasNewTiledArea, TiledArea newTiledArea)
+        protected override void Start()
         {
-            if (hasNewTiledArea) ExploreTiledArea(newTiledArea);
+            base.Start();
+            ExploreTiledArea(this.mob.TiledArea);
+        }
+
+        private void ExploreTiledArea(TiledArea previousTiledArea, TiledArea currentTiledArea)
+        {
+            ExploreTiledArea(currentTiledArea);
         }
 
         private void ExploreTiledArea(TiledArea tiledArea)

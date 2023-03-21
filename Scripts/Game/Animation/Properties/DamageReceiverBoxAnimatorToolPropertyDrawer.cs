@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    public abstract class DamageReceiverBoxAnimatorToolPropertyDrawer<RB, DB, I> : ColliderAnimatorToolPropertyDrawer where RB : DamageReceiverBox<RB, DB, I> where DB : DamageDealerBox<DB, RB, I>
+    public abstract class DamageReceiverBoxAnimatorToolPropertyDrawer<RB, DB, I> : ColliderAnimatorToolPropertyDrawer where RB : DamageReceiverBox<RB, DB, I> where DB : DamageDealerBox<DB, RB, I> where I : DamageInfo
     {
         public override void DrawGeneralEditFields()
         {

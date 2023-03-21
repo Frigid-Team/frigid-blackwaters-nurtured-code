@@ -4,9 +4,9 @@ namespace FrigidBlackwaters.Core
 {
     public static class AudioPauser
     {
-        private static CountingSemaphore paused;
+        private static ControlCounter paused;
 
-        public static CountingSemaphore Paused
+        public static ControlCounter Paused
         {
             get
             {
@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Core
 
         static AudioPauser()
         {
-            paused = new CountingSemaphore();
+            paused = new ControlCounter();
             paused.OnFirstRequest += () => AudioListener.pause = true;
             paused.OnLastRelease += () => AudioListener.pause = false;
         }

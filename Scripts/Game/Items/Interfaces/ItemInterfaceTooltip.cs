@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,14 +15,14 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private ItemInterfaceTransactionPopup transactionPopup;
 
-        private List<Tuple<ItemStash, Vector2>> queuedStashes;
+        private List<(ItemStash stash, Vector2 showPosition)> queuedStashShows;
         private ItemInterfaceHand hand;
 
         public void ShowTooltip(ItemInterfaceHand hand)
         {
             this.gameObject.SetActive(true);
             this.hand = hand;
-            if (this.hand.TryGetHeldItemStash(out HoldingItemStash heldItemStash)) 
+            if (this.hand.TryGetHoldingStash(out HoldingItemStash heldItemStash)) 
             {
                 heldItemStash.OnQuantityUpdated += UpdatePopupsAndPosition;
             }
@@ -32,49 +31,47 @@ namespace FrigidBlackwaters.Game
 
         public void HideTooltip()
         {
-            if (this.hand.TryGetHeldItemStash(out HoldingItemStash heldItemStash))
+            if (this.hand.TryGetHoldingStash(out HoldingItemStash heldItemStash))
             {
                 heldItemStash.OnQuantityUpdated -= UpdatePopupsAndPosition;
             }
             this.hand = null;
-            if (this.queuedStashes.Count > 0)
+            if (this.queuedStashShows.Count > 0)
             {
-                this.queuedStashes[0].Item1.OnQuantityUpdated -= UpdatePopupsAndPosition;
+                this.queuedStashShows[0].stash.OnQuantityUpdated -= UpdatePopupsAndPosition;
             }
-            this.queuedStashes.Clear();
+            this.queuedStashShows.Clear();
             this.gameObject.SetActive(false);
         }
 
-        public void AddStashToShow(ItemStash itemStash, Vector2 absoluteShowPosition)
+        public void AddStashToShow(ItemStash stash, Vector2 showPosition)
         {
-            if (this.hand == null) return;
-
-            int foundIndex = this.queuedStashes.FindIndex((Tuple<ItemStash, Vector2> queuedStash) => { return queuedStash.Item1 == itemStash; });
+            int foundIndex = this.queuedStashShows.FindIndex(((ItemStash stash, Vector2 showPosition) stashShow) => { return stashShow.stash == stash; });
             if (foundIndex < 0)
             {
-                if (this.queuedStashes.Count == 0)
+                if (this.queuedStashShows.Count == 0)
                 {
-                    itemStash.OnQuantityUpdated += UpdatePopupsAndPosition;
+                    stash.OnQuantityUpdated += UpdatePopupsAndPosition;
                 }
-                this.queuedStashes.Add(new Tuple<ItemStash, Vector2>(itemStash, absoluteShowPosition));
+                this.queuedStashShows.Add((stash, showPosition));
                 UpdatePopupsAndPosition();
             }
         }
 
-        public void RemoveStashToShow(ItemStash itemStash)
+        public void RemoveStashToShow(ItemStash stash)
         {
-            int foundIndex = this.queuedStashes.FindIndex((Tuple<ItemStash, Vector2> queuedStash) => { return queuedStash.Item1 == itemStash; });
+            int foundIndex = this.queuedStashShows.FindIndex(((ItemStash stash, Vector2 showPosition) stashShow) => { return stashShow.stash == stash; });
             if (foundIndex >= 0)
             {
                 if (foundIndex == 0)
                 {
-                    itemStash.OnQuantityUpdated -= UpdatePopupsAndPosition;
-                    if (this.queuedStashes.Count > 1)
+                    stash.OnQuantityUpdated -= UpdatePopupsAndPosition;
+                    if (this.queuedStashShows.Count > 1)
                     {
-                        this.queuedStashes[1].Item1.OnQuantityUpdated += UpdatePopupsAndPosition;
+                        this.queuedStashShows[1].stash.OnQuantityUpdated += UpdatePopupsAndPosition;
                     }
                 }
-                this.queuedStashes.RemoveAt(foundIndex);
+                this.queuedStashShows.RemoveAt(foundIndex);
                 UpdatePopupsAndPosition();
             }
         }
@@ -82,7 +79,7 @@ namespace FrigidBlackwaters.Game
         protected override void Awake()
         {
             base.Awake();
-            this.queuedStashes = new List<Tuple<ItemStash, Vector2>>();
+            this.queuedStashShows = new List<(ItemStash stash, Vector2 showPosition)>();
         }
 
         protected override void Start()
@@ -93,19 +90,18 @@ namespace FrigidBlackwaters.Game
 
         private void UpdatePopupsAndPosition()
         {
-            if (this.queuedStashes.Count > 0 && this.hand.TryGetHeldItemStash(out HoldingItemStash heldItemStash))
+            if (this.queuedStashShows.Count > 0 && this.hand.TryGetHoldingStash(out HoldingItemStash holdingStash))
             {
                 this.infoPopup.gameObject.SetActive(true);
-                this.infoPopup.FillInfo(this.queuedStashes[0].Item1);
+                this.infoPopup.FillInfo(this.queuedStashShows[0].stash);
                 this.transactionPopup.gameObject.SetActive(true);
-                this.transactionPopup.FillTransaction(this.queuedStashes[0].Item1, heldItemStash);
+                this.transactionPopup.FillTransaction(this.queuedStashShows[0].stash, holdingStash);
 
                 LayoutRebuilder.ForceRebuildLayoutImmediate(this.contentsTransform);
 
-                Vector2 absoluteShowPosition = this.queuedStashes[0].Item2;
                 float halfWidth = this.contentsTransform.rect.width / 2;
                 float halfHeight = this.contentsTransform.rect.height / 2;
-                Vector2 localCenterPosition = this.transform.InverseTransformPoint(absoluteShowPosition);
+                Vector2 localCenterPosition = this.transform.InverseTransformPoint(this.queuedStashShows[0].showPosition);
 
                 if (localCenterPosition.x > 0)
                 {

@@ -7,8 +7,6 @@ namespace FrigidBlackwaters.Game
         public const int MAX_WALL_DEPTH = 4;
 
         [SerializeField]
-        private WallTileAssetGroup wallTileAssetGroup;
-        [SerializeField]
         private WallColliders wallCollidersPrefab;
 
         public void PopulateWalls(TiledAreaBlueprint tiledAreaBlueprint, Transform contentsTransform)
@@ -22,27 +20,28 @@ namespace FrigidBlackwaters.Game
             spawnedWallColliders.PositionColliders(tiledAreaBlueprint.MainAreaDimensions);
         }
 
-        private void SpawnEdgeWall(int layer, TiledAreaBlueprint tiledAreaBlueprint, Transform contentsTransform, Vector2Int positionIndices, Vector2Int dimensions, float rotationDeg)
+        private void SpawnEdgeWall(int layer, TiledAreaBlueprint tiledAreaBlueprint, Transform contentsTransform, Vector2Int tileIndices, Vector2Int dimensions, float rotationDeg)
         {
-            if (GetWallTilePrefab(layer, tiledAreaBlueprint, positionIndices, out WallTile wallTilePrefab))
+            if (GetWallTilePrefab(layer, tiledAreaBlueprint, tileIndices, out WallTile wallTilePrefab))
             {
-                WallTile spawnedWall = FrigidInstancing.CreateInstance<WallTile>(wallTilePrefab, TilePositioning.TileAbsolutePositionFromIndices(positionIndices, contentsTransform.position, dimensions), Quaternion.Euler(0, 0, rotationDeg), contentsTransform);
+                WallTile spawnedWall = FrigidInstancing.CreateInstance<WallTile>(wallTilePrefab, TilePositioning.TilePositionFromIndices(tileIndices, contentsTransform.position, dimensions), Quaternion.Euler(0, 0, rotationDeg), contentsTransform);
                 spawnedWall.Populated(true);
             }
         }
 
-        private void SpawnCornerWall(int layer, TiledAreaBlueprint tiledAreaBlueprint, Transform contentsTransform, Vector2Int positionIndices, Vector2Int dimensions, float rotationDeg)
+        private void SpawnCornerWall(int layer, TiledAreaBlueprint tiledAreaBlueprint, Transform contentsTransform, Vector2Int tileIndices, Vector2Int dimensions, float rotationDeg)
         {
-            if (GetWallTilePrefab(layer, tiledAreaBlueprint, positionIndices, out WallTile wallTilePrefab))
+            if (GetWallTilePrefab(layer, tiledAreaBlueprint, tileIndices, out WallTile wallTilePrefab))
             {
-                WallTile spawnedWall = FrigidInstancing.CreateInstance<WallTile>(wallTilePrefab, TilePositioning.TileAbsolutePositionFromIndices(positionIndices, contentsTransform.position, dimensions), Quaternion.Euler(0, 0, rotationDeg), contentsTransform);
+                WallTile spawnedWall = FrigidInstancing.CreateInstance<WallTile>(wallTilePrefab, TilePositioning.TilePositionFromIndices(tileIndices, contentsTransform.position, dimensions), Quaternion.Euler(0, 0, rotationDeg), contentsTransform);
                 spawnedWall.Populated(false);
             }
         }
 
-        private bool GetWallTilePrefab(int layer, TiledAreaBlueprint tiledAreaBlueprint, Vector2Int positionIndices, out WallTile wallTilePrefab)
+        private bool GetWallTilePrefab(int layer, TiledAreaBlueprint tiledAreaBlueprint, Vector2Int tileIndices, out WallTile wallTilePrefab)
         {
-            if (this.wallTileAssetGroup.TryGetAsset(tiledAreaBlueprint.WallTileID, out WallTileAsset wallTileAsset) && layer <= wallTileAsset.Depth)
+            WallTileAsset wallTileAsset = tiledAreaBlueprint.GetWallTileAsset();
+            if (layer <= wallTileAsset.Depth)
             {
                 if (layer > 0)
                 {
@@ -51,7 +50,7 @@ namespace FrigidBlackwaters.Game
                 }
                 else
                 {
-                    return wallTileAsset.TryGetBoundaryTilePrefab(tiledAreaBlueprint.GetTerrainTileIDAtTile(positionIndices), out wallTilePrefab);
+                    return wallTileAsset.TryGetBoundaryTilePrefab(tiledAreaBlueprint.GetTerrainTileAssetAt(tileIndices), out wallTilePrefab);
                 }
             }
             wallTilePrefab = null;

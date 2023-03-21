@@ -1,5 +1,4 @@
 using UnityEngine;
-using System;
 
 using FrigidBlackwaters.Core;
 
@@ -10,32 +9,28 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference delayDuration;
         private bool inDuration;
-        private float movementDuration;
 
-        private Action onDurationStarted;
-        private Action onDurationFinished;
-
-        public Action OnDurationStarted
+        public override bool IsFinished
         {
             get
             {
-                return this.onDurationStarted;
-            }
-            set
-            {
-                this.onDurationStarted = value;
+                return this.MovingDuration >= this.TotalDuration;
             }
         }
 
-        public Action OnDurationFinished
+        public override bool IsInMotion
         {
             get
             {
-                return this.onDurationFinished;
+                return this.inDuration;
             }
-            set
+        }
+
+        public override Vector2 Velocity
+        {
+            get
             {
-                this.onDurationFinished = value;
+                return this.inDuration ? this.VelocityDuringDuration : Vector2.zero;
             }
         }
 
@@ -43,62 +38,77 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.movementDuration + this.delayDuration.ImmutableValue;
+                return this.CustomDuration + this.DelayDuration;
             }
         }
 
-        protected override void StartedMoving(Vector2 movementPosition, float speedBonus)
+        public override void StartMoving()
         {
-            base.StartedMoving(movementPosition, speedBonus);
+            base.StartMoving();
             this.inDuration = false;
-            this.movementDuration = GetDuration(movementPosition, speedBonus);
-        }
-
-        protected override void StoppedMoving()
-        {
-            base.StoppedMoving();
-            if (this.inDuration)
+            if (this.MovingDuration < this.DelayDuration)
             {
-                this.inDuration = false;
-                this.onDurationFinished?.Invoke();
+                return;
             }
-            this.movementDuration = 0;
+            if (this.MovingDuration < this.TotalDuration)
+            {
+                this.inDuration = true;
+                DurationStarted();
+                return;
+            }
+            DurationStarted();
+            DurationFinished();
         }
 
-        protected override void ContinueMoving(Vector2 movementPosition, float elapsedDuration, float elapsedDurationDelta, float speedBonus)
+        public override void StopMoving()
         {
-            base.ContinueMoving(movementPosition, elapsedDuration, elapsedDurationDelta, speedBonus);
-            
-            if (elapsedDuration <= this.movementDuration + this.delayDuration.ImmutableValue)
+            base.StopMoving();
+            this.inDuration = false;
+        }
+
+        public override void ContinueMovement()
+        {
+            base.ContinueMovement();
+            if (this.MovingDuration < this.DelayDuration)
+            {
+                return;
+            }
+            if (this.MovingDuration < this.TotalDuration)
             {
                 if (!this.inDuration)
                 {
                     this.inDuration = true;
-                    DurationStarted(elapsedDuration);
-                    this.onDurationStarted?.Invoke();
+                    DurationStarted();
                 }
                 return;
             }
-
             if (this.inDuration)
             {
                 this.inDuration = false;
-                DurationFinished(elapsedDuration);
-                this.onDurationFinished?.Invoke();
+                DurationFinished();
             }
         }
 
-        protected override Vector2 GetVelocity(Vector2 movementPosition, float elapsedDuration, float elapsedDurationDelta, float speedBonus)
+        protected float DelayDuration
         {
-            return this.inDuration ? GetVelocityDuringDuration((elapsedDuration - this.delayDuration.ImmutableValue) / this.movementDuration) : Vector2.zero;
+            get
+            {
+                return this.delayDuration.ImmutableValue;
+            }
         }
 
-        protected abstract float GetDuration(Vector2 movementPosition, float speedBonus);
+        protected abstract float CustomDuration
+        {
+            get;
+        }
 
-        protected virtual void DurationStarted(float elapsedDuration) { }
+        protected abstract Vector2 VelocityDuringDuration
+        {
+            get;
+        }
 
-        protected virtual void DurationFinished(float elapsedDuration) { }
+        protected virtual void DurationStarted() { }
 
-        protected abstract Vector2 GetVelocityDuringDuration(float normalizedProgress); 
+        protected virtual void DurationFinished() { }
     }
 }

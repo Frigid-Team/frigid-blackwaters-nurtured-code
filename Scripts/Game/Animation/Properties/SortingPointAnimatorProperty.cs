@@ -1,6 +1,7 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using System;
+using System.Collections.Generic;
 
 using FrigidBlackwaters.Utility;
 
@@ -13,13 +14,52 @@ namespace FrigidBlackwaters.Game
         private SortingGroup sortingGroup;
         [SerializeField]
         [HideInInspector]
+        private List<bool> shownInAnimations;
+        [SerializeField]
+        [HideInInspector]
         private Nested3DList<Vector2> localOffsets;
 
-        public override List<AnimatorProperty> ChildProperties
+        private Action<bool> onShownChanged;
+
+        public bool Shown
         {
             get
             {
-                return new List<AnimatorProperty>();
+                return this.Body.CurrAnimationIndex != -1 && GetBinded(this.Body.CurrAnimationIndex) && GetShownInAnimation(this.Body.CurrAnimationIndex);
+            }
+        }
+
+        public Action<bool> OnShownChanged
+        {
+            get
+            {
+                return this.onShownChanged;
+            }
+            set
+            {
+                this.onShownChanged = value;
+            }
+        }
+
+        public override int CurrentSortingOrder
+        {
+            get
+            {
+                return this.sortingGroup.sortingOrder;
+            }
+        }
+
+        public bool GetShownInAnimation(int animationIndex)
+        {
+            return this.shownInAnimations[animationIndex];
+        }
+
+        public void SetShownInAnimation(int animationIndex, bool shownInAnimation)
+        {
+            if (this.shownInAnimations[animationIndex] != shownInAnimation)
+            {
+                FrigidEditMode.RecordPotentialChanges(this);
+                this.shownInAnimations[animationIndex] = shownInAnimation;
             }
         }
 
@@ -42,9 +82,11 @@ namespace FrigidBlackwaters.Game
             FrigidEditMode.RecordPotentialChanges(this);
             this.sortingGroup = FrigidEditMode.AddComponent<SortingGroup>(this.gameObject);
             this.sortingGroup.sortingLayerName = FrigidSortingLayer.World.ToString();
+            this.shownInAnimations = new List<bool>();
             this.localOffsets = new Nested3DList<Vector2>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
             {
+                this.shownInAnimations.Add(false);
                 this.localOffsets.Add(new Nested2DList<Vector2>());
                 for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
                 {
@@ -61,6 +103,7 @@ namespace FrigidBlackwaters.Game
         public override void AnimationAddedAt(int animationIndex)
         {
             FrigidEditMode.RecordPotentialChanges(this);
+            this.shownInAnimations.Insert(animationIndex, false);
             this.localOffsets.Insert(animationIndex, new Nested2DList<Vector2>());
             for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
             {
@@ -76,6 +119,7 @@ namespace FrigidBlackwaters.Game
         public override void AnimationRemovedAt(int animationIndex)
         {
             FrigidEditMode.RecordPotentialChanges(this);
+            this.shownInAnimations.RemoveAt(animationIndex);
             this.localOffsets.RemoveAt(animationIndex);
             base.AnimationRemovedAt(animationIndex);
         }
@@ -112,6 +156,16 @@ namespace FrigidBlackwaters.Game
             base.OrientationRemovedAt(animationIndex, frameIndex, orientationIndex);
         }
 
+        public override void CopyPasteToAnotherAnimation(AnimatorProperty otherProperty, int fromAnimationIndex, int toAnimationIndex)
+        {
+            SortingPointAnimatorProperty otherSortingPointProperty = otherProperty as SortingPointAnimatorProperty;
+            if (otherSortingPointProperty)
+            {
+                otherSortingPointProperty.SetShownInAnimation(toAnimationIndex, GetShownInAnimation(fromAnimationIndex));
+            }
+            base.CopyPasteToAnotherAnimation(otherProperty, fromAnimationIndex, toAnimationIndex);
+        }
+
         public override void CopyPasteToAnotherOrientation(AnimatorProperty otherProperty, int fromAnimationIndex, int toAnimationIndex, int fromFrameIndex, int toFrameIndex, int fromOrientationIndex, int toOrientationIndex)
         {
             SortingPointAnimatorProperty otherSortingPointProperty = otherProperty as SortingPointAnimatorProperty;
@@ -122,11 +176,26 @@ namespace FrigidBlackwaters.Game
             base.CopyPasteToAnotherOrientation(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, fromOrientationIndex, toOrientationIndex);
         }
 
-        public override void OrientFrameEnter(int animationIndex, int frameIndex, int orientationIndex, float elapsedDuration)
+        public override void Initialize()
         {
-            this.sortingGroup.sortingOrder = GetSortingOrder(animationIndex, frameIndex, orientationIndex);
-            this.transform.localPosition = GetLocalOffset(animationIndex, frameIndex, orientationIndex);
-            base.OrientFrameEnter(animationIndex, frameIndex, orientationIndex, elapsedDuration);
+            base.Initialize();
+            this.Body.OnAnimationUpdated +=
+                (int prevAnimationIndex, int currAnimationIndex) =>
+                {
+                    bool prevShown = prevAnimationIndex != -1 && GetBinded(prevAnimationIndex) && GetShownInAnimation(prevAnimationIndex);
+                    bool currShown = currAnimationIndex != -1 && GetBinded(currAnimationIndex) && GetShownInAnimation(currAnimationIndex);
+                    if (prevShown != currShown) this.onShownChanged?.Invoke(currShown);
+                };
+        }
+
+        public override void OrientationEnter()
+        {
+            if (GetShownInAnimation(this.Body.CurrAnimationIndex))
+            {
+                this.sortingGroup.sortingOrder = GetSortingOrder(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                this.transform.localPosition = GetLocalOffset(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+            }
+            base.OrientationEnter();
         }
     }
 }

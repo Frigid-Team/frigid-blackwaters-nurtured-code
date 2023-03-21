@@ -13,6 +13,19 @@ namespace FrigidBlackwaters.Core
         [SerializeField]
         private List<Weighting> weightings;
 
+        public HashSet<T> Entries
+        {
+            get
+            {
+                HashSet<T> entries = new HashSet<T>();
+                foreach (Weighting weighting in this.weightings)
+                {
+                    entries.Add(weighting.Entry);
+                }
+                return entries;
+            }
+        }
+
         public T Retrieve()
         {
             return Retrieve(1)[0];
@@ -79,8 +92,7 @@ namespace FrigidBlackwaters.Core
             }
 
             System.Random random = new System.Random();
-            retrievals = retrievals.OrderBy((T retrieval) => { return random.Next(); }).ToList();
-            return retrievals.ToArray();
+            return retrievals.OrderBy((T retrieval) => { return random.Next(); }).ToArray();
         }
 
         [Serializable]

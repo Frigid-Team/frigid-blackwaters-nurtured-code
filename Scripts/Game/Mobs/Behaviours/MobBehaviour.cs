@@ -1,26 +1,60 @@
+using UnityEngine;
+using System.Collections.Generic;
+
 namespace FrigidBlackwaters.Game
 {
     public abstract class MobBehaviour : FrigidMonoBehaviour
     {
+        [SerializeField]
+        private List<SFX> sfxs;
+
         private Mob owner;
         private AnimatorBody ownerAnimatorBody;
 
-        public abstract bool Finished 
+        private float enterDuration;
+        private float enterDurationDelta;
+
+        public virtual bool IsFinished 
         {
-            get; 
+            get
+            {
+                return false;
+            } 
         }
 
-        public void Assign(Mob owner, AnimatorBody ownerAnimatorBody)
+        public void Assign(Mob actor, AnimatorBody ownerAnimatorBody)
         {
-            this.owner = owner;
+            this.owner = actor;
             this.ownerAnimatorBody = ownerAnimatorBody;
         }
 
-        public virtual void Apply() { }
+        public void Unassign()
+        {
+            this.owner = null;
+            this.ownerAnimatorBody = null;
+        }
 
-        public virtual void Unapply() { }
+        public virtual void Added() { }
 
-        public virtual void Perform() { }
+        public virtual void Removed() { }
+
+        public virtual void Enter() 
+        {
+            foreach (SFX sfx in this.sfxs) sfx.Play(this.OwnerAnimatorBody);
+            this.enterDuration = 0;
+            this.enterDurationDelta = 0;
+        }
+
+        public virtual void Exit() 
+        {
+            foreach (SFX sfx in this.sfxs) sfx.Stop();
+        }
+
+        public virtual void Refresh() 
+        {
+            this.enterDurationDelta = Time.deltaTime * (this.Owner.GetIsIgnoringTimeScale(this) ? 1f : this.Owner.RequestedTimeScale);
+            this.enterDuration += this.enterDurationDelta;
+        }
 
         protected Mob Owner
         {
@@ -35,6 +69,22 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.ownerAnimatorBody;
+            }
+        }
+
+        protected float EnterDuration
+        {
+            get
+            {
+                return this.enterDuration;
+            }
+        }
+
+        protected float EnterDurationDelta
+        {
+            get
+            {
+                return this.enterDurationDelta;
             }
         }
     }

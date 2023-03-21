@@ -1,28 +1,17 @@
-using System.Collections.Generic;
-using UnityEngine;
-
 namespace FrigidBlackwaters.Game
 {
     public class ContainerItemStash : ItemStash
     {
-        private ItemContainer itemContainer;
+        private ItemContainer container;
 
-        public ContainerItemStash(
-            ItemContainer itemContainer, 
-            List<Mob> usingMobs,
-            ItemPowerBudget itemPowerBudget,
-            ItemCurrencyWallet itemCurrencyWallet,
-            float buyCostModifier,
-            float sellCostModifier,
-            Transform stashTransform
-            ) : base(usingMobs, itemPowerBudget, itemCurrencyWallet, buyCostModifier, sellCostModifier, stashTransform)
+        public ContainerItemStash(ItemContainer container, ItemStorage itemStorage) : base(itemStorage)
         {
-            this.itemContainer = itemContainer;
+            this.container = container;
         }
 
-        protected override int CalculateMaxCapacity(ItemStorable itemStorable)
+        protected override int CalculateMaxCapacity(ItemStorable storable)
         {
-            return this.itemContainer.CalculateMaxCapacityFromStorable(itemStorable);
+            return this.container.CalculateMaxCapacityFromStorable(storable);
         }
     }
 }

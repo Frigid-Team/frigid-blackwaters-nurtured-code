@@ -1,32 +1,157 @@
 using System.Collections.Generic;
+using System;
 
 namespace FrigidBlackwaters.Game
 {
     public abstract class Item : FrigidMonoBehaviour
     {
-        public abstract bool IsUsable { get; }
+        private ItemStorage storage;
 
-        public abstract bool IsInEffect { get; }
-        
-        public virtual bool Used(List<Mob> usingMobs, ItemPowerBudget itemPowerBudget) { return false; }
+        private HashSet<ItemNode> activeRootNodes;
+        private Dictionary<ItemNode, FrigidCoroutine> enteredRootNodeRoutines;
 
-        public virtual void Stashed(List<Mob> usingMobs, ItemPowerBudget itemPowerBudget) { }
-
-        public virtual void Unstashed(List<Mob> usingMobs, ItemPowerBudget itemPowerBudget) { }
-
-        protected void ApplyItemRule(List<Mob> usingMobs, ItemRule itemRule)
+        public ItemStorage Storage
         {
-            foreach (Mob usingMob in usingMobs)
+            get
             {
-                itemRule.ApplyToMob(usingMob);
+                return this.storage;
             }
         }
 
-        protected void UnapplyItemRule(List<Mob> usingMobs, ItemRule itemRule)
+        protected abstract HashSet<ItemNode> RootNodes { get; }
+
+        public abstract bool IsUsable { get; }
+
+        public abstract bool IsInEffect { get; }
+
+        public void Assign(ItemStorage storage)
         {
-            foreach (Mob usingMob in usingMobs)
+            this.storage = storage;
+        }
+
+        public void Unassign()
+        {
+            this.storage = null;
+        }
+ 
+        public virtual void Stored() 
+        {
+            foreach (ItemNode activeRootNode in this.activeRootNodes)
             {
-                itemRule.UnapplyToMob(usingMob);
+                EnterRootNode(activeRootNode);
+            }
+        }
+
+        public virtual void Unstored() 
+        {
+            foreach (ItemNode activeRootNode in this.activeRootNodes)
+            {
+                ExitRootNode(activeRootNode);
+            }
+        }
+        
+        public virtual bool Used() { return false; }
+
+        public virtual void Stashed() { }
+
+        public virtual void Unstashed() { }
+
+        public void AddBehaviourToMob(MobBehaviour behaviour)
+        {
+            if (this.Storage.TryGetUsingMob(out Mob usingMob))
+            {
+                usingMob.AddBehaviour(behaviour, true);
+            }
+        }
+
+        public void RemoveBehaviourFromMob(MobBehaviour behaviour)
+        {
+            if (this.Storage.TryGetUsingMob(out Mob usingMob))
+            {
+                usingMob.RemoveBehaviour(behaviour);
+            }
+        }
+
+        protected override void Awake()
+        {
+            base.Awake();
+            this.activeRootNodes = new HashSet<ItemNode>();
+            this.enteredRootNodeRoutines = new Dictionary<ItemNode, FrigidCoroutine>();
+            foreach (ItemNode rootNode in this.RootNodes)
+            {
+                VisitRootAndChildren(
+                    rootNode, 
+                    (ItemNode node) => 
+                    {
+                        node.Link(this);
+                        node.Init();
+                    }
+                    );
+            }
+        }
+
+        protected void ActivateRootNode(ItemNode rootNode)
+        {
+            if (!this.activeRootNodes.Contains(rootNode))
+            {
+                this.activeRootNodes.Add(rootNode);
+                EnterRootNode(rootNode);
+            }
+        }
+
+        protected void DeactivateRootNode(ItemNode rootNode)
+        {
+            if (this.activeRootNodes.Contains(rootNode))
+            {
+                ExitRootNode(rootNode);
+                this.activeRootNodes.Remove(rootNode);
+            }
+        }
+
+        private void EnterRootNode(ItemNode rootNode)
+        {
+            if (!this.enteredRootNodeRoutines.ContainsKey(rootNode) && this.Storage.TryGetUsingMob(out _))
+            {
+                rootNode.Enter();
+                this.enteredRootNodeRoutines.Add(rootNode, FrigidCoroutine.Run(NodeRefresh(rootNode), this.gameObject));
+            }
+        }
+
+        private void ExitRootNode(ItemNode rootNode)
+        {
+            if (this.enteredRootNodeRoutines.TryGetValue(rootNode, out FrigidCoroutine refreshRoutine) && this.Storage.TryGetUsingMob(out _))
+            {
+                rootNode.Exit();
+                FrigidCoroutine.Kill(refreshRoutine);
+                this.enteredRootNodeRoutines.Remove(rootNode);
+            }
+        }
+
+        private IEnumerator<FrigidCoroutine.Delay> NodeRefresh(ItemNode node)
+        {
+            while (true)
+            {
+                node.Refresh();
+                yield return null;
+            }
+        }
+
+        private void VisitRootAndChildren(ItemNode rootNode, Action<ItemNode> onVisited)
+        {
+            HashSet<ItemNode> visitedNodes = new HashSet<ItemNode>();
+            Queue<ItemNode> nextNodes = new Queue<ItemNode>();
+            nextNodes.Enqueue(rootNode);
+            while (nextNodes.TryDequeue(out ItemNode nextNode))
+            {
+                if (!visitedNodes.Contains(nextNode))
+                {
+                    visitedNodes.Add(nextNode);
+                    foreach (ItemNode referencedNode in nextNode.ReferencedNodes)
+                    {
+                        nextNodes.Enqueue(referencedNode);
+                    }
+                    onVisited.Invoke(nextNode);
+                }
             }
         }
 

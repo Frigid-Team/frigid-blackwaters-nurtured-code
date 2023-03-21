@@ -10,7 +10,7 @@ namespace FrigidBlackwaters.Core
         private static bool dashHeld;
         private static bool attackHeld;
         private static bool dockHeld;
-        private static CountingSemaphore disabled;
+        private static ControlCounter disabled;
 
         public static Vector2 AimWorldPosition
         {
@@ -32,6 +32,10 @@ namespace FrigidBlackwaters.Core
         {
             get
             {
+                if (CurrentMovementVector != Vector2.zero)
+                {
+                    lastInputtedMovementVector = CurrentMovementVector;
+                }
                 return lastInputtedMovementVector;
             }
             set
@@ -64,7 +68,7 @@ namespace FrigidBlackwaters.Core
             }
         }
 
-        public static CountingSemaphore Disabled
+        public static ControlCounter Disabled
         {
             get
             {
@@ -83,24 +87,12 @@ namespace FrigidBlackwaters.Core
             playerActions.Character.Attack.canceled += AttackCanceled;
             playerActions.Character.Dock.started += DockStarted;
             playerActions.Character.Dock.canceled += DockCanceled;
-            disabled = new CountingSemaphore();
+            disabled = new ControlCounter();
             disabled.OnFirstRequest += playerActions.Character.Disable;
             disabled.OnLastRelease += playerActions.Character.Enable;
             dashHeld = false;
             attackHeld = false;
             dockHeld = false;
-        }
-
-        public static void LockMovementVector(Vector2 temporaryLastInputtedMovementVector)
-        {
-            lastInputtedMovementVector = temporaryLastInputtedMovementVector;
-            playerActions.Character.Movement.performed -= CheckMovementVector;
-        }
-
-        public static void UnlockMovementVector()
-        {
-            CheckMovementVector(new InputAction.CallbackContext());
-            playerActions.Character.Movement.performed += CheckMovementVector;
         }
 
         private static void CheckMovementVector(InputAction.CallbackContext callback)

@@ -42,6 +42,22 @@ namespace FrigidBlackwaters.Game
                         EditorGUILayout.Vector2Field("", colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, index))
                         )
                     );
+                    if (GUILayout.Button("Rotate Points"))
+                    {
+                        FrigidPopupWindow.Show(
+                            GUILayoutUtility.GetLastRect(), 
+                            new RotatePolygonPopup(
+                                (Vector2 origin, float angleRad) => 
+                                {
+                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                    {
+                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
+                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angleRad));
+                                    }
+                                }
+                                )
+                            );
+                    }
                     break;
                 case ColliderAnimatorPropertyShapeType.Circle:
                     colliderProperty.SetCenter(
@@ -89,7 +105,7 @@ namespace FrigidBlackwaters.Game
             base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
         }
 
-        public override void DrawPreview(
+        public override Vector2 DrawPreview(
             Vector2 previewSize,
             Vector2 previewOffset,
             float worldToWindowScalingFactor,
@@ -316,7 +332,7 @@ namespace FrigidBlackwaters.Game
                     }
                     break;
             }
-            base.DrawPreview(previewSize, previewOffset, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected, out List<(Rect rect, Action onDrag)> baseDragRequests);
+            return Vector2.zero;
         }
 
         public override void DrawOrientationCellPreview(
@@ -407,6 +423,32 @@ namespace FrigidBlackwaters.Game
             }
 
             base.DrawOrientationCellPreview(cellSize, animationIndex, frameIndex, orientationIndex);
+        }
+
+        private class RotatePolygonPopup : FrigidPopupWindow
+        {
+            private Action<Vector2, float> onFinished;
+            private Vector2 origin;
+            private float angleRad;
+
+            public RotatePolygonPopup(Action<Vector2, float> onFinished)
+            {
+                this.onFinished = onFinished;
+                this.origin = Vector2.zero;
+                this.angleRad = 0;
+            }
+
+            protected override void Draw()
+            {
+                EditorGUILayout.LabelField("Enter Rotate Params Below");
+                this.origin = EditorGUILayout.Vector2Field("Origin", this.origin);
+                this.angleRad = EditorGUILayout.FloatField("Angle", this.angleRad * Mathf.Rad2Deg) * Mathf.Deg2Rad;
+                if (GUILayout.Button("Done"))
+                {
+                    this.onFinished?.Invoke(this.origin, this.angleRad);
+                    this.editorWindow.Close();
+                }
+            }
         }
     }
 }

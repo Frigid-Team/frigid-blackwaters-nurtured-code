@@ -44,7 +44,6 @@ namespace FrigidBlackwaters.Core
                 );
         }
 
-
         public static IEnumerator<FrigidCoroutine.Delay> Value(
             float iterationDuration,
             Color from,
@@ -184,7 +183,7 @@ namespace FrigidBlackwaters.Core
                     onUpdate?.Invoke(elapsedDuration / iterationDuration);
                     while (elapsedDuration < iterationDuration)
                     {
-                        elapsedDuration += useRealTime ? Time.unscaledDeltaTime : Time.deltaTime;
+                        elapsedDuration += useRealTime ? FrigidCoroutine.UnscaledDeltaTime : FrigidCoroutine.DeltaTime;
                         onUpdate?.Invoke(tweenFunc.Invoke(0, 1, Mathf.Clamp01(elapsedDuration / iterationDuration)));
                         yield return null;
                     }
@@ -197,7 +196,7 @@ namespace FrigidBlackwaters.Core
                     elapsedDuration = iterationDuration;
                     while (elapsedDuration > 0)
                     {
-                        elapsedDuration -= useRealTime ? Time.unscaledDeltaTime : Time.deltaTime;
+                        elapsedDuration -= useRealTime ? FrigidCoroutine.UnscaledDeltaTime : FrigidCoroutine.DeltaTime;
                         onUpdate?.Invoke(tweenFunc.Invoke(0, 1, Mathf.Clamp01(elapsedDuration / iterationDuration)));
                         yield return null;
                     }

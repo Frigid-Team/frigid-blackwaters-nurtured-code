@@ -1,17 +1,25 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
 using FrigidBlackwaters.Core;
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
     public class Consumable : Item
     {
         [SerializeField]
-        private List<ItemRuleApplication> itemRuleApplications;
-        [SerializeField]
         private IntSerializedReference consumePowerUsage;
+        [SerializeField]
+        private bool hasConsumedEffect;
+        [SerializeField]
+        [ShowIfBool("hasConsumedEffect", true)]
+        private ItemNode consumedRootNode;
+        [SerializeField]
+        private bool hasUnconsumedEffect;
+        [SerializeField]
+        [ShowIfBool("hasUnconsumedEffect", true)]
+        private ItemNode unconsumedRootNode;
 
         public override bool IsUsable
         {
@@ -29,66 +37,38 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override bool Used(List<Mob> usingMobs, ItemPowerBudget itemPowerBudget)
+        protected override HashSet<ItemNode> RootNodes
         {
-            if (itemPowerBudget.TryUsePower(this, this.consumePowerUsage.ImmutableValue))
+            get
             {
-                foreach (ItemRuleApplication itemRuleApplication in this.itemRuleApplications)
-                {
-                    FrigidCoroutine.Run(
-                        itemRuleApplication.ApplyRoutine.GetRoutine(
-                            onIterationComplete:
-                            () =>
-                            {
-                                UnapplyItemRule(usingMobs, itemRuleApplication.ItemRule);
-                                ApplyItemRule(usingMobs, itemRuleApplication.ItemRule);
-                            },
-                            onComplete: () =>
-                            {
-                                if (!itemRuleApplication.LastsForever) UnapplyItemRule(usingMobs, itemRuleApplication.ItemRule);
-                            }
-                            ),
-                        this.gameObject
-                        );
-                }
+                HashSet<ItemNode> rootNodes = new HashSet<ItemNode>();
+                if (this.hasConsumedEffect) rootNodes.Add(this.consumedRootNode);
+                if (this.hasUnconsumedEffect) rootNodes.Add(this.unconsumedRootNode);
+                return rootNodes;
+            }
+        }
+
+        public override bool Used()
+        {
+            if (this.Storage.PowerBudget.TryUsePower(this, this.consumePowerUsage.ImmutableValue))
+            {
+                if (this.hasUnconsumedEffect) DeactivateRootNode(this.unconsumedRootNode);
+                if (this.hasConsumedEffect) ActivateRootNode(this.consumedRootNode);
                 return true;
             }
             return false;
         }
 
-        [Serializable]
-        private struct ItemRuleApplication
+        public override void Stored()
         {
-            [SerializeField]
-            private ItemRule itemRule;
-            [SerializeField]
-            private TweenCoroutineTemplate applyRoutine;
-            [SerializeField]
-            private bool lastsForever;
+            base.Stored();
+            if (this.hasUnconsumedEffect) ActivateRootNode(this.unconsumedRootNode);
+        }
 
-            public ItemRule ItemRule
-            {
-                get
-                {
-                    return this.itemRule;
-                }
-            }
-
-            public TweenCoroutineTemplate ApplyRoutine
-            {
-                get
-                {
-                    return this.applyRoutine;
-                }
-            }
-
-            public bool LastsForever
-            {
-                get
-                {
-                    return this.lastsForever;
-                }
-            }
+        public override void Unstored()
+        {
+            base.Unstored();
+            if (this.hasUnconsumedEffect) DeactivateRootNode(this.unconsumedRootNode);
         }
     }
 }

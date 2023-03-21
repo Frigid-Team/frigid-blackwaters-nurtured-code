@@ -1,6 +1,7 @@
 using System.Collections.Generic;
-using System;
 using UnityEngine;
+
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
@@ -10,19 +11,17 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Vector2Int mainAreaDimensions;
         [SerializeField]
-        private TileTerrain[] terrains;
+        private List<TerrainTileAsset> terrainTileAssets;
         [SerializeField]
-        private string[] terrainTileIds;
+        private WallTileAsset wallTileAsset;
         [SerializeField]
-        private string wallTileId;
+        private Nested2DList<TerrainContentAsset> terrainContentAssets;
         [SerializeField]
-        private TerrainContentIDsPerHeight[] terrainContentIdsPerHeight;
+        private Nested2DList<Vector2> terrainContentOrientationDirections;
         [SerializeField]
-        private TerrainContentOrientationsPerHeight[] terrainContentOrientationsPerHeight;
+        private Nested2DList<WallContentAsset> wallContentAssets;
         [SerializeField]
-        private WallContentIDsPerWall[] wallContentIdsPerWall;
-        [SerializeField]
-        private WallContentOrientationsPerWall[] wallContentOrientationsPerWall;
+        private Nested2DList<Vector2> wallContentOrientationDirections;
         [SerializeField]
         private TileTerrain[] entranceTerrains;
         [SerializeField]
@@ -31,25 +30,18 @@ namespace FrigidBlackwaters.Game
         public void Setup(Vector2Int mainAreaDimensions)
         {
             this.mainAreaDimensions = mainAreaDimensions;
-            this.terrains = new TileTerrain[mainAreaDimensions.x * mainAreaDimensions.y];
-            this.terrainTileIds = new string[mainAreaDimensions.x * mainAreaDimensions.y];
-            this.terrainContentIdsPerHeight = new TerrainContentIDsPerHeight[(int)TerrainContentHeight.Count];
-            this.terrainContentOrientationsPerHeight = new TerrainContentOrientationsPerHeight[(int)TerrainContentHeight.Count];
+            this.terrainTileAssets = new List<TerrainTileAsset>(new TerrainTileAsset[mainAreaDimensions.x * mainAreaDimensions.y]);
+            this.wallTileAsset = null;
+            this.terrainContentAssets = new Nested2DList<TerrainContentAsset>();
             for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
             {
-                this.terrainContentIdsPerHeight[i] = new TerrainContentIDsPerHeight(mainAreaDimensions);
-                this.terrainContentOrientationsPerHeight[i] = new TerrainContentOrientationsPerHeight(mainAreaDimensions);
+                this.terrainContentAssets.Add(new Nested1DList<TerrainContentAsset>(new TerrainContentAsset[mainAreaDimensions.x * mainAreaDimensions.y]));
             }
-            this.wallContentIdsPerWall = new WallContentIDsPerWall[4];
-            this.wallContentOrientationsPerWall = new WallContentOrientationsPerWall[4];
-            this.wallContentIdsPerWall[0] = new WallContentIDsPerWall(this.mainAreaDimensions.y);
-            this.wallContentOrientationsPerWall[0] = new WallContentOrientationsPerWall(this.mainAreaDimensions.y);
-            this.wallContentIdsPerWall[1] = new WallContentIDsPerWall(this.mainAreaDimensions.x);
-            this.wallContentOrientationsPerWall[1] = new WallContentOrientationsPerWall(this.mainAreaDimensions.x);
-            this.wallContentIdsPerWall[2] = new WallContentIDsPerWall(this.mainAreaDimensions.y);
-            this.wallContentOrientationsPerWall[2] = new WallContentOrientationsPerWall(this.mainAreaDimensions.y);
-            this.wallContentIdsPerWall[3] = new WallContentIDsPerWall(this.mainAreaDimensions.x);
-            this.wallContentOrientationsPerWall[3] = new WallContentOrientationsPerWall(this.mainAreaDimensions.x);
+            this.wallContentAssets = new Nested2DList<WallContentAsset>();
+            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.y]));
+            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.x]));
+            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.y]));
+            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.x]));
             this.entranceTerrains = new TileTerrain[4];
             this.mobGenerationPresets = new List<TiledAreaMobGenerationPreset>();
         }
@@ -70,18 +62,6 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public string WallTileID
-        {
-            get
-            {
-                return this.wallTileId;
-            }
-            set
-            {
-                this.wallTileId = value;
-            }
-        }
-
         public TileTerrain[] EntranceTerrains
         {
             get
@@ -98,64 +78,64 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public TileTerrain GetTerrainAtTile(Vector2Int positionIndices)
+        public TerrainTileAsset GetTerrainTileAssetAt(Vector2Int tileIndices)
         {
-            return this.terrains[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x];
+            return this.terrainTileAssets[tileIndices.y * this.mainAreaDimensions.x + tileIndices.x];
         }
 
-        public void SetTerrainAtTile(Vector2Int positionIndices, TileTerrain newTerrain)
+        public void SetTerrainTileAssetAt(Vector2Int tileIndices, TerrainTileAsset terrainTileAsset)
         {
-            this.terrains[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x] = newTerrain;
+            this.terrainTileAssets[tileIndices.y * this.mainAreaDimensions.x + tileIndices.x] = terrainTileAsset;
         }
 
-        public string GetTerrainTileIDAtTile(Vector2Int positionIndices)
+        public TerrainContentAsset GetTerrainContentAssetAt(TerrainContentHeight height, Vector2Int tileIndices)
         {
-            return this.terrainTileIds[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x];
+            return this.terrainContentAssets[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x];
         }
 
-        public void SetTerrainTileIDAtTile(Vector2Int positionIndices, string newId)
+        public void SetTerrainContentAssetAt(TerrainContentHeight height, Vector2Int tileIndices, TerrainContentAsset terrainContentAsset)
         {
-            this.terrainTileIds[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x] = newId;
+            this.terrainContentAssets[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x] = terrainContentAsset;
         }
 
-        public string GetTerrainContentIDAtTile(Vector2Int positionIndices, TerrainContentHeight height)
+        public Vector2 GetTerrainContentOrientationDirectionAt(Vector2Int tileIndices, TerrainContentHeight height)
         {
-            return this.terrainContentIdsPerHeight[(int)height].TerrainContentIds[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x];
+            return this.terrainContentOrientationDirections[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x];
         }
 
-        public void SetTerrainContentIDAtTile(Vector2Int positionIndices, TerrainContentHeight height, string newId)
+        public void SetTerrainContentOrientationDirectionAt(Vector2Int tileIndices, TerrainContentHeight height, Vector2 orientationDirection)
         {
-            this.terrainContentIdsPerHeight[(int)height].TerrainContentIds[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x] = newId;
+            this.terrainContentOrientationDirections[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x] = orientationDirection;
         }
 
-        public Vector2 GetTerrainContentOrientationDirectionAtTile(Vector2Int positionIndices, TerrainContentHeight height)
+        public WallTileAsset GetWallTileAsset()
         {
-            return this.terrainContentOrientationsPerHeight[(int)height].TerrainContentOrientationDirections[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x];
+            return this.wallTileAsset;
         }
 
-        public void SetTerrainContentOrientationDirectionAtTile(Vector2Int positionIndices, TerrainContentHeight height, Vector2 orientationDirection)
+        public void SetWallTileAsset(WallTileAsset wallTileAsset)
         {
-            this.terrainContentOrientationsPerHeight[(int)height].TerrainContentOrientationDirections[positionIndices.y * this.mainAreaDimensions.x + positionIndices.x] = orientationDirection;
+            this.wallTileAsset = wallTileAsset;
         }
 
-        public string GetWallContentIDAtTile(Vector2Int wallDirection, int tileIndex)
+        public WallContentAsset GetWallContentAssetAt(Vector2Int wallDirection, int tileIndex)
         {
-            return this.wallContentIdsPerWall[TilePositioning.WallArrayIndex(wallDirection)].WallContentIDs[tileIndex];
+            return this.wallContentAssets[TilePositioning.WallArrayIndex(wallDirection)][tileIndex];
         }
 
-        public void SetWallContentIDAtTile(Vector2Int wallDirection, int tileIndex, string newId)
+        public void SetWallContentAssetAt(Vector2Int wallDirection, int tileIndex, WallContentAsset wallContentAsset)
         {
-            this.wallContentIdsPerWall[TilePositioning.WallArrayIndex(wallDirection)].WallContentIDs[tileIndex] = newId;
+            this.wallContentAssets[TilePositioning.WallArrayIndex(wallDirection)][tileIndex] = wallContentAsset;
         }
 
-        public Vector2 GetWallContentOrientationDirectionAtTile(Vector2Int wallDirection, int tileIndex)
+        public Vector2 GetWallContentOrientationDirectionAt(Vector2Int wallDirection, int tileIndex)
         {
-            return this.wallContentOrientationsPerWall[TilePositioning.WallArrayIndex(wallDirection)].WallContentOrientationDirections[tileIndex];
+            return this.wallContentOrientationDirections[TilePositioning.WallArrayIndex(wallDirection)][tileIndex];
         }
 
-        public void SetWallContentOrientationDirectionAtTile(Vector2Int wallDirection, int tileIndex, Vector2 orientationDirection)
+        public void SetWallContentOrientationDirectionAt(Vector2Int wallDirection, int tileIndex, Vector2 orientationDirection)
         {
-            this.wallContentOrientationsPerWall[TilePositioning.WallArrayIndex(wallDirection)].WallContentOrientationDirections[tileIndex] = orientationDirection;
+            this.wallContentOrientationDirections[TilePositioning.WallArrayIndex(wallDirection)][tileIndex] = orientationDirection;
         }
 
         public TileTerrain GetEntranceTerrain(Vector2Int wallDirection)
@@ -166,87 +146,6 @@ namespace FrigidBlackwaters.Game
         public void SetEntranceTerrain(TileTerrain terrain, Vector2Int wallDirection)
         {
             this.entranceTerrains[TilePositioning.WallArrayIndex(wallDirection)] = terrain;
-        }
-
-        [Serializable]
-        private struct TerrainContentIDsPerHeight
-        {
-            [SerializeField]
-            private string[] terrainContentIds;
-
-            public TerrainContentIDsPerHeight(Vector2Int dimensions)
-            {
-                this.terrainContentIds = new string[dimensions.x * dimensions.y];
-            }
-
-            public string[] TerrainContentIds
-            {
-                get
-                {
-                    return this.terrainContentIds;
-                }
-            }
-        }
-
-
-        [Serializable]
-        private struct TerrainContentOrientationsPerHeight
-        {
-            [SerializeField]
-            private Vector2[] terrainContentOrientationDirections;
-
-            public TerrainContentOrientationsPerHeight(Vector2Int dimensions)
-            {
-                this.terrainContentOrientationDirections = new Vector2[dimensions.x * dimensions.y];
-            }
-
-            public Vector2[] TerrainContentOrientationDirections
-            {
-                get
-                {
-                    return this.terrainContentOrientationDirections;
-                }
-            }
-        }
-
-        [Serializable]
-        private struct WallContentIDsPerWall
-        {
-            [SerializeField]
-            private string[] wallContentIds;
-
-            public WallContentIDsPerWall(int wallLength)
-            {
-                this.wallContentIds = new string[wallLength];
-            }
-            
-            public string[] WallContentIDs
-            {
-                get
-                {
-                    return this.wallContentIds;
-                }
-            }
-        }
-
-        [Serializable]
-        private struct WallContentOrientationsPerWall
-        {
-            [SerializeField]
-            private Vector2[] wallContentOrientationDirections;
-
-            public WallContentOrientationsPerWall(int wallLength)
-            {
-                this.wallContentOrientationDirections = new Vector2[wallLength];
-            }
-
-            public Vector2[] WallContentOrientationDirections
-            {
-                get
-                {
-                    return this.wallContentOrientationDirections;
-                }
-            }
         }
     }
 }

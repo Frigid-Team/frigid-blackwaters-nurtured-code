@@ -12,31 +12,31 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Text displayNameText;
 
-        private ItemContainer itemContainer;
+        private ItemContainer container;
 
-        public void Populate(ItemContainer itemContainer, Action onClicked)
+        public void Populate(ItemContainer container, Action onClicked)
         {
-            this.itemContainer = itemContainer;
+            this.container = container;
 
             this.button.onClick.RemoveAllListeners();
             this.button.onClick.AddListener(() => onClicked.Invoke());
-            this.button.image.sprite = itemContainer.SmallIcon;
+            this.button.image.sprite = container.SmallIcon;
             this.button.enabled = true;
 
-            this.displayNameText.text = itemContainer.DisplayName;
+            this.displayNameText.text = container.DisplayName;
             this.displayNameText.enabled = false;
         }
 
         public void Focus()
         {
             this.button.enabled = false;
-            this.button.image.sprite = this.itemContainer.LargeIcon;
+            this.button.image.sprite = this.container.LargeIcon;
         }
 
         public void Unfocus()
         {
             this.button.enabled = true;
-            this.button.image.sprite = this.itemContainer.SmallIcon;
+            this.button.image.sprite = this.container.SmallIcon;
         }
 
         public void OnPointerEnter(PointerEventData eventData)

@@ -3,19 +3,24 @@ using System;
 using UnityEngine;
 
 using FrigidBlackwaters.Core;
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
     public class ItemStorage : FrigidMonoBehaviour
     {
         private static SceneVariable<HashSet<ItemStorage>> findableStorages;
+        private static SceneVariable<Dictionary<Mob, ItemStorage>> mobsToStorages;
 
+        [SerializeField]
+        private bool hasUsingMob;
+        [SerializeField]
+        [ShowIfBool("hasUsingMob", true)]
+        private Mob usingMob;
         [SerializeField]
         private List<AccessZone> accessZones;
         [SerializeField]
-        private List<ItemContainer> defaultItemContainers;
-        [SerializeField]
-        private List<Mob> usingMobs;
+        private List<ItemContainer> defaultContainers;
         [SerializeField]
         private IntSerializedReference baseMaxPower;
         [SerializeField]
@@ -27,36 +32,30 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference sellCostModifier;
 
-        private ItemPowerBudget itemPowerBudget;
-        private ItemCurrencyWallet itemCurrencyWallet;
+        private ItemPowerBudget powerBudget;
+        private ItemCurrencyWallet currencyWallet;
         private List<ItemStorageGrid> storageGrids;
+        private HashSet<Item> storedItems;
 
         static ItemStorage()
         {
-            findableStorages = new SceneVariable<HashSet<ItemStorage>>(() => { return new HashSet<ItemStorage>(); });
+            findableStorages = new SceneVariable<HashSet<ItemStorage>>(() => new HashSet<ItemStorage>());
+            mobsToStorages = new SceneVariable<Dictionary<Mob, ItemStorage>>(() => new Dictionary<Mob, ItemStorage>());
         }
 
-        public List<Mob> UsingMobs
+        public ItemPowerBudget PowerBudget
         {
             get
             {
-                return this.usingMobs;
+                return this.powerBudget;
             }
         }
 
-        public ItemPowerBudget ItemPowerBudget
+        public ItemCurrencyWallet CurrencyWallet
         {
             get
             {
-                return this.itemPowerBudget;
-            }
-        }
-
-        public ItemCurrencyWallet ItemCurrencyWallet
-        {
-            get
-            {
-                return this.itemCurrencyWallet;
+                return this.currencyWallet;
             }
         }
 
@@ -68,11 +67,27 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public static bool TryFindNearestActiveStorage(Vector2 position, List<ItemStorage> excludedStorages, out ItemStorage nearbyStorage, out Vector2 nearestAbsoluteAccessPosition)
+        public float BuyCostModifier
+        {
+            get
+            {
+                return this.buyCostModifier.ImmutableValue;
+            }
+        }
+
+        public float SellCostModifier
+        {
+            get
+            {
+                return this.sellCostModifier.ImmutableValue;
+            }
+        }
+
+        public static bool TryGetNearestFindableStorage(Vector2 position, List<ItemStorage> excludedStorages, out ItemStorage nearbyStorage, out Vector2 nearestAccessPosition)
         {
             float closestDistance = float.MaxValue;
             nearbyStorage = null;
-            nearestAbsoluteAccessPosition = position;
+            nearestAccessPosition = position;
             bool foundStorage = false;
             foreach (ItemStorage findableStorage in findableStorages.Current)
             {
@@ -82,24 +97,22 @@ namespace FrigidBlackwaters.Game
                 {
                     closestDistance = Vector2.Distance(accessPosition, position);
                     nearbyStorage = findableStorage;
-                    nearestAbsoluteAccessPosition = accessPosition;
+                    nearestAccessPosition = accessPosition;
                     foundStorage = true;
                 }
             }
             return foundStorage;
         }
 
-        public static List<ItemStorage> FindStoragesUsedByMob(Mob mob)
+        public static bool TryGetStorageUsedByMob(Mob mob, out ItemStorage storage)
         {
-            List<ItemStorage> foundStorages = new List<ItemStorage>();
-            foreach (ItemStorage findableStorage in findableStorages.Current)
-            {
-                if (findableStorage.UsingMobs.Contains(mob))
-                {
-                    foundStorages.Add(findableStorage);
-                }
-            }
-            return foundStorages;
+            return mobsToStorages.Current.TryGetValue(mob, out storage);
+        }
+
+        public bool TryGetUsingMob(out Mob usingMob)
+        {
+            usingMob = this.usingMob;
+            return this.hasUsingMob;
         }
 
         public bool IsAccessibleFromPosition(Vector2 position, out Vector2 accessPosition)
@@ -122,55 +135,70 @@ namespace FrigidBlackwaters.Game
             return foundAccess;
         }
 
-        public void SetStorageGridsFromContainers(List<ItemContainer> itemContainers)
+        public void SetStorageGridsFromContainers(List<ItemContainer> containers)
         {
-            if (itemContainers.Count == 0)
+            if (containers.Count == 0)
             {
                 Debug.LogWarning("Setting storage grids on " + this.name + " with no item containers.");
                 return;
             }
 
             this.storageGrids.Clear();
-            foreach (ItemContainer itemContainer in itemContainers)
+            foreach (ItemContainer container in containers)
             {
-                this.storageGrids.Add(
-                    new ItemStorageGrid(
-                        itemContainer,
-                        this.usingMobs,
-                        this.itemPowerBudget,
-                        this.itemCurrencyWallet,
-                        this.buyCostModifier.ImmutableValue,
-                        this.sellCostModifier.ImmutableValue,
-                        this.transform
-                        )
-                    );
+                this.storageGrids.Add(new ItemStorageGrid(container, this));
+            }
+        }
+
+        public void AddStoredItems(IEnumerable<Item> items)
+        {
+            foreach (Item item in items)
+            {
+                if (this.storedItems.Add(item))
+                {
+                    item.Assign(this);
+                    item.transform.SetParent(this.transform);
+                    item.Stored();
+                }
+            }
+        }
+
+        public void RemoveStoredItems(IEnumerable<Item> items)
+        {
+            foreach (Item item in items)
+            {
+                if (this.storedItems.Remove(item))
+                {
+                    item.Unstored();
+                    item.Unassign();
+                    item.transform.SetParent(null);
+                }
             }
         }
 
         protected override void Awake()
         {
             base.Awake();
-            this.itemPowerBudget = new ItemPowerBudget(this.baseMaxPower.ImmutableValue);
-            this.itemCurrencyWallet = new ItemCurrencyWallet(this.isIgnoringTransactionCosts, this.initialCurrencyCount.ImmutableValue);
+            this.powerBudget = new ItemPowerBudget(this.baseMaxPower.ImmutableValue);
+            this.currencyWallet = new ItemCurrencyWallet(this.isIgnoringTransactionCosts, this.initialCurrencyCount.ImmutableValue);
             this.storageGrids = new List<ItemStorageGrid>();
-            foreach (ItemContainer itemContainer in this.defaultItemContainers)
+            foreach (ItemContainer container in this.defaultContainers)
             {
-                this.storageGrids.Add(
-                    new ItemStorageGrid(
-                        itemContainer,
-                        this.usingMobs,
-                        this.itemPowerBudget,
-                        this.itemCurrencyWallet,
-                        this.buyCostModifier.ImmutableValue,
-                        this.sellCostModifier.ImmutableValue,
-                        this.transform
-                        )
-                    );
+                this.storageGrids.Add(new ItemStorageGrid(container, this));
             }
 
             if (this.storageGrids.Count < 1)
             {
-                Debug.LogError(this.name + " has an item storage with no default item containers.");
+                Debug.LogError(this.name + " has an ItemStorage with no default item containers.");
+            }
+            this.storedItems = new HashSet<Item>();
+
+            if (TryGetUsingMob(out Mob usingMob))
+            {
+                if (!mobsToStorages.Current.TryAdd(usingMob, this))
+                {
+                    Debug.LogError("Using mob not specified or multiple storages used by mob!");
+                }
             }
         }
 

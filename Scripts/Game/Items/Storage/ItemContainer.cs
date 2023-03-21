@@ -78,36 +78,36 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public int CalculateMaxCapacityFromStorable(ItemStorable itemStorable)
+        public int CalculateMaxCapacityFromStorable(ItemStorable storable)
         {
             float maxCapacityMultiplier = this.defaultMaxCapacityModifier;
             int additiveCapacity = this.defaultAdditiveCapacity;
             foreach (CapacityModifier capacityModifier in this.capacityModifiers)
             {
-                if (capacityModifier.ItemClassification == itemStorable.Classification)
+                if (capacityModifier.Classification == storable.Classification)
                 {
                     maxCapacityMultiplier = capacityModifier.MaxCapacityMultiplier;
                     additiveCapacity = capacityModifier.AdditiveCapacity;
                 }
             }
-            return Mathf.Max(Mathf.FloorToInt(itemStorable.StackSize * maxCapacityMultiplier) + additiveCapacity, 0);
+            return Mathf.Max(Mathf.FloorToInt(storable.StackSize * maxCapacityMultiplier) + additiveCapacity, 0);
         }
 
         [Serializable]
         private struct CapacityModifier
         {
             [SerializeField]
-            private ItemClassification itemClassification;
+            private ItemClassification classification;
             [SerializeField]
             private float maxCapacityMultiplier;
             [SerializeField]
             private int additiveCapacity;
 
-            public ItemClassification ItemClassification
+            public ItemClassification Classification
             {
                 get
                 {
-                    return this.itemClassification;
+                    return this.classification;
                 }
             }
 

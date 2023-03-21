@@ -27,14 +27,6 @@ namespace FrigidBlackwaters.Game
         [HideInInspector]
         private Nested3DList<Vector2> sizes;
 
-        public override List<AnimatorProperty> ChildProperties
-        {
-            get
-            {
-                return new List<AnimatorProperty>();
-            }
-        }
-
         public ColliderAnimatorPropertyShapeType ShapeType
         {
             get
@@ -298,34 +290,34 @@ namespace FrigidBlackwaters.Game
             base.CopyPasteToAnotherOrientation(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, fromOrientationIndex, toOrientationIndex);
         }
 
-        public override void OrientFrameEnter(int animationIndex, int frameIndex, int orientationIndex, float elapsedDuration)
+        public override void OrientationEnter()
         {
             switch (this.ShapeType)
             {
                 case ColliderAnimatorPropertyShapeType.Polygon:
-                    int numPoints = GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex);
-                    Vector2[] polygonPoints = new Vector2[numPoints];
+                    int numPoints = GetNumberPolygonPoints(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    Vector2[] polygonPoints = new Vector2[Mathf.Max(1, numPoints)];
                     for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
                     {
-                        polygonPoints[pointIndex] = GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
+                        polygonPoints[pointIndex] = GetPolygonPointAt(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex, pointIndex);
                     }
                     PolygonCollider2D polygonCollider = (PolygonCollider2D)this.collider;
-                    polygonCollider.points = polygonPoints;
+                    polygonCollider.SetPath(0, polygonPoints);
                     break;
                 case ColliderAnimatorPropertyShapeType.Circle:
                     CircleCollider2D circleCollider = (CircleCollider2D)this.collider;
-                    circleCollider.offset = GetCenter(animationIndex, frameIndex, orientationIndex);
-                    circleCollider.radius = GetRadius(animationIndex, frameIndex, orientationIndex);
+                    circleCollider.offset = GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    circleCollider.radius = GetRadius(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
                     break;
                 case ColliderAnimatorPropertyShapeType.Box:
                     BoxCollider2D boxCollider = (BoxCollider2D)this.collider;
-                    boxCollider.offset = GetCenter(animationIndex, frameIndex, orientationIndex);
-                    boxCollider.size = GetSize(animationIndex, frameIndex, orientationIndex);
+                    boxCollider.offset = GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    boxCollider.size = GetSize(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
                     break;
                 case ColliderAnimatorPropertyShapeType.Capsule:
                     CapsuleCollider2D capsuleCollider = (CapsuleCollider2D)this.collider;
-                    capsuleCollider.offset = GetCenter(animationIndex, frameIndex, orientationIndex);
-                    Vector2 capsuleSize = GetSize(animationIndex, frameIndex, orientationIndex);
+                    capsuleCollider.offset = GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    Vector2 capsuleSize = GetSize(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
                     if (capsuleSize.x > capsuleSize.y)
                     {
                         capsuleCollider.direction = CapsuleDirection2D.Horizontal;
@@ -337,7 +329,7 @@ namespace FrigidBlackwaters.Game
                     capsuleCollider.size = capsuleSize;
                     break;
             }
-            base.OrientFrameEnter(animationIndex, frameIndex, orientationIndex, elapsedDuration);
+            base.OrientationEnter();
         }
 
         private void SetToShapeType()
@@ -374,6 +366,7 @@ namespace FrigidBlackwaters.Game
         [Serializable]
         public class PointsInPolygon
         {
+            [SerializeField]
             private List<Vector2> points;
 
             public PointsInPolygon()

@@ -2,29 +2,21 @@ namespace FrigidBlackwaters.Game
 {
     public class MobDamageHealthOnHitReceivedBehaviour : MobBehaviour
     {
-        public override bool Finished
+        public override void Enter()
         {
-            get
-            {
-                return false;
-            }
+            base.Enter();
+            this.Owner.OnHitReceived += DamageHealthOnHitReceived;
         }
 
-        public override void Apply()
+        public override void Exit()
         {
-            base.Apply();
-            this.Owner.DamageReceiver.OnHitReceived += DamageHealthOnHitReceived;
-        }
-
-        public override void Unapply()
-        {
-            base.Unapply();
-            this.Owner.DamageReceiver.OnHitReceived -= DamageHealthOnHitReceived;
+            base.Exit();
+            this.Owner.OnHitReceived -= DamageHealthOnHitReceived;
         }
 
         private void DamageHealthOnHitReceived(HitInfo hitInfo)
         {
-            this.Owner.Health.Damage(hitInfo.Damage);
+            this.Owner.RemainingHealth -= hitInfo.Damage;
         }
     }
 }

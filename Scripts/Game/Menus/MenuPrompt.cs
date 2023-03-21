@@ -4,7 +4,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    public class MenuPrompt : FrigidMonoBehaviour
+    public class MenuPrompt : FrigidMonoBehaviourWithUpdate
     {
         [SerializeField]
         private SpriteRenderer spriteRenderer;
@@ -17,12 +17,12 @@ namespace FrigidBlackwaters.Game
 
         private bool shown;
         private FrigidCoroutine fadeRoutine;
-        private Vector2 trackedAbsolutePosition;
+        private Vector2 trackedPosition;
 
-        public void ShowPrompt(Sprite icon, Vector2 trackedAbsolutePosition)
+        public void ShowPrompt(Sprite icon, Vector2 trackedPosition)
         {
             this.spriteRenderer.sprite = icon;
-            this.trackedAbsolutePosition = trackedAbsolutePosition;
+            this.trackedPosition = trackedPosition;
 
             if (!this.shown)
             {
@@ -80,7 +80,7 @@ namespace FrigidBlackwaters.Game
         {
             base.Update();
             this.transform.position = 
-                this.trackedAbsolutePosition + 
+                this.trackedPosition + 
                 EasingFunctions.EaseOutQuart(0, 1, Mathf.PingPong(Time.time / this.bounceDuration, 1)) * Vector2.up * this.bounceDistance;
         }
 

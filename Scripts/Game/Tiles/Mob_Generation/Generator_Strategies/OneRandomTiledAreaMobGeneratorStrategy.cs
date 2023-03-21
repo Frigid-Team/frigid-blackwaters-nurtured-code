@@ -11,14 +11,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private bool lockEntrancesUntilDead;
 
-        public override bool ShouldLockEntrances(List<Mob> mobsInPreviousWaves, List<Mob> mobsInWavesToAdvance)
+        public override bool ShouldLockEntrances(MobSet mobsInPreviousWaves, MobSet mobsInWavesToAdvance)
         {
-            bool allDead = true;
-            foreach (Mob mobInPreviousWaves in mobsInPreviousWaves)
-            {
-                allDead &= mobInPreviousWaves.Dead;
-            }
-            return !allDead && this.lockEntrancesUntilDead;
+            return mobsInPreviousWaves.ThatAreNotDead().Count > 0 && this.lockEntrancesUntilDead;
         }
 
         protected override Dictionary<TiledAreaMobSpawnPoint, MobSpawnable> DetermineMobSpawnsInTiledArea(TiledLevelPlanArea planArea, TiledArea tiledArea, HashSet<TiledAreaMobSpawnPoint> spawnPoints, int waveIndex)

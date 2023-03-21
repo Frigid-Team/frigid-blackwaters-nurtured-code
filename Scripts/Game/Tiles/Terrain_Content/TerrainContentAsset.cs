@@ -1,25 +1,24 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+using FrigidBlackwaters.Utility;
+
 namespace FrigidBlackwaters.Game
 {
     [CreateAssetMenu(fileName = "TerrainContentAsset", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TerrainContentAsset")]
     public class TerrainContentAsset : FrigidScriptableObject
     {
-        [SerializeField]
-        private string blueprintId;
-        [SerializeField]
-        private List<TerrainContent> terrainContentPrefabs;
-        [SerializeField]
-        private TerrainContentHeight height;
-        [SerializeField]
-        private List<TileTerrain> terrains;
+        private const string NONE = "None";
 
-        public string BlueprintID
+        [SerializeField]
+        [ShowIfProperty("IsNone", false)]
+        private List<TerrainContent> terrainContentPrefabs;
+
+        public bool IsNone
         {
             get
             {
-                return this.blueprintId;
+                return this.name.Equals(NONE);
             }
         }
 
@@ -28,22 +27,6 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.terrainContentPrefabs;
-            }
-        }
-
-        public TerrainContentHeight Height
-        {
-            get
-            {
-                return this.height;
-            }
-        }
-
-        public List<TileTerrain> Terrains
-        {
-            get
-            {
-                return this.terrains;
             }
         }
     }

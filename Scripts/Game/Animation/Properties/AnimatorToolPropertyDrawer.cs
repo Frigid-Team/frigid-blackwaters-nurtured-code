@@ -1,7 +1,10 @@
 #if UNITY_EDITOR
 using UnityEngine;
+using UnityEditor;
 using System;
 using System.Collections.Generic;
+
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
@@ -38,7 +41,25 @@ namespace FrigidBlackwaters.Game
             return new float[0];
         }
 
-        public virtual void DrawGeneralEditFields() { }
+        public virtual void DrawGeneralEditFields() 
+        {
+            EditorGUILayout.LabelField("Child Properties", GUIStyling.WordWrapAndCenter(EditorStyles.boldLabel));
+            GUILayoutHelper.DrawIndexedList(
+                this.property.GetNumberChildProperties(),
+                (int index) => 
+                {
+                    FrigidPopupWindow.Show(
+                        GUILayoutUtility.GetLastRect(), 
+                        new TypeSelectionPopup(
+                            TypeUtility.GetCompleteTypesDerivedFrom(typeof(AnimatorProperty)), 
+                            (Type selectedType) => this.property.AddChildPropertyAt(index, selectedType)
+                            )
+                        );
+                },
+                this.property.RemoveChildPropertyAt,
+                (int index) => EditorGUILayout.LabelField(this.property.GetChildPropertyAt(index).PropertyName)
+                );
+        }
 
         public virtual void DrawAnimationEditFields(int animationIndex) { }
 
@@ -46,7 +67,7 @@ namespace FrigidBlackwaters.Game
 
         public virtual void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex) { }
 
-        public virtual void DrawPreview(
+        public virtual Vector2 DrawPreview(
             Vector2 previewSize,
             Vector2 previewOffset,
             float worldToWindowScalingFactor,
@@ -58,6 +79,7 @@ namespace FrigidBlackwaters.Game
             ) 
         {
             dragRequests = new List<(Rect rect, Action onDrag)>();
+            return Vector2.zero;
         }
 
         public virtual void DrawFrameCellPreview(

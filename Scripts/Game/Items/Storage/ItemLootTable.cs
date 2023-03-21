@@ -52,7 +52,7 @@ namespace FrigidBlackwaters.Game
             private bool isNested;
             [SerializeField]
             [ShowIfBool("isNested", false)]
-            private List<ItemStorable> itemStorables;
+            private List<ItemStorable> storables;
             [SerializeField]
             [ShowIfPreviouslyShown(true)]
             private int minQuantity;
@@ -72,9 +72,9 @@ namespace FrigidBlackwaters.Game
                 else
                 {
                     List<ItemLootRoll> generatedLootRolls = new List<ItemLootRoll>();
-                    if (this.itemStorables.Count > 0)
+                    if (this.storables.Count > 0)
                     {
-                        ItemStorable randomItemStorable = this.itemStorables[UnityEngine.Random.Range(0, this.itemStorables.Count)];
+                        ItemStorable randomItemStorable = this.storables[UnityEngine.Random.Range(0, this.storables.Count)];
                         int quantity = UnityEngine.Random.Range(this.minQuantity, this.maxQuantity + 1);
                         generatedLootRolls.Add(new ItemLootRoll(randomItemStorable, quantity));
                     }

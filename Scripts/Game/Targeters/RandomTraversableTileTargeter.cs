@@ -41,15 +41,15 @@ namespace FrigidBlackwaters.Game
                         for (int y = 0; y < tiledArea.MainAreaDimensions.y; y++)
                         {
                             Vector2Int tileIndices = new Vector2Int(x, y);
-                            Vector2 absoluteTilePosition = TilePositioning.TileAbsolutePositionFromIndices(tileIndices, tiledArea.AbsoluteCenterPosition, tiledArea.MainAreaDimensions);
+                            Vector2 tilePosition = TilePositioning.TilePositionFromIndices(tileIndices, tiledArea.CenterPosition, tiledArea.MainAreaDimensions);
                             bool isWithinAvoidRange = false;
                             foreach (Vector2[] avoidPositions in separatedAvoidPositions)
                             {
-                                isWithinAvoidRange |= Vector2.Distance(avoidPositions[i], absoluteTilePosition) < this.avoidanceDistance.ImmutableValue;
+                                isWithinAvoidRange |= Vector2.Distance(avoidPositions[i], tilePosition) < this.avoidanceDistance.ImmutableValue;
                             }
                             foreach (Vector2Int chosenTileIndices in previouslyChosenTileIndices)
                             {
-                                isWithinAvoidRange |= Vector2.Distance(TilePositioning.TileAbsolutePositionFromIndices(chosenTileIndices, tiledArea.AbsoluteCenterPosition, tiledArea.MainAreaDimensions), absoluteTilePosition) < this.avoidanceDistance.ImmutableValue;
+                                isWithinAvoidRange |= Vector2.Distance(TilePositioning.TilePositionFromIndices(chosenTileIndices, tiledArea.CenterPosition, tiledArea.MainAreaDimensions), tilePosition) < this.avoidanceDistance.ImmutableValue;
                             }
                             if (isWithinAvoidRange || !tiledArea.NavigationGrid.IsTraversable(tileIndices, this.rectDimensions, this.traversableTerrain))
                             {
@@ -63,7 +63,7 @@ namespace FrigidBlackwaters.Game
                     {
                         Vector2Int chosenTileIndices = availableTileIndices[Random.Range(0, availableTileIndices.Count)];
                         previouslyChosenTileIndices.Add(chosenTileIndices);
-                        positions[i] = TilePositioning.TileAbsolutePositionFromIndices(chosenTileIndices, tiledArea.AbsoluteCenterPosition, tiledArea.MainAreaDimensions);
+                        positions[i] = TilePositioning.TilePositionFromIndices(chosenTileIndices, tiledArea.CenterPosition, tiledArea.MainAreaDimensions);
                     }
                 }
             }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace FrigidBlackwaters.Game
 {
-    public class HitInfo
+    public class HitInfo : DamageInfo
     {
         private const float SCRATCH_DAMAGE_PERCENT = 0.15f;
 
@@ -17,7 +17,7 @@ namespace FrigidBlackwaters.Game
         private bool hasHitModifier;
         private HitModifier hitModifier;
 
-        public HitInfo(int baseDamage, int bonusDamage, int mitigatedDamage, Vector2 hitPosition, Vector2 hitDirection, List<HitModifier> hitModifiers)
+        public HitInfo(int baseDamage, int bonusDamage, int mitigatedDamage, Vector2 hitPosition, Vector2 hitDirection, List<HitModifier> hitModifiers, Collider2D collision) : base(collision)
         {
             this.timeHit = Time.time;
             this.hitPosition = hitPosition;
@@ -43,7 +43,7 @@ namespace FrigidBlackwaters.Game
             this.reducedDamage = Mathf.Max(incomingDamage - this.damage, 0);
         }
 
-        public bool IsHitRegistered
+        public override bool IsNonTrivial
         {
             get
             {

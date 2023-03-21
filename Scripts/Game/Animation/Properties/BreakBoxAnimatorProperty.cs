@@ -9,5 +9,12 @@ namespace FrigidBlackwaters.Game
                 return this.DamageDealerBox.OffensiveResistance;
             }
         }
+
+        public override void Created()
+        {
+            FrigidEditMode.RecordPotentialChanges(this);
+            this.gameObject.layer = (int)FrigidLayer.BreakBoxes;
+            base.Created();
+        }
     }
 }

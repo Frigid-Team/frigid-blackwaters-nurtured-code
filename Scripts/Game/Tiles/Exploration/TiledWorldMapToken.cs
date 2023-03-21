@@ -14,7 +14,7 @@ namespace FrigidBlackwaters.Game
         {
             int squareWidth = Mathf.CeilToInt(Mathf.Sqrt(numberTokens));
             int squareHeight = Mathf.CeilToInt((float)numberTokens / squareWidth);
-            Vector2 topLeftPosition = tiledArea.AbsoluteCenterPosition * worldToMapScalingFactor + new Vector2(-(squareWidth - 1) / 2f, (squareHeight - 1) / 2f) * this.tokenPadding;
+            Vector2 topLeftPosition = tiledArea.CenterPosition * worldToMapScalingFactor + new Vector2(-(squareWidth - 1) / 2f, (squareHeight - 1) / 2f) * this.tokenPadding;
             this.tokenImage.sprite = tiledWorldDiscovery.MapTokenSprite;
             this.transform.localPosition = topLeftPosition + new Vector2(tokenIndex % squareWidth, -tokenIndex / squareWidth) * this.tokenPadding;
         }

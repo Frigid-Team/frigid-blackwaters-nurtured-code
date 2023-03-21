@@ -2,20 +2,20 @@ namespace FrigidBlackwaters.Game
 {
     public class ItemLootRoll
     {
-        private ItemStorable itemStorable;
+        private ItemStorable storable;
         private int quantity;
 
-        public ItemLootRoll(ItemStorable itemStorable, int quantity)
+        public ItemLootRoll(ItemStorable storable, int quantity)
         {
-            this.itemStorable = itemStorable;
+            this.storable = storable;
             this.quantity = quantity;
         }
 
-        public ItemStorable ItemStorable
+        public ItemStorable Storable
         {
             get
             {
-                return this.itemStorable;
+                return this.storable;
             }
         }
 

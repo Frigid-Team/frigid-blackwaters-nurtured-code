@@ -39,14 +39,6 @@ namespace FrigidBlackwaters.Game
         [HideInInspector]
         private Nested3DList<float> outerAnglesRad;
 
-        public override List<AnimatorProperty> ChildProperties
-        {
-            get
-            {
-                return new List<AnimatorProperty>();
-            }
-        }
-
         public Light2D.LightType LightType
         {
             get
@@ -405,44 +397,44 @@ namespace FrigidBlackwaters.Game
             base.CopyPasteToAnotherOrientation(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, fromOrientationIndex, toOrientationIndex);
         }
 
-        public override void AnimationEnter(int animationIndex, float elapsedDuration)
+        public override void AnimationEnter()
         {
             if (this.LightType == Light2D.LightType.Freeform)
             {
                 for (int pointIndex = 0; pointIndex < this.NumberFreeformPoints; pointIndex++)
                 {
-                    this.light.shapePath[pointIndex] = GetFreeformPointAt(animationIndex, pointIndex);
+                    this.light.shapePath[pointIndex] = GetFreeformPointAt(this.Body.CurrAnimationIndex, pointIndex);
                 }
             }
-            base.AnimationEnter(animationIndex, elapsedDuration);
+            base.AnimationEnter();
         }
 
-        public override void SetFrameEnter(int animationIndex, int frameIndex, float elapsedDuration, int loopsElapsed)
+        public override void FrameEnter()
         {
-            this.light.color = GetLightColorByReference(animationIndex, frameIndex).MutableValue;
-            base.SetFrameEnter(animationIndex, frameIndex, elapsedDuration, loopsElapsed);
+            this.light.color = GetLightColorByReference(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex).MutableValue;
+            base.FrameEnter();
         }
 
-        public override void OrientFrameEnter(int animationIndex, int frameIndex, int orientationIndex, float elapsedDuration)
+        public override void OrientationEnter()
         {
-            this.light.transform.localPosition = GetLocalOffset(animationIndex, frameIndex, orientationIndex);
+            this.light.transform.localPosition = GetLocalOffset(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
             switch (this.LightType) 
             {
                 case Light2D.LightType.Point:
                     this.light.pointLightInnerRadius = 0;
                     this.light.pointLightOuterRadius = 0;
-                    this.light.pointLightOuterRadius = GetOuterRadius(animationIndex, frameIndex, orientationIndex);
-                    this.light.pointLightInnerRadius = GetInnerRadius(animationIndex, frameIndex, orientationIndex);
+                    this.light.pointLightOuterRadius = GetOuterRadius(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    this.light.pointLightInnerRadius = GetInnerRadius(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
 
                     this.light.pointLightInnerAngle = 0;
                     this.light.pointLightOuterAngle = 0;
-                    this.light.pointLightOuterAngle = GetOuterAngleRad(animationIndex, frameIndex, orientationIndex) * Mathf.Rad2Deg;
-                    this.light.pointLightInnerAngle = GetInnerAngleRad(animationIndex, frameIndex, orientationIndex) * Mathf.Rad2Deg;
+                    this.light.pointLightOuterAngle = GetOuterAngleRad(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex) * Mathf.Rad2Deg;
+                    this.light.pointLightInnerAngle = GetInnerAngleRad(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex) * Mathf.Rad2Deg;
 
-                    this.light.transform.localRotation = Quaternion.Euler(0, 0, GetNormalAngleRad(animationIndex, frameIndex, orientationIndex) * Mathf.Rad2Deg - 90);
+                    this.light.transform.localRotation = Quaternion.Euler(0, 0, GetNormalAngleRad(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex) * Mathf.Rad2Deg - 90);
                     break;
             }
-            base.OrientFrameEnter(animationIndex, frameIndex, orientationIndex, elapsedDuration);
+            base.OrientationEnter();
         }
 
         [Serializable]

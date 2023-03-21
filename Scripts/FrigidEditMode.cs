@@ -7,6 +7,14 @@ namespace FrigidBlackwaters
     public static class FrigidEditMode
     {
         private static bool isEditing;
+        
+        public static bool InEdit
+        {
+            get
+            {
+                return isEditing;
+            }
+        }
 
         static FrigidEditMode()
         {
@@ -41,7 +49,6 @@ namespace FrigidBlackwaters
             {
                 Undo.RegisterCreatedObjectUndo(newGameObject, "Create GameObject");
                 Undo.SetTransformParent(newGameObject.transform, parentTransform, "Create GameObject");
-                Undo.RegisterCompleteObjectUndo(newGameObject.gameObject, "Create GameObject");
             }
             else
             {
@@ -50,6 +57,7 @@ namespace FrigidBlackwaters
 #else
             newGameObject.transform.SetParent(parentTransform);
 #endif
+            newGameObject.transform.localPosition = Vector2.zero;
             return newGameObject;
         }
 
@@ -58,10 +66,6 @@ namespace FrigidBlackwaters
 #if UNITY_EDITOR
             if (isEditing)
             {
-                if (gameObject.transform.root != null)
-                {
-                    Undo.RegisterFullObjectHierarchyUndo(gameObject.transform.root, "Destroy " + gameObject.name);
-                }
                 Undo.DestroyObjectImmediate(gameObject);
             }
             else
@@ -99,10 +103,6 @@ namespace FrigidBlackwaters
 #if UNITY_EDITOR
             if (isEditing)
             {
-                if (component.transform.root != null) 
-                {
-                    Undo.RegisterFullObjectHierarchyUndo(component.transform.root, "Destroy " + component.name);
-                }
                 Undo.DestroyObjectImmediate(component);
             }
             else

@@ -24,10 +24,16 @@ namespace FrigidBlackwaters.Game
         private List<Material> sharedMaterials;
         [SerializeField]
         [HideInInspector]
-        private List<MaterialTweensInAnimation> materialTweensInAnimations;
+        private List<bool> enableOutlines;
+        [SerializeField]
+        [HideInInspector]
+        private List<ColorSerializedReference> colors;
         [SerializeField]
         [HideInInspector]
         private List<float> hideChances;
+        [SerializeField]
+        [HideInInspector]
+        private Nested2DList<MaterialTweensInFrame> materialTweensInFrames;
         [SerializeField]
         [HideInInspector]
         private Nested3DList<SpriteSerializedReference> sprites;
@@ -38,13 +44,30 @@ namespace FrigidBlackwaters.Game
         private Dictionary<MaterialParameters.ColorParameter, (int tweenCount, Color originalColor)> originalMaterialColors;
         private Dictionary<MaterialTweenCoroutineTemplate, (int count, FrigidCoroutine routine, Action onComplete)> runningMaterialTweens;
 
-        private int numberCompleteOrLoopedTweens;
+        private List<MaterialTweenCoroutineTemplate> addedMaterialTweens;
+        private List<MaterialTweenCoroutineTemplate> completedOrLoopedMaterialTweens;
 
-        public override List<AnimatorProperty> ChildProperties
+        public Sprite CurrentSprite
         {
             get
             {
-                return new List<AnimatorProperty>();
+                return this.spriteRenderer.sprite;
+            }
+        }
+
+        public Color RendererColor
+        {
+            get
+            {
+                return this.spriteRenderer.color;
+            }
+        }
+
+        public override int CurrentSortingOrder
+        {
+            get
+            {
+                return this.spriteRenderer.sortingOrder;
             }
         }
 
@@ -61,14 +84,6 @@ namespace FrigidBlackwaters.Game
                     FrigidEditMode.RecordPotentialChanges(this);
                     this.useSharedMaterial = value;
                 }
-            }
-        }
-
-        public Color RendererColor
-        {
-            get
-            {
-                return this.spriteRenderer.color;
             }
         }
 
@@ -102,48 +117,76 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public int GetNumberMaterialTweens(int animationIndex)
+        public int GetNumberMaterialTweensInFrame(int animationIndex, int frameIndex)
         {
-            return this.materialTweensInAnimations[animationIndex].MaterialEffects.Count;
+            return this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects.Count;
         }
 
-        public void SetNumberMaterialTweens(int animationIndex, int numberMaterialTweens)
+        public void SetNumberMaterialTweensInFrame(int animationIndex, int frameIndex, int numberMaterialTweens)
         {
             numberMaterialTweens = Mathf.Max(0, numberMaterialTweens);
-            for (int frameIndex = this.materialTweensInAnimations[animationIndex].MaterialEffects.Count; frameIndex < numberMaterialTweens; frameIndex++)
+            for (int index = this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects.Count; index < numberMaterialTweens; index++)
             {
-                AddMaterialTweenByReferenceAt(animationIndex, frameIndex);
+                AddMaterialTweenInFrameByReferenceAt(animationIndex, frameIndex, index);
             }
-            for (int frameIndex = this.materialTweensInAnimations[animationIndex].MaterialEffects.Count - 1; frameIndex > numberMaterialTweens - 1; frameIndex--)
+            for (int index = this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects.Count - 1; index > numberMaterialTweens - 1; index--)
             {
-                RemoveMaterialTweenByReferenceAt(animationIndex, frameIndex);
+                RemoveMaterialTweenInFrameByReferenceAt(animationIndex, frameIndex, index);
             }
         }
 
-        public MaterialTweenCoroutineTemplateSerializedReference GetMaterialTweenByReferenceAt(int animationIndex, int index)
+        public MaterialTweenCoroutineTemplateSerializedReference GetMaterialTweenInFrameByReferenceAt(int animationIndex, int frameIndex, int index)
         {
-            return this.materialTweensInAnimations[animationIndex].MaterialEffects[index];
+            return this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects[index];
         }
 
-        public void SetMaterialTweenByReferenceAt(int animationIndex, int index, MaterialTweenCoroutineTemplateSerializedReference materialTween)
+        public void SetMaterialTweenInFrameByReferenceAt(int animationIndex, int frameIndex, int index, MaterialTweenCoroutineTemplateSerializedReference materialTween)
         {
-            if (this.materialTweensInAnimations[animationIndex].MaterialEffects[index] != materialTween)
+            if (this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects[index] != materialTween)
             {
                 FrigidEditMode.RecordPotentialChanges(this);
-                this.materialTweensInAnimations[animationIndex].MaterialEffects[index] = materialTween;
+                this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects[index] = materialTween;
             }
         }
 
-        public void AddMaterialTweenByReferenceAt(int animationIndex, int index)
+        public void AddMaterialTweenInFrameByReferenceAt(int animationIndex, int frameIndex, int index)
         {
             FrigidEditMode.RecordPotentialChanges(this);
-            this.materialTweensInAnimations[animationIndex].MaterialEffects.Insert(index, new MaterialTweenCoroutineTemplateSerializedReference());
+            this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects.Insert(index, new MaterialTweenCoroutineTemplateSerializedReference());
         }
 
-        public void RemoveMaterialTweenByReferenceAt(int animationIndex, int index)
+        public void RemoveMaterialTweenInFrameByReferenceAt(int animationIndex, int frameIndex, int index)
         {
             FrigidEditMode.RecordPotentialChanges(this);
-            this.materialTweensInAnimations[animationIndex].MaterialEffects.RemoveAt(index);
+            this.materialTweensInFrames[animationIndex][frameIndex].MaterialEffects.RemoveAt(index);
+        }
+
+        public bool GetEnableOutline(int animationIndex)
+        {
+            return this.enableOutlines[animationIndex];
+        }
+
+        public void SetEnableOutline(int animationIndex, bool enableOutline)
+        {
+            if (this.enableOutlines[animationIndex] != enableOutline)
+            {
+                FrigidEditMode.RecordPotentialChanges(this);
+                this.enableOutlines[animationIndex] = enableOutline;
+            }
+        }
+
+        public ColorSerializedReference GetColorByReference(int animationIndex)
+        {
+            return this.colors[animationIndex];
+        }
+
+        public void SetColorByReference(int animationIndex, ColorSerializedReference color)
+        {
+            if (this.colors[animationIndex] != color)
+            {
+                FrigidEditMode.RecordPotentialChanges(this);
+                this.colors[animationIndex] = color;
+            }
         }
 
         public float GetHideChance(int animationIndex)
@@ -211,21 +254,27 @@ namespace FrigidBlackwaters.Game
             FrigidEditMode.RecordPotentialChanges(this);
             this.spriteRenderer = FrigidEditMode.AddComponent<SpriteRenderer>(this.gameObject);
             this.spriteRenderer.sortingLayerName = FrigidSortingLayer.World.ToString();
+            this.spriteRenderer.spriteSortPoint = SpriteSortPoint.Pivot;
             this.useSharedMaterial = true;
             this.sharedMaterials = new List<Material>();
-            this.materialTweensInAnimations = new List<MaterialTweensInAnimation>();
+            this.materialTweensInFrames = new Nested2DList<MaterialTweensInFrame>();
             this.hideChances = new List<float>();
+            this.enableOutlines = new List<bool>();
+            this.colors = new List<ColorSerializedReference>();
             this.sprites = new Nested3DList<SpriteSerializedReference>();
             this.localOffsets = new Nested3DList<Vector2>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
             {
                 this.sharedMaterials.Add(null);
-                this.materialTweensInAnimations.Add(new MaterialTweensInAnimation());
+                this.materialTweensInFrames.Add(new Nested1DList<MaterialTweensInFrame>());
                 this.hideChances.Add(0);
+                this.enableOutlines.Add(true);
+                this.colors.Add(new ColorSerializedReference());
                 this.sprites.Add(new Nested2DList<SpriteSerializedReference>());
                 this.localOffsets.Add(new Nested2DList<Vector2>());
                 for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
                 {
+                    this.materialTweensInFrames[animationIndex].Add(new MaterialTweensInFrame());
                     this.sprites[animationIndex].Add(new Nested1DList<SpriteSerializedReference>());
                     this.localOffsets[animationIndex].Add(new Nested1DList<Vector2>());
                     for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
@@ -242,12 +291,15 @@ namespace FrigidBlackwaters.Game
         {
             FrigidEditMode.RecordPotentialChanges(this);
             this.sharedMaterials.Insert(animationIndex, null);
-            this.materialTweensInAnimations.Insert(animationIndex, new MaterialTweensInAnimation());
+            this.materialTweensInFrames.Insert(animationIndex, new Nested1DList<MaterialTweensInFrame>());
             this.hideChances.Insert(animationIndex, 0);
+            this.enableOutlines.Insert(animationIndex, true);
+            this.colors.Insert(animationIndex, new ColorSerializedReference());
             this.sprites.Insert(animationIndex, new Nested2DList<SpriteSerializedReference>());
             this.localOffsets.Insert(animationIndex, new Nested2DList<Vector2>());
             for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
             {
+                this.materialTweensInFrames[animationIndex].Add(new MaterialTweensInFrame());
                 this.sprites[animationIndex].Add(new Nested1DList<SpriteSerializedReference>());
                 this.localOffsets[animationIndex].Add(new Nested1DList<Vector2>());
                 for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
@@ -263,8 +315,10 @@ namespace FrigidBlackwaters.Game
         {
             FrigidEditMode.RecordPotentialChanges(this);
             this.sharedMaterials.RemoveAt(animationIndex);
-            this.materialTweensInAnimations.RemoveAt(animationIndex);
+            this.materialTweensInFrames.RemoveAt(animationIndex);
             this.hideChances.RemoveAt(animationIndex);
+            this.enableOutlines.RemoveAt(animationIndex);
+            this.colors.RemoveAt(animationIndex);
             this.sprites.RemoveAt(animationIndex);
             this.localOffsets.RemoveAt(animationIndex);
             base.AnimationRemovedAt(animationIndex);
@@ -273,6 +327,7 @@ namespace FrigidBlackwaters.Game
         public override void FrameAddedAt(int animationIndex, int frameIndex)
         {
             FrigidEditMode.RecordPotentialChanges(this);
+            this.materialTweensInFrames[animationIndex].Insert(frameIndex, new MaterialTweensInFrame());
             this.sprites[animationIndex].Insert(frameIndex, new Nested1DList<SpriteSerializedReference>());
             this.localOffsets[animationIndex].Insert(frameIndex, new Nested1DList<Vector2>());
             for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
@@ -286,6 +341,7 @@ namespace FrigidBlackwaters.Game
         public override void FrameRemovedAt(int animationIndex, int frameIndex)
         {
             FrigidEditMode.RecordPotentialChanges(this);
+            this.materialTweensInFrames[animationIndex].RemoveAt(frameIndex);
             this.sprites[animationIndex].RemoveAt(frameIndex);
             this.localOffsets[animationIndex].RemoveAt(frameIndex);
             base.FrameRemovedAt(animationIndex, frameIndex);
@@ -313,14 +369,25 @@ namespace FrigidBlackwaters.Game
             if (otherSpriteProperty)
             {
                 otherSpriteProperty.SetSharedMaterial(toAnimationIndex, GetSharedMaterial(fromAnimationIndex));
-                otherSpriteProperty.SetNumberMaterialTweens(toAnimationIndex, GetNumberMaterialTweens(fromAnimationIndex));
-                for (int tweenIndex = 0; tweenIndex < GetNumberMaterialTweens(fromAnimationIndex); tweenIndex++)
-                {
-                    otherSpriteProperty.SetMaterialTweenByReferenceAt(toAnimationIndex, tweenIndex, new MaterialTweenCoroutineTemplateSerializedReference(GetMaterialTweenByReferenceAt(fromAnimationIndex, tweenIndex)));
-                }
+                otherSpriteProperty.SetColorByReference(toAnimationIndex, GetColorByReference(fromAnimationIndex));
+                otherSpriteProperty.SetEnableOutline(toAnimationIndex, GetEnableOutline(fromAnimationIndex));
                 otherSpriteProperty.SetHideChance(toAnimationIndex, GetHideChance(fromAnimationIndex));
             }
             base.CopyPasteToAnotherAnimation(otherProperty, fromAnimationIndex, toAnimationIndex);
+        }
+
+        public override void CopyPasteToAnotherFrame(AnimatorProperty otherProperty, int fromAnimationIndex, int toAnimationIndex, int fromFrameIndex, int toFrameIndex)
+        {
+            SpriteAnimatorProperty otherSpriteProperty = otherProperty as SpriteAnimatorProperty;
+            if (otherSpriteProperty)
+            {
+                otherSpriteProperty.SetNumberMaterialTweensInFrame(toAnimationIndex, toFrameIndex, GetNumberMaterialTweensInFrame(fromAnimationIndex, fromFrameIndex));
+                for (int tweenIndex = 0; tweenIndex < GetNumberMaterialTweensInFrame(fromAnimationIndex, fromFrameIndex); tweenIndex++)
+                {
+                    otherSpriteProperty.SetMaterialTweenInFrameByReferenceAt(toAnimationIndex, toFrameIndex, tweenIndex, new MaterialTweenCoroutineTemplateSerializedReference(GetMaterialTweenInFrameByReferenceAt(fromAnimationIndex, fromFrameIndex, tweenIndex)));
+                }
+            }
+            base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
 
         public override void CopyPasteToAnotherOrientation(AnimatorProperty otherProperty, int fromAnimationIndex, int toAnimationIndex, int fromFrameIndex, int toFrameIndex, int fromOrientationIndex, int toOrientationIndex)
@@ -334,9 +401,16 @@ namespace FrigidBlackwaters.Game
             base.CopyPasteToAnotherOrientation(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, fromOrientationIndex, toOrientationIndex);
         }
 
-        public void OneShotMaterialTween(MaterialTweenCoroutineTemplate materialTween)
+        public void OneShotMaterialTween(MaterialTweenCoroutineTemplate materialTween, Action onComplete = null)
         {
-            PlayMaterialTween(materialTween, () => StopMaterialTween(materialTween));
+            PlayMaterialTween(
+                materialTween, 
+                () =>
+                {
+                    StopMaterialTween(materialTween);
+                    onComplete?.Invoke();
+                }
+                );
         }
 
         public void PlayMaterialTween(MaterialTweenCoroutineTemplate materialTween, Action onComplete = null)
@@ -356,7 +430,7 @@ namespace FrigidBlackwaters.Game
                     };
                 this.runningMaterialTweens[materialTween] = 
                     (runningMaterialTween.count + 1, 
-                    FrigidCoroutine.Run(materialTween.GetRoutine(this.spriteRenderer.material, summedOnComplete), this.gameObject, this.Body.Paused),
+                    FrigidCoroutine.Run(materialTween.GetRoutine(this.spriteRenderer.material, summedOnComplete), this.gameObject),
                     summedOnComplete
                     );
                 (int tweenCount, Color originalColor) originalMaterialColor = this.originalMaterialColors[materialTween.ColorParameter];
@@ -399,85 +473,84 @@ namespace FrigidBlackwaters.Game
                     this.originalMaterialColors.Add(colorParameter, (0, MaterialParameters.GetColor(this.spriteRenderer.material, colorParameter)));
                 }
                 this.runningMaterialTweens = new Dictionary<MaterialTweenCoroutineTemplate, (int count, FrigidCoroutine routine, Action onComplete)>();
+
+                this.addedMaterialTweens = new List<MaterialTweenCoroutineTemplate>();
+                this.completedOrLoopedMaterialTweens = new List<MaterialTweenCoroutineTemplate>();
             }
         }
 
-        public override void Paused()
-        {
-            if (!this.UseSharedMaterial)
-            {
-                foreach ((int count, FrigidCoroutine routine, Action onComplete) runningMaterialTween in this.runningMaterialTweens.Values)
-                {
-                    runningMaterialTween.routine.Paused = true;
-                }
-            }
-            base.Paused();
-        }
-
-        public override void UnPaused()
-        {
-            if (!this.UseSharedMaterial)
-            {
-                foreach ((int count, FrigidCoroutine routine, Action onComplete) runningMaterialTween in this.runningMaterialTweens.Values)
-                {
-                    runningMaterialTween.routine.Paused = false;
-                }
-            }
-            base.UnPaused();
-        }
-
-        public override void AnimationEnter(int animationIndex, float elapsedDuration)
+        public override void AnimationEnter()
         {
             if (this.UseSharedMaterial)
             {
-                this.spriteRenderer.sharedMaterial = GetSharedMaterial(animationIndex);
+                this.spriteRenderer.sharedMaterial = GetSharedMaterial(this.Body.CurrAnimationIndex);
             }
             else
             {
-                this.numberCompleteOrLoopedTweens = 0;
-                for (int i = 0; i < GetNumberMaterialTweens(animationIndex); i++)
+                if (!FrigidEditMode.InEdit)
                 {
-                    MaterialTweenCoroutineTemplate materialTween = GetMaterialTweenByReferenceAt(animationIndex, i).ImmutableValue;
-                    PlayMaterialTween(materialTween, () => this.numberCompleteOrLoopedTweens++);
-                    if (materialTween.TweenRoutine.LoopInfinitely) this.numberCompleteOrLoopedTweens++;
+                    this.spriteRenderer.material.SetInt(MaterialParameters.ENABLE_OUTLINE, GetEnableOutline(this.Body.CurrAnimationIndex) ? 1 : 0);
+                    this.addedMaterialTweens.Clear();
+                    this.completedOrLoopedMaterialTweens.Clear();
                 }
             }
-            this.spriteRenderer.enabled = GetHideChance(animationIndex) < UnityEngine.Random.Range(0f, 1f);
-            base.AnimationEnter(animationIndex, elapsedDuration);
+            this.spriteRenderer.color = GetColorByReference(this.Body.CurrAnimationIndex).MutableValue;
+            this.spriteRenderer.enabled = GetHideChance(this.Body.CurrAnimationIndex) < UnityEngine.Random.Range(0f, 1f);
+            base.AnimationEnter();
         }
 
-        public override void AnimationExit(int animationIndex)
+        public override void AnimationExit()
         {
             if (!this.UseSharedMaterial)
             {
-                for (int i = 0; i < GetNumberMaterialTweens(animationIndex); i++)
+                foreach (MaterialTweenCoroutineTemplate addedMaterialTween in this.addedMaterialTweens)
                 {
-                    StopMaterialTween(GetMaterialTweenByReferenceAt(animationIndex, i).ImmutableValue);
+                    StopMaterialTween(addedMaterialTween);
                 }
             }
-            base.AnimationExit(animationIndex);
+            base.AnimationExit();
         }
 
-        public override void OrientFrameEnter(int animationIndex, int frameIndex, int orientationIndex, float elapsedDuration)
+        public override void FrameEnter()
         {
-            this.spriteRenderer.sprite = GetSpriteByReference(animationIndex, frameIndex, orientationIndex).MutableValue;
-            this.spriteRenderer.transform.localPosition = GetLocalOffset(animationIndex, frameIndex, orientationIndex);
-            this.spriteRenderer.sortingOrder = GetSortingOrder(animationIndex, frameIndex, orientationIndex);
-            base.OrientFrameEnter(animationIndex, frameIndex, orientationIndex, elapsedDuration);
+            if (!this.UseSharedMaterial)
+            {
+                for (int i = 0; i < GetNumberMaterialTweensInFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex); i++)
+                {
+                    MaterialTweenCoroutineTemplate materialTween = GetMaterialTweenInFrameByReferenceAt(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, i).ImmutableValue;
+                    this.addedMaterialTweens.Add(materialTween);
+                    PlayMaterialTween(materialTween, () => this.completedOrLoopedMaterialTweens.Add(materialTween));
+                    if (materialTween.TweenRoutine.LoopInfinitely) this.completedOrLoopedMaterialTweens.Add(materialTween);
+                }
+            }
+            base.FrameEnter();
         }
 
-        protected override bool CanCompleteAtEndOfAnimation(int animationIndex, float elapsedDuration)
+        public override void OrientationEnter()
         {
-            return this.UseSharedMaterial || this.numberCompleteOrLoopedTweens == GetNumberMaterialTweens(animationIndex);
+            this.spriteRenderer.sprite = GetSpriteByReference(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex).MutableValue;
+            this.spriteRenderer.transform.localPosition = GetLocalOffset(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+            this.spriteRenderer.sortingOrder = GetSortingOrder(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+            base.OrientationEnter();
+        }
+
+        protected override bool CanCompleteAtEndOfAnimation()
+        {
+            return this.UseSharedMaterial || this.addedMaterialTweens.Count == this.completedOrLoopedMaterialTweens.Count;
+        }
+
+        protected override Bounds? CalculateAreaOccupied()
+        {
+            return this.spriteRenderer.bounds;
         }
 
         [Serializable]
-        private class MaterialTweensInAnimation
+        private class MaterialTweensInFrame
         {
             [SerializeField]
             private List<MaterialTweenCoroutineTemplateSerializedReference> materialEffects;
 
-            public MaterialTweensInAnimation()
+            public MaterialTweensInFrame()
             {
                 this.materialEffects = new List<MaterialTweenCoroutineTemplateSerializedReference>();
             }

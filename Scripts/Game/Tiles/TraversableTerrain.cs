@@ -16,6 +16,15 @@ namespace FrigidBlackwaters.Game
             this.terrains = new List<TileTerrain>();
         }
 
+        public static TraversableTerrain None
+        {
+            get
+            {
+                TraversableTerrain traversableTerrain = new TraversableTerrain();
+                return traversableTerrain;
+            }
+        }
+
         public static TraversableTerrain All
         {
             get

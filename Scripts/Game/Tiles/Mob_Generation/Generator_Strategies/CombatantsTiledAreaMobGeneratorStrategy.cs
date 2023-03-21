@@ -51,30 +51,14 @@ namespace FrigidBlackwaters.Game
             return base.GetCurrentNumberWaves(planArea, tiledArea);
         }
 
-        public override bool CanAdvanceToNextWave(int waveIndex, List<Mob> mobsInPreviousWaves)
+        public override bool CanAdvanceToNextWave(int waveIndex, MobSet mobsInPreviousWaves)
         {
-            int numAliveHostileMobs = 0;
-            foreach (Mob mob in mobsInPreviousWaves)
-            {
-                if (mob.Active && !mob.Dead)
-                {
-                    numAliveHostileMobs++;
-                }
-            }
-            return waveIndex == 0 || numAliveHostileMobs == 0;
+            return waveIndex == 0 || mobsInPreviousWaves.ThatAreNotDead().Count == 0;
         }
 
-        public override bool ShouldLockEntrances(List<Mob> mobsInPreviousWaves, List<Mob> mobsInWavesToAdvance)
+        public override bool ShouldLockEntrances(MobSet mobsInPreviousWaves, MobSet mobsInWavesToAdvance)
         {
-            foreach (Mob mobInPreviousWaves in mobsInPreviousWaves)
-            {
-                if (!mobInPreviousWaves.Dead) return true;
-            }
-            foreach (Mob mobInWavesToAdvance in mobsInWavesToAdvance)
-            {
-                if (!mobInWavesToAdvance.Dead) return true;
-            }
-            return false;
+            return mobsInPreviousWaves.ThatAreNotDead().Count > 0 || mobsInWavesToAdvance.ThatAreNotDead().Count > 0;
         }
 
         protected override Dictionary<TiledAreaMobSpawnPoint, MobSpawnable> DetermineMobSpawnsInTiledArea(TiledLevelPlanArea planArea, TiledArea tiledArea, HashSet<TiledAreaMobSpawnPoint> spawnPoints, int waveIndex)
@@ -107,7 +91,7 @@ namespace FrigidBlackwaters.Game
                 if (UnityEngine.Random.Range(0, maxNumUniqueMobs) >= uniqueSpawnables.Count)
                 {
                     // We now add a new mob to our chosen mobs (which has a limit to reduce variety)
-                    List<Tuple<MobSpawnable, int>> validSpawnablesAndIndexes = new List<Tuple<MobSpawnable, int>>();
+                    List<(MobSpawnable spawnable, int index)> validSpawnablesAndIndexes = new List<(MobSpawnable spawnable, int index)>();
 
                     List<int> remainingAndValidTiers = new List<int>();
                     foreach (int remainingTier in remainingSpawnables.Keys)
@@ -124,22 +108,31 @@ namespace FrigidBlackwaters.Game
                         for (int i = 0; i < remainingSpawnables[chosenTier].Count; i++)
                         {
                             MobSpawnable remainingSpawnable = remainingSpawnables[chosenTier][i];
-                            if (chosenSpawnPoint.CanSpawnHere(remainingSpawnable, tiledArea.AbsoluteCenterPosition))
+                            int numberSpawnPointsThatCanSpawn = 0;
+                            foreach (TiledAreaMobSpawnPoint remainingSpawnPoint in remainingSpawnPoints)
                             {
-                                // Spawnables with lower traversability have a higher chance to be picked
-                                // to balance out opportunities that multi-terrain mobs have with other spawn points
-                                for (int j = 0; j <= (int)TileTerrain.Count - remainingSpawnable.SpawnTraversableTerrain.TerrainCount; j++)
+                                if (remainingSpawnPoint.CanSpawnHere(remainingSpawnable, tiledArea))
                                 {
-                                    validSpawnablesAndIndexes.Add(new Tuple<MobSpawnable, int>(remainingSpawnable, i));
+                                    numberSpawnPointsThatCanSpawn++;
+                                }
+                            }
+
+                            if (chosenSpawnPoint.CanSpawnHere(remainingSpawnable, tiledArea))
+                            {
+                                // Spawnables with lower number of available spawn points have a higher chance to be picked
+                                // to balance out opportunities that multi-terrain mobs have with other spawn points
+                                for (int j = 0; j <= Mathf.Max(1, remainingSpawnPoints.Count - numberSpawnPointsThatCanSpawn); j++)
+                                {
+                                    validSpawnablesAndIndexes.Add((remainingSpawnable, i));
                                 }
                             }
                         }
 
                         if (validSpawnablesAndIndexes.Count > 0)
                         {
-                            Tuple<MobSpawnable, int> chosenSpawnableAndIndex = validSpawnablesAndIndexes[UnityEngine.Random.Range(0, validSpawnablesAndIndexes.Count)];
-                            remainingSpawnables[chosenTier].RemoveAt(chosenSpawnableAndIndex.Item2);
-                            uniqueSpawnables.Add(chosenSpawnableAndIndex.Item1);
+                            (MobSpawnable spawnable, int index) chosenSpawnableAndIndex = validSpawnablesAndIndexes[UnityEngine.Random.Range(0, validSpawnablesAndIndexes.Count)];
+                            remainingSpawnables[chosenTier].RemoveAt(chosenSpawnableAndIndex.index);
+                            uniqueSpawnables.Add(chosenSpawnableAndIndex.spawnable);
                         }
                     }
                 }
@@ -148,7 +141,7 @@ namespace FrigidBlackwaters.Game
                 List<MobSpawnable> possibleSpawnables = new List<MobSpawnable>();
                 foreach (MobSpawnable uniqueSpawnable in uniqueSpawnables)
                 {
-                    if (chosenSpawnPoint.CanSpawnHere(uniqueSpawnable, tiledArea.AbsoluteCenterPosition) && currentTierSum + uniqueSpawnable.Tier <= maxTierSum)
+                    if (chosenSpawnPoint.CanSpawnHere(uniqueSpawnable, tiledArea) && currentTierSum + uniqueSpawnable.Tier <= maxTierSum)
                     {
                         possibleSpawnables.Add(uniqueSpawnable);
                     }
@@ -166,7 +159,7 @@ namespace FrigidBlackwaters.Game
 
         private float GetExploredPercent(TiledArea tiledArea)
         {
-            if (TiledLevel.TryGetTiledLevelAtPosition(tiledArea.AbsoluteCenterPosition, out TiledLevel tiledLevel))
+            if (TiledLevel.TryGetTiledLevelAtPosition(tiledArea.CenterPosition, out TiledLevel tiledLevel))
             {
                 int exploredCount = TiledWorldExplorer.ExploredTiledAreas.Intersect(tiledLevel.SpawnedAreaPerPlanAreas.Values).Count<TiledArea>();
                 return (float)exploredCount / tiledLevel.SpawnedAreaPerPlanAreas.Count;

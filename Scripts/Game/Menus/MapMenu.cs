@@ -22,18 +22,18 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected override void Closed()
-        {
-            this.tiledWorldMap.gameObject.SetActive(false);
-        }
-
         protected override void Opened()
         {
             this.tiledWorldMap.gameObject.SetActive(true);
             if (TiledArea.TryGetFocusedTiledArea(out TiledArea tiledArea))
             {
-                this.tiledWorldMap.MoveTo(-tiledArea.AbsoluteCenterPosition);
+                this.tiledWorldMap.MoveTo(-tiledArea.CenterPosition);
             }
+        }
+
+        protected override void Closed()
+        {
+            this.tiledWorldMap.gameObject.SetActive(false);
         }
 
         protected override void Awake()

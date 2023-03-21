@@ -26,14 +26,14 @@ namespace FrigidBlackwaters
         BreakBoxes,
         ThreatBoxes,
         LookoutBoxes,
-        Unused24,
-        Unused25,
+        Sight,
+        IgnoringMobsTerrainAndObstaclesMob,
         Unused26,
         Unused27,
         Unused28,
         Unused29,
         Unused30,
         Unused31,
-        Count,
+        Count
     }
 }

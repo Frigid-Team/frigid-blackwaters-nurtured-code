@@ -43,40 +43,44 @@ namespace FrigidBlackwaters.Cheats
         [ConsoleMethod("SpawnPlayer", "Spawn the player at your mouse position.")]
         public static void SpawnPlayer()
         {
-            SpawnMob(FrigidPaths.ProjectFolder.UNIVERSAL, "Player");
+            SpawnMobs("Player");
         }
 
         [ConsoleMethod("SpawnMob", "Spawn a mob at your mouse position.")]
-        public static void SpawnMob(string contextFolderName, string spawnableName)
+        public static void SpawnMobs(string spawnableName)
         {
-            SpawnMob(contextFolderName, spawnableName, 1, 0);
+            SpawnMobs(spawnableName, 1, 0);
         }
 
         [ConsoleMethod("SpawnMob", "Spawn a mob at your mouse position.")]
-        public static void SpawnMob(string contextFolderName, string spawnableName, int quantity, float radius)
+        public static void SpawnMobs(string spawnableName, int quantity, float radius)
         {
-            if (contextFolderName[contextFolderName.Length - 1] != '/')
+            string[] guids = AssetDatabase.FindAssets(spawnableName + " t:" + typeof(MobSpawnable).Name);
+            if (guids.Length > 0)
             {
-                contextFolderName += "/";
+                MobSpawnable mobSpawnable = AssetDatabase.LoadAssetAtPath<MobSpawnable>(AssetDatabase.GUIDToAssetPath(guids[0]));
+                for (int i = 0; i < quantity; i++)
+                {
+                    float angleRad = Mathf.PI * 2 / quantity * i;
+                    Vector2 spawnPosition = (Vector2)MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()) + new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * radius;
+                    if (mobSpawnable.CanSpawnMobAt(spawnPosition))
+                    {
+                        mobSpawnable.SpawnMob(spawnPosition, Vector2.down);
+                    }
+                }
             }
-            string path = 
-                FrigidPaths.ProjectFolder.ASSETS + 
-                FrigidPaths.ProjectFolder.SCRIPTABLE_OBJECTS + 
-                contextFolderName + 
-                FrigidPaths.ProjectFolder.MOBS +
-                FrigidPaths.ProjectFolder.SPAWNING +
-                spawnableName + ".asset";
-            MobSpawnable mobSpawnable = AssetDatabase.LoadAssetAtPath<MobSpawnable>(path);
-            if (mobSpawnable == null)
-            {
-                Debug.LogWarning("Could not find MobSpawnable of name " + spawnableName + ".");
-                return;
-            }
+        }
 
-            for (int i = 0; i < quantity; i++)
+        [ConsoleMethod("MovePlayer", "Moves the player to your mouse position.")]
+        public static void MovePlayer()
+        {
+            if (PlayerMob.TryGet(out PlayerMob player))
             {
-                float angleRad = Mathf.PI * 2 / quantity * i;
-                // mobSpawnable.SpawnMob((Vector2)MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()) + new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * radius, Vector2.down);
+                Vector2 movePosition = MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue());
+                if (player.CanMoveTo(movePosition))
+                {
+                    player.MoveTo(movePosition);
+                }
             }
         }
 
@@ -84,9 +88,9 @@ namespace FrigidBlackwaters.Cheats
         public static void SpawnProjectile(string projectilePrefabName)
         {
             string[] guids = AssetDatabase.FindAssets("t:Prefab " + projectilePrefabName);
-            if (guids.Length > 0)
+            foreach (string guid in guids)
             {
-                Projectile projectilePrefab = AssetDatabase.LoadAssetAtPath<Projectile>(AssetDatabase.GUIDToAssetPath(guids[0]));
+                Projectile projectilePrefab = AssetDatabase.LoadAssetAtPath<Projectile>(AssetDatabase.GUIDToAssetPath(guid));
                 if (projectilePrefab != null)
                 {
                     Projectile spawnedProjectile = FrigidInstancing.CreateInstance<Projectile>(projectilePrefab);
@@ -94,12 +98,13 @@ namespace FrigidBlackwaters.Cheats
                         0,
                         DamageAlignment.Neutrals,
                         () => FrigidInstancing.DestroyInstance(spawnedProjectile),
-                        (Vector2)MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
+                        MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
                         Vector2.right,
                         null,
                         null,
                         null
                         );
+                    return;
                 }
             }
         }
@@ -108,9 +113,9 @@ namespace FrigidBlackwaters.Cheats
         public static void SpawnExplosion(string explosionPrefabName)
         {
             string[] guids = AssetDatabase.FindAssets("t:Prefab " + explosionPrefabName);
-            if (guids.Length > 0)
+            foreach (string guid in guids)
             {
-                Explosion explosionPrefab = AssetDatabase.LoadAssetAtPath<Explosion>(AssetDatabase.GUIDToAssetPath(guids[0]));
+                Explosion explosionPrefab = AssetDatabase.LoadAssetAtPath<Explosion>(AssetDatabase.GUIDToAssetPath(guid));
                 if (explosionPrefab != null)
                 {
                     Explosion spawnedExplosion = FrigidInstancing.CreateInstance<Explosion>(explosionPrefab);
@@ -118,80 +123,56 @@ namespace FrigidBlackwaters.Cheats
                         0,
                         DamageAlignment.Neutrals,
                         () => FrigidInstancing.DestroyInstance(spawnedExplosion),
-                        (Vector2)MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
+                        MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
                         0,
                         null,
                         null,
                         null
                         );
+                    return;
                 }
             }
         }
 
         [ConsoleMethod("GiveItemToPlayer", "Give the player an item.")]
-        public static void GiveItemToPlayer(string contextFolderName, string itemTypeFolderName, string itemStorableName)
+        public static void GiveItemToPlayer(string itemStorableName)
         {
-            GiveItemToPlayer(contextFolderName, itemTypeFolderName, itemStorableName, 1);
+            GiveItemToPlayer(itemStorableName, 1);
         }
 
         [ConsoleMethod("GiveItemToPlayer", "Give the player an item.")]
-        public static void GiveItemToPlayer(string contextFolderName, string itemTypeFolderName, string itemStorableName, int quantity)
+        public static void GiveItemToPlayer(string itemStorableName, int quantity)
         {
-            if (contextFolderName[contextFolderName.Length - 1] != '/')
+            string[] guids = AssetDatabase.FindAssets("t:" + typeof(ItemStorable).Name + " " + itemStorableName);
+            foreach (string guid in guids)
             {
-                contextFolderName += "/";
-            }
-            if (itemTypeFolderName[itemTypeFolderName.Length - 1] != '/')
-            {
-                itemTypeFolderName += "/";
-            }
-            string path = 
-                FrigidPaths.ProjectFolder.ASSETS +
-                FrigidPaths.ProjectFolder.SCRIPTABLE_OBJECTS + 
-                contextFolderName + 
-                FrigidPaths.ProjectFolder.ITEMS + 
-                FrigidPaths.ProjectFolder.STORAGE + 
-                FrigidPaths.ProjectFolder.STORABLES + 
-                itemTypeFolderName + 
-                itemStorableName + ".asset";
-            ItemStorable itemStorable = (ItemStorable)AssetDatabase.LoadAssetAtPath<ItemStorable>(path);
-            if (itemStorable == null)
-            {
-                Debug.LogWarning("Could not find ItemStorable of name " + itemStorableName + ".");
-                return;
-            }
-
-            /* TODO MOBS_V2
-            if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob))
-            {
-                List<ItemStorage> playerStorages = ItemStorage.FindStoragesUsedByMob(recentPlayerMob);
-                foreach (ItemStorage playerStorage in playerStorages)
+                ItemStorable itemStorable = AssetDatabase.LoadAssetAtPath<ItemStorable>(AssetDatabase.GUIDToAssetPath(guid));
+                if (itemStorable != null)
                 {
-                    foreach (ItemStorageGrid storageGrid in playerStorage.StorageGrids)
+                    if (PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out ItemStorage playerItemStorage))
                     {
-                        for (int x = 0; x < storageGrid.Dimensions.x; x++)
+                        foreach (ItemStorageGrid storageGrid in playerItemStorage.StorageGrids)
                         {
-                            for (int y = 0; y < storageGrid.Dimensions.y; y++)
+                            for (int x = 0; x < storageGrid.Dimensions.x; x++)
                             {
-                                if (storageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash itemStash))
+                                for (int y = 0; y < storageGrid.Dimensions.y; y++)
                                 {
-                                    if (itemStash.CanStackItemStorable(itemStorable) && !itemStash.IsFull)
+                                    if (storageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash itemStash))
                                     {
-                                        itemStash.AddItems(itemStorable.CreateItems(quantity), itemStorable);
-                                        return;
+                                        if (itemStash.CanStackStorable(itemStorable) && !itemStash.IsFull)
+                                        {
+                                            List<Item> createdItems = itemStorable.CreateItems(quantity);
+                                            playerItemStorage.AddStoredItems(createdItems);
+                                            itemStash.AddItems(createdItems, itemStorable);
+                                            return;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                Debug.LogWarning("Could not fit the item into the storage.");
             }
-            else
-            {
-                Debug.LogWarning("Cannot find the player.");
-            }
-            */
         }
 #endif
     }

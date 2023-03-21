@@ -32,7 +32,7 @@ namespace FrigidBlackwaters.Game
         {
             FragmentAnimationSet chosenAnimations = this.fragmentAnimations[UnityEngine.Random.Range(0, this.fragmentAnimations.Length)];
 
-            this.animatorBody.PlayByName(chosenAnimations.LaunchingAnimationName);
+            this.animatorBody.Play(chosenAnimations.LaunchingAnimationName);
 
             float durationElapsed = 0;
             this.transform.rotation = Quaternion.Euler(0, 0, UnityEngine.Random.Range(0, 360));
@@ -54,23 +54,23 @@ namespace FrigidBlackwaters.Game
 
             while (durationElapsed < this.totalDuration)
             {
-                durationElapsed += Time.deltaTime;
+                durationElapsed += FrigidCoroutine.DeltaTime;
                 float totalPercentCompleted = durationElapsed / this.totalDuration;
                 float totalPercentRemaining = 1 - totalPercentCompleted;
                 this.transform.position += new Vector3(
                     impactForce.x * totalPercentRemaining,
                     impactForce.y * totalPercentRemaining + this.upwardForce * this.upwardCurve.ImmutableValue.Evaluate(totalPercentCompleted)
-                    ) * Time.deltaTime;
+                    ) * FrigidCoroutine.DeltaTime;
                 
                 if (!this.alignStraight)
                 {
-                    this.transform.Rotate(new Vector3(0, 0, this.rotationSpeed * totalPercentRemaining * Time.deltaTime));
+                    this.transform.Rotate(new Vector3(0, 0, this.rotationSpeed * totalPercentRemaining * FrigidCoroutine.DeltaTime));
                 }
 
                 yield return null;
             }
 
-            this.animatorBody.PlayByName(chosenAnimations.FallenAnimationName);
+            this.animatorBody.Play(chosenAnimations.FallenAnimationName);
         }
 
         [Serializable]

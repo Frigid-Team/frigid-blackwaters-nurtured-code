@@ -50,7 +50,7 @@ namespace FrigidBlackwaters.Game
                         new TiledLevelPlanEntrance(subLevelEntrance),
                         new TiledLevelPlanEntrance(combatPlanArea, this.exitEntrancePrefab),
                         Vector2Int.up,
-                        containedArea.NavigationGrid.TerrainAtTile(TilePositioning.TileIndicesFromAbsolutePosition(subLevelEntrance.transform.position, containedArea.AbsoluteCenterPosition, containedArea.MainAreaDimensions))
+                        containedArea.NavigationGrid.TerrainAtTile(TilePositioning.TileIndicesFromPosition(subLevelEntrance.transform.position, containedArea.CenterPosition, containedArea.MainAreaDimensions))
                         )
                     );
             }

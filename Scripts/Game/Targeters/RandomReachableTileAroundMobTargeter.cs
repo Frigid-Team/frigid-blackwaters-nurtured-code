@@ -8,7 +8,7 @@ namespace FrigidBlackwaters.Game
     public class RandomReachableTileAroundMobTargeter : Targeter
     {
         [SerializeField]
-        private Mob mob;
+        private MobSerializedReference mob;
         [SerializeField]
         private FloatSerializedReference minPathCost;
         [SerializeField]
@@ -16,28 +16,29 @@ namespace FrigidBlackwaters.Game
 
         public override Vector2[] Calculate(Vector2[] currentPositions, float elapsedDuration, float elapsedDurationDelta)
         {
+            Mob mob = this.mob.ImmutableValue;
             Vector2[] positions = new Vector2[currentPositions.Length];
             for (int i = 0; i < positions.Length; i++)
             {
-                List<Vector2Int> reachableIndices = this.mob.TiledArea.NavigationGrid.FindReachableIndices(
-                    this.mob.PositionIndices, 
-                    this.mob.TileSize, 
-                    this.mob.TraversableTerrain,
+                List<Vector2Int> reachableIndices = mob.TiledArea.NavigationGrid.FindReachableIndices(
+                    mob.PositionIndices,
+                    mob.TileSize,
+                    mob.TraversableTerrain,
                     this.minPathCost.MutableValue,
                     this.maxPathCost.MutableValue
                     );
                 if (reachableIndices.Count > 0)
                 {
-                    positions[i] = TilePositioning.RectAbsolutePositionFromIndices(
+                    positions[i] = TilePositioning.RectPositionFromIndices(
                         reachableIndices[Random.Range(0, reachableIndices.Count)],
-                        this.mob.TiledArea.AbsoluteCenterPosition,
-                        this.mob.TiledArea.MainAreaDimensions,
-                        this.mob.TileSize
+                        mob.TiledArea.CenterPosition,
+                        mob.TiledArea.MainAreaDimensions,
+                        mob.TileSize
                         );
                 }
                 else
                 {
-                    positions[i] = this.mob.AbsolutePosition;
+                    positions[i] = mob.Position;
                 }
             }
             return positions;

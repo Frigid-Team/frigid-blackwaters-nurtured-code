@@ -4,9 +4,9 @@ namespace FrigidBlackwaters.Core
 {
     public static class CursorDisplay
     {
-        private static CountingSemaphore hidden;
+        private static ControlCounter hidden;
 
-        public static CountingSemaphore Hidden
+        public static ControlCounter Hidden
         {
             get
             {
@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Core
 
         static CursorDisplay()
         {
-            hidden = new CountingSemaphore();
+            hidden = new ControlCounter();
             hidden.OnFirstRequest += () => Cursor.visible = false;
             hidden.OnLastRelease += () => Cursor.visible = true;
             Application.focusChanged += EvaluateCursorHidden;

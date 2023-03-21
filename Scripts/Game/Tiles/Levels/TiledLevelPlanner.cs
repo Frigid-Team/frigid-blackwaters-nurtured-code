@@ -25,17 +25,14 @@ namespace FrigidBlackwaters.Game
             connections.Sort(
                 (TiledLevelPlanConnection firstConnection, TiledLevelPlanConnection secondConnection) =>
                 {
-                    int firstScore = 0;
-                    foreach (TiledLevelPlanEntrance planEntrance in firstConnection.PlanEntrances)
+                    int CalcScore(TiledLevelPlanConnection connection)
                     {
-                        if (!planEntrance.IsSubLevelEntrance) firstScore += planEntrance.Area.BlueprintGroup.NumberAvailableEntranceTerrains;
+                        int score = 0;
+                        if (!connection.FirstEntrance.IsSubLevelEntrance) score += connection.FirstEntrance.Area.BlueprintGroup.NumberAvailableEntranceTerrains;
+                        if (!connection.SecondEntrance.IsSubLevelEntrance) score += connection.SecondEntrance.Area.BlueprintGroup.NumberAvailableEntranceTerrains;
+                        return score;
                     }
-                    int secondScore = 0;
-                    foreach (TiledLevelPlanEntrance planEntrance in secondConnection.PlanEntrances)
-                    {
-                        if (!planEntrance.IsSubLevelEntrance) secondScore += planEntrance.Area.BlueprintGroup.NumberAvailableEntranceTerrains;
-                    }
-                    return secondScore - firstScore;
+                    return CalcScore(secondConnection) - CalcScore(firstConnection);
                 }
                 );
             foreach (TiledLevelPlanConnection planConnection in connections)
@@ -46,19 +43,24 @@ namespace FrigidBlackwaters.Game
                     for (int i = (int)TileTerrain.None + 1; i < (int)TileTerrain.Count; i++)
                     {
                         bool available = true;
-                        for (int j = 0; j < planConnection.NumberEntrances; j++)
+                        if (!planConnection.FirstEntrance.IsSubLevelEntrance)
                         {
-                            if (planConnection.PlanEntrances[j].IsSubLevelEntrance) continue;
-
-                            TileTerrain[] validEntrances = planConnection.PlanEntrances[j].Area.EntranceTerrains;
-                            validEntrances[TilePositioning.WallArrayIndex(planConnection.EntryDirections[j])] = (TileTerrain)i;
-                            if (planConnection.PlanEntrances[j].Area.BlueprintGroup.GetMatchingEntranceTerrainBlueprints(validEntrances).Count == 0)
+                            TileTerrain[] validEntrances = planConnection.FirstEntrance.Area.EntranceTerrains;
+                            validEntrances[TilePositioning.WallArrayIndex(planConnection.Direction)] = (TileTerrain)i;
+                            if (planConnection.FirstEntrance.Area.BlueprintGroup.GetMatchingEntranceTerrainBlueprints(validEntrances).Count == 0)
                             {
                                 available = false;
-                                break;
                             }
                         }
-
+                        if (!planConnection.SecondEntrance.IsSubLevelEntrance)
+                        {
+                            TileTerrain[] validEntrances = planConnection.SecondEntrance.Area.EntranceTerrains;
+                            validEntrances[TilePositioning.WallArrayIndex(-planConnection.Direction)] = (TileTerrain)i;
+                            if (planConnection.SecondEntrance.Area.BlueprintGroup.GetMatchingEntranceTerrainBlueprints(validEntrances).Count == 0)
+                            {
+                                available = false;
+                            }
+                        }
                         if (available)
                         {
                             availableConnectionTerrains.Add((TileTerrain)i);
@@ -91,37 +93,25 @@ namespace FrigidBlackwaters.Game
                 foreach (TiledLevelPlanConnection planConnection in tiledLevelPlan.Connections)
                 {
                     bool isConnected = false;
-                    List<TiledLevelPlanArea> connectedPlanAreas = new List<TiledLevelPlanArea>();
+                    TiledLevelPlanArea connectedPlanArea = null;
 
-                    for (int i = 0; i < planConnection.NumberEntrances; i++)
-                    {
-                        if (planConnection.PlanEntrances[i].Area == dequeuedPlanArea)
-                        {
-                            isConnected = true;
-                        }
-                        else
-                        {
-                            if (!planConnection.IsSubLevelConnection)
-                            {
-                                connectedPlanAreas.Add(planConnection.PlanEntrances[i].Area);
-                            }
-                        }
-                    }
+                    if (planConnection.FirstEntrance.Area == dequeuedPlanArea) isConnected = true;
+                    else connectedPlanArea = planConnection.FirstEntrance.Area;
 
-                    if (isConnected)
+                    if (planConnection.SecondEntrance.Area == dequeuedPlanArea) isConnected = true;
+                    else connectedPlanArea = planConnection.SecondEntrance.Area;
+
+                    if (isConnected && !planConnection.IsSubLevelConnection)
                     {
-                        foreach (TiledLevelPlanArea connectedPlanArea in connectedPlanAreas)
+                        if (!visitedPlanAreas.Contains(connectedPlanArea))
                         {
-                            if (!visitedPlanAreas.Contains(connectedPlanArea))
+                            connectedPlanArea.NumberAreasFromStart = dequeuedPlanArea.NumberAreasFromStart + 1;
+                            if (connectedPlanArea.NumberAreasFromStart > maxNumberAreasFromStart)
                             {
-                                connectedPlanArea.NumberAreasFromStart = dequeuedPlanArea.NumberAreasFromStart + 1;
-                                if (connectedPlanArea.NumberAreasFromStart > maxNumberAreasFromStart)
-                                {
-                                    maxNumberAreasFromStart = connectedPlanArea.NumberAreasFromStart;
-                                }
-                                queuedPlanAreas.Enqueue(connectedPlanArea);
-                                visitedPlanAreas.Add(connectedPlanArea);
+                                maxNumberAreasFromStart = connectedPlanArea.NumberAreasFromStart;
                             }
+                            queuedPlanAreas.Enqueue(connectedPlanArea);
+                            visitedPlanAreas.Add(connectedPlanArea);
                         }
                     }
                 }

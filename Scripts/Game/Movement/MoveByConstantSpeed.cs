@@ -13,16 +13,19 @@ namespace FrigidBlackwaters.Game
 
         private Vector2 currentMoveDirection;
 
-        protected override void StartedMoving(Vector2 movementPosition, float speedBonus)
+        public override Vector2 Velocity
         {
-            base.StartedMoving(movementPosition, speedBonus);
-            this.currentMoveDirection = Vector2.zero;
+            get
+            {
+                this.currentMoveDirection = this.moveDirection.Calculate(this.currentMoveDirection, this.MovingDuration, this.MovingDurationDelta);
+                return this.currentMoveDirection * Mathf.Max(this.speed.ImmutableValue + this.Mover.SpeedBonus, 0);
+            }
         }
 
-        protected override Vector2 GetVelocity(Vector2 movementPosition, float elapsedDuration, float elapsedDurationDelta, float speedBonus)
+        public override void StartMoving()
         {
-            this.currentMoveDirection = this.moveDirection.Calculate(this.currentMoveDirection, elapsedDuration, elapsedDurationDelta);
-            return this.currentMoveDirection * Mathf.Max(this.speed.ImmutableValue + speedBonus, 0);
+            base.StartMoving();
+            this.currentMoveDirection = Vector2.zero;
         }
     }
 }

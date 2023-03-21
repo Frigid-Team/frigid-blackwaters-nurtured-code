@@ -10,19 +10,14 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private List<Conjunction> conjunctions;
 
-        public bool Evaluate()
+        public bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
         {
             bool valid = false;
             foreach (Conjunction conjunction in this.conjunctions)
             {
-                if (conjunction.Evaluate())
-                {
-                    valid = true;
-                    break;
-                }
+                valid |= conjunction.Evaluate(elapsedDuration, elapsedDurationDelta);
             }
-
-            return valid || this.conjunctions.Count == 0;
+            return valid;
         }
 
         [Serializable]
@@ -31,15 +26,13 @@ namespace FrigidBlackwaters.Game
             [SerializeField]
             private List<Conditional> conditionals;
 
-            public bool Evaluate()
+            public bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
             {
                 bool valid = true;
                 foreach (Conditional conditional in this.conditionals)
                 {
-                    if (!conditional.Validate())
-                    {
-                        valid = false;
-                    }
+                    bool evaluation = conditional.Evaluate(elapsedDuration, elapsedDurationDelta);
+                    valid &= (conditional.ValidateOnFalse && !evaluation) || (!conditional.ValidateOnFalse && evaluation);
                 }
                 return valid;
             }

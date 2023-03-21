@@ -2,17 +2,25 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    public class ThreatInfo
+    public class ThreatInfo : DamageInfo
     {
         private float timeThreatened;
         private Vector2 threatPosition;
         private Vector2 threatDirection;
 
-        public ThreatInfo(Vector2 threatPosition, Vector2 threatDirection)
+        public ThreatInfo(Vector2 threatPosition, Vector2 threatDirection, Collider2D collision) : base(collision)
         {
             this.timeThreatened = Time.time;
             this.threatPosition = threatPosition;
             this.threatDirection = threatDirection;
+        }
+
+        public override bool IsNonTrivial
+        {
+            get
+            {
+                return true;
+            }
         }
 
         public float TimeWarned

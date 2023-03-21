@@ -12,7 +12,7 @@ namespace FrigidBlackwaters.Game
         {
             base.Populated(orientationDirection, navigationGrid, allTileIndices);
 
-            this.AnimatorBody.PlayByName(this.animationNames[Random.Range(0, this.animationNames.Length)]);
+            this.AnimatorBody.Play(this.animationNames[Random.Range(0, this.animationNames.Length)]);
         }
     }
 }

@@ -9,108 +9,108 @@ namespace FrigidBlackwaters.Game
         private const int CAMERA_TILED_AREA_Y_LENGTH_COVERAGE = 14;
         private const float CAMERA_SLIDE_SPEED = 10f;
 
-        private FrigidCoroutine currentFollowMobInTiledAreaRoutine;
+        private FrigidCoroutine currentFollowRoutine;
 
         protected override void OnEnable()
         {
             base.OnEnable();
-            /* Redo later
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnOrderChanged += SlideAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnAddedToPresentMobs += SlideAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnRemovedFromPresentMobs += SlideAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnMobAdded += SnapAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnMobRemoved += SnapAndFollow;
-            */
-            TiledArea.OnFocusedTiledAreaChanged += SnapAndFollow;
-            RenewFollowRoutine(false);
+            PlayerMob.OnExists += Startup;
+            PlayerMob.OnUnexists += Teardown;
+            TiledArea.OnFocusedTiledAreaChanged += RenewFollowRoutine;
+            Startup();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            /*
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnOrderChanged -= SlideAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnAddedToPresentMobs -= SlideAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnRemovedFromPresentMobs -= SlideAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnMobAdded -= SnapAndFollow;
-            Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).OnMobRemoved -= SnapAndFollow;
-            */
-            TiledArea.OnFocusedTiledAreaChanged -= SnapAndFollow;
+            PlayerMob.OnExists -= Startup;
+            PlayerMob.OnUnexists -= Teardown;
+            TiledArea.OnFocusedTiledAreaChanged -= RenewFollowRoutine;
+            Teardown();
         }
 
 #if UNITY_EDITOR
         protected override bool OwnsGameObject() { return true; }
 #endif
 
-        private void SlideAndFollow()
+        private void Startup()
         {
-            RenewFollowRoutine(true);
-        }
-
-        private void SlideAndFollow(Mob player)
-        {
-            RenewFollowRoutine(true);
-        }
-
-        private void SnapAndFollow()
-        {
-            RenewFollowRoutine(false);
-        }
-        
-        private void SnapAndFollow(Mob player)
-        {
-            RenewFollowRoutine(false);
-        }
-
-        private void RenewFollowRoutine(bool slideToTarget)
-        {
-            FrigidCoroutine.Kill(this.currentFollowMobInTiledAreaRoutine);
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea))
+            if (PlayerMob.TryGet(out PlayerMob player))
             {
-                /* TODO
-                if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob) && 
-                    recentPlayerMob.TiledAreaOccupier.TryGetCurrentTiledArea(out TiledArea playerTiledArea) &&
-                    playerTiledArea == focusedTiledArea)
-                {
-                    this.currentFollowMobInTiledAreaRoutine = FrigidCoroutine.Run(FollowMobInTiledAreaLoop(recentPlayerMob, focusedTiledArea, slideToTarget), this.gameObject);
-                }
-                */
+                this.transform.position = CalculateCameraPosition();
+                player.OnTiledAreaChanged += RenewFollowRoutine;
+                BeginFollowRoutine();
             }
         }
 
-        private IEnumerator<FrigidCoroutine.Delay> FollowMobInTiledAreaLoop(Mob mob, TiledArea tiledArea, bool slideToTarget)
+        private void Teardown()
         {
-            Vector2 extent =
-                new Vector2(
-                    GameConstants.UNIT_WORLD_SIZE * Mathf.Max(tiledArea.MainAreaDimensions.x - CAMERA_TILED_AREA_X_LENGTH_COVERAGE, 0) / 2f,
-                    GameConstants.UNIT_WORLD_SIZE * Mathf.Max(tiledArea.MainAreaDimensions.y - CAMERA_TILED_AREA_Y_LENGTH_COVERAGE, 0) / 2f
-                    );
-
-            if (slideToTarget) 
+            if (PlayerMob.TryGet(out PlayerMob player))
             {
-                while (true)
+                player.OnTiledAreaChanged -= RenewFollowRoutine;
+                FinishFollowRoutine();
+            }
+        }
+
+        private void RenewFollowRoutine(TiledArea previousTiledArea, TiledArea currentTiledArea)
+        {
+            RenewFollowRoutine();
+        }
+
+        private void RenewFollowRoutine()
+        {
+            FinishFollowRoutine();
+            this.transform.position = CalculateCameraPosition();
+            BeginFollowRoutine();
+        }
+
+        private void BeginFollowRoutine()
+        {
+            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && PlayerMob.TryGet(out PlayerMob player))
+            {
+                if (player.TiledArea == focusedTiledArea)
                 {
-                    Vector3 target =
-                        new Vector3(
-                            Mathf.Clamp(mob.AbsolutePosition.x, tiledArea.AbsoluteCenterPosition.x - extent.x, tiledArea.AbsoluteCenterPosition.x + extent.x),
-                            Mathf.Clamp(mob.AbsolutePosition.y, tiledArea.AbsoluteCenterPosition.y - extent.y, tiledArea.AbsoluteCenterPosition.y + extent.y)
-                            );
-                    this.transform.position += (target - this.transform.position) * CAMERA_SLIDE_SPEED * Time.unscaledDeltaTime;
-                    if (Vector2.Distance(target, this.transform.position) < GameConstants.SMALLEST_WORLD_SIZE) break;
-                    yield return null;
+                    this.currentFollowRoutine = FrigidCoroutine.Run(FollowPlayerInTiledArea(), this.gameObject);
                 }
             }
+        }
 
+        private void FinishFollowRoutine()
+        {
+            FrigidCoroutine.Kill(this.currentFollowRoutine);
+        }
+
+        private IEnumerator<FrigidCoroutine.Delay> FollowPlayerInTiledArea()
+        {
             while (true)
             {
-                Vector2 target =
-                    new Vector2(
-                        Mathf.Clamp(mob.AbsolutePosition.x, tiledArea.AbsoluteCenterPosition.x - extent.x, tiledArea.AbsoluteCenterPosition.x + extent.x),
-                        Mathf.Clamp(mob.AbsolutePosition.y, tiledArea.AbsoluteCenterPosition.y - extent.y, tiledArea.AbsoluteCenterPosition.y + extent.y)
-                        );
-                this.transform.position = target;
+                Vector3 target = CalculateCameraPosition();
+                Vector3 delta = (target - this.transform.position).normalized * Mathf.Min(FrigidCoroutine.DeltaTime * CAMERA_SLIDE_SPEED, Vector2.Distance(this.transform.position, target));
+
+                if (delta.magnitude < GameConstants.SMALLEST_WORLD_SIZE) this.transform.position = target;
+                else this.transform.position += delta;
+
                 yield return null;
             }
+        }
+
+        private Vector3 CalculateCameraPosition()
+        {
+            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && PlayerMob.TryGet(out PlayerMob player) && player.TiledArea == focusedTiledArea)
+            {
+                Vector2 extent =
+                    new Vector2(
+                        GameConstants.UNIT_WORLD_SIZE * Mathf.Max(focusedTiledArea.MainAreaDimensions.x - CAMERA_TILED_AREA_X_LENGTH_COVERAGE, 0) / 2f,
+                        GameConstants.UNIT_WORLD_SIZE * Mathf.Max(focusedTiledArea.MainAreaDimensions.y - CAMERA_TILED_AREA_Y_LENGTH_COVERAGE, 0) / 2f
+                        );
+                Vector3 target =
+                    new Vector3(
+                        Mathf.Clamp(player.Position.x, focusedTiledArea.CenterPosition.x - extent.x, focusedTiledArea.CenterPosition.x + extent.x),
+                        Mathf.Clamp(player.Position.y, focusedTiledArea.CenterPosition.y - extent.y, focusedTiledArea.CenterPosition.y + extent.y)
+                        );
+                return target;
+            }
+            return this.transform.position;
         }
     }
 }

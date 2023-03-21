@@ -21,10 +21,21 @@ namespace FrigidBlackwaters.Game
         private Nested2DList<bool> playedThisFrames;
         [SerializeField]
         [HideInInspector]
+        private Nested2DList<bool> onlyPlayOnFirstCycles;
+        [SerializeField]
+        [HideInInspector]
         private Nested3DList<Vector2> localOffsets;
         [SerializeField]
         [HideInInspector]
         private Nested3DList<float> localRotationsDeg;
+
+        public override int CurrentSortingOrder
+        {
+            get
+            {
+                return this.particleSystemRenderer.sortingOrder;
+            }
+        }
 
         public bool Loop
         {
@@ -40,14 +51,6 @@ namespace FrigidBlackwaters.Game
                     ParticleSystem.MainModule main = this.particleSystem.main;
                     main.loop = value;
                 }
-            }
-        }
-
-        public override List<AnimatorProperty> ChildProperties
-        {
-            get
-            {
-                return new List<AnimatorProperty>();
             }
         }
 
@@ -76,6 +79,20 @@ namespace FrigidBlackwaters.Game
             {
                 FrigidEditMode.RecordPotentialChanges(this);
                 this.playedThisFrames[animationIndex][frameIndex] = playThisFrame;
+            }
+        }
+
+        public bool GetOnlyPlayOnFirstCycle(int animationIndex, int frameIndex)
+        {
+            return this.onlyPlayOnFirstCycles[animationIndex][frameIndex];
+        }
+
+        public void SetOnlyPlayOnFirstCycle(int animationIndex, int frameIndex, bool onlyPlayOnFirstCycle)
+        {
+            if (this.onlyPlayOnFirstCycles[animationIndex][frameIndex] != onlyPlayOnFirstCycle)
+            {
+                FrigidEditMode.RecordPotentialChanges(this);
+                this.onlyPlayOnFirstCycles[animationIndex][frameIndex] = onlyPlayOnFirstCycle;
             }
         }
 
@@ -114,17 +131,20 @@ namespace FrigidBlackwaters.Game
             this.particleSystemRenderer = this.gameObject.GetComponent<ParticleSystemRenderer>();
             this.isPlayedInAnimations = new List<bool>();
             this.playedThisFrames = new Nested2DList<bool>();
+            this.onlyPlayOnFirstCycles = new Nested2DList<bool>();
             this.localOffsets = new Nested3DList<Vector2>();
             this.localRotationsDeg = new Nested3DList<float>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
             {
                 this.isPlayedInAnimations.Add(false);
                 this.playedThisFrames.Add(new Nested1DList<bool>());
+                this.onlyPlayOnFirstCycles.Add(new Nested1DList<bool>());
                 this.localOffsets.Add(new Nested2DList<Vector2>());
                 this.localRotationsDeg.Add(new Nested2DList<float>());
                 for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
                 {
                     this.playedThisFrames[animationIndex].Add(false);
+                    this.onlyPlayOnFirstCycles[animationIndex].Add(false);
                     this.localOffsets[animationIndex].Add(new Nested1DList<Vector2>());
                     this.localRotationsDeg[animationIndex].Add(new Nested1DList<float>());
                     for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
@@ -142,11 +162,13 @@ namespace FrigidBlackwaters.Game
             FrigidEditMode.RecordPotentialChanges(this);
             this.isPlayedInAnimations.Insert(animationIndex, false);
             this.playedThisFrames.Insert(animationIndex, new Nested1DList<bool>());
+            this.onlyPlayOnFirstCycles.Insert(animationIndex, new Nested1DList<bool>());
             this.localOffsets.Insert(animationIndex, new Nested2DList<Vector2>());
             this.localRotationsDeg.Insert(animationIndex, new Nested2DList<float>());
             for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
             {
                 this.playedThisFrames[animationIndex].Add(false);
+                this.onlyPlayOnFirstCycles[animationIndex].Add(false);
                 this.localOffsets[animationIndex].Add(new Nested1DList<Vector2>());
                 this.localRotationsDeg[animationIndex].Add(new Nested1DList<float>());
                 for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
@@ -163,6 +185,7 @@ namespace FrigidBlackwaters.Game
             FrigidEditMode.RecordPotentialChanges(this);
             this.isPlayedInAnimations.RemoveAt(animationIndex);
             this.playedThisFrames.RemoveAt(animationIndex);
+            this.onlyPlayOnFirstCycles.RemoveAt(animationIndex);
             this.localOffsets.RemoveAt(animationIndex);
             this.localRotationsDeg.RemoveAt(animationIndex);
             base.AnimationRemovedAt(animationIndex);
@@ -172,6 +195,7 @@ namespace FrigidBlackwaters.Game
         {
             FrigidEditMode.RecordPotentialChanges(this);
             this.playedThisFrames[animationIndex].Insert(frameIndex, false);
+            this.onlyPlayOnFirstCycles[animationIndex].Insert(frameIndex, false);
             this.localOffsets[animationIndex].Insert(frameIndex, new Nested1DList<Vector2>());
             this.localRotationsDeg[animationIndex].Insert(frameIndex, new Nested1DList<float>());
             for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
@@ -186,6 +210,7 @@ namespace FrigidBlackwaters.Game
         {
             FrigidEditMode.RecordPotentialChanges(this);
             this.playedThisFrames[animationIndex].RemoveAt(frameIndex);
+            this.onlyPlayOnFirstCycles[animationIndex].RemoveAt(frameIndex);
             this.localOffsets[animationIndex].RemoveAt(frameIndex);
             this.localRotationsDeg[animationIndex].RemoveAt(frameIndex);
             base.FrameRemovedAt(animationIndex, frameIndex);
@@ -223,6 +248,7 @@ namespace FrigidBlackwaters.Game
             if (otherParticleProperty)
             {
                 otherParticleProperty.SetPlayThisFrame(toAnimationIndex, toFrameIndex, GetPlayThisFrame(fromAnimationIndex, fromFrameIndex));
+                otherParticleProperty.SetOnlyPlayOnFirstCycle(toAnimationIndex, toFrameIndex, GetOnlyPlayOnFirstCycle(fromAnimationIndex, fromFrameIndex));
             }
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
@@ -238,45 +264,38 @@ namespace FrigidBlackwaters.Game
             base.CopyPasteToAnotherOrientation(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, fromOrientationIndex, toOrientationIndex);
         }
 
-        public override void Paused()
+        public override void Initialize()
         {
-            if (this.particleSystem.isPlaying)
-            {
-                this.particleSystem.Pause();
-            }
-            base.Paused();
+            base.Initialize();
+            this.Body.OnTimeScaleChanged +=
+                () =>
+                {
+                    ParticleSystem.MainModule main = this.particleSystem.main;
+                    main.simulationSpeed = this.Body.TimeScale;
+                };
         }
 
-        public override void UnPaused()
+        public override void AnimationEnter()
         {
-            if (this.particleSystem.isPaused)
-            {
-                this.particleSystem.Play();
-            }
-            base.UnPaused();
-        }
-
-        public override void AnimationEnter(int animationIndex, float elapsedDuration)
-        {
-            if (this.Loop && GetIsPlayedInAnimation(animationIndex))
+            if (this.Loop && GetIsPlayedInAnimation(this.Body.CurrAnimationIndex))
             {
                 this.particleSystem.Play();
             }
-            base.AnimationEnter(animationIndex, elapsedDuration);
+            base.AnimationEnter();
         }
 
-        public override void AnimationExit(int animationIndex)
+        public override void AnimationExit()
         {
-            if (this.Loop && GetIsPlayedInAnimation(animationIndex))
+            if (this.Loop && GetIsPlayedInAnimation(this.Body.CurrAnimationIndex))
             {
                 this.particleSystem.Stop();
             }
-            base.AnimationExit(animationIndex);
+            base.AnimationExit();
         }
 
-        public override void SetFrameEnter(int animationIndex, int frameIndex, float elapsedDuration, int loopsElapsed)
+        public override void FrameEnter()
         {
-            if (!this.Loop && GetPlayThisFrame(animationIndex, frameIndex))
+            if (!this.Loop && GetPlayThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex) && (this.Body.CurrentCycleIndex == 0 || !GetOnlyPlayOnFirstCycle(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex)))
             {
                 if (this.particleSystem.isPlaying)
                 {
@@ -284,15 +303,15 @@ namespace FrigidBlackwaters.Game
                 }
                 this.particleSystem.Play();
             }
-            base.SetFrameEnter(animationIndex, frameIndex, elapsedDuration, loopsElapsed);
+            base.FrameEnter();
         }
 
-        public override void OrientFrameEnter(int animationIndex, int frameIndex, int orientationIndex, float elapsedDuration)
+        public override void OrientationEnter()
         {
-            this.particleSystem.transform.localPosition = GetLocalOffset(animationIndex, frameIndex, orientationIndex);
-            this.particleSystem.transform.localRotation = Quaternion.Euler(0, 0, GetLocalRotationDeg(animationIndex, frameIndex, orientationIndex) - 90);
-            this.particleSystemRenderer.sortingOrder = GetSortingOrder(animationIndex, frameIndex, orientationIndex);
-            base.OrientFrameEnter(animationIndex, frameIndex, orientationIndex, elapsedDuration);
+            this.particleSystem.transform.localPosition = GetLocalOffset(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+            this.particleSystem.transform.localRotation = Quaternion.Euler(0, 0, GetLocalRotationDeg(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex) - 90);
+            this.particleSystemRenderer.sortingOrder = GetSortingOrder(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+            base.OrientationEnter();
         }
     }
 }

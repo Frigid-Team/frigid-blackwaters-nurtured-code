@@ -25,7 +25,7 @@ namespace FrigidBlackwaters.Game
             private TiledLevelPlanArea planArea;
             private TiledArea tiledArea;
             private RecyclePool<TiledAreaWaveSignal> waveSignalPool;
-            private List<List<Mob>> mobsInWaves;
+            private List<MobSet> mobsInWaves;
             private int nextWaveIndex;
             private bool isAdvancingWaves;
             private bool isLocked;
@@ -40,7 +40,7 @@ namespace FrigidBlackwaters.Game
                     () => FrigidInstancing.CreateInstance<TiledAreaWaveSignal>(this.mobGeneratorStrategy.WaveSignalPrefab),
                     (TiledAreaWaveSignal waveSignal) => FrigidInstancing.DestroyInstance(waveSignal)
                     );
-                this.mobsInWaves = new List<List<Mob>>();
+                this.mobsInWaves = new List<MobSet>();
                 this.nextWaveIndex = 1;
                 this.isAdvancingWaves = false;
                 this.isLocked = false;
@@ -72,12 +72,12 @@ namespace FrigidBlackwaters.Game
 
                     if (this.mobsInWaves.Count < this.mobGeneratorStrategy.GetMaxNumberWaves(this.planArea, this.tiledArea))
                     {
-                        List<Mob> mobsInWave = this.mobGeneratorStrategy.DoGenerationStrategy(this.planArea, this.tiledArea, spawnPoints, this.mobsInWaves.Count);
-                        foreach (Mob mobInWave in mobsInWave)
+                        MobSet spawnedMobs = this.mobGeneratorStrategy.DoGenerationStrategy(this.planArea, this.tiledArea, spawnPoints, this.mobsInWaves.Count);
+                        foreach (Mob mobInWave in spawnedMobs)
                         {
-                            mobInWave.SetActive(this.mobsInWaves.Count == 0);
+                            mobInWave.Active = this.mobsInWaves.Count == 0;
                         }
-                        this.mobsInWaves.Add(mobsInWave);
+                        this.mobsInWaves.Add(spawnedMobs);
                     }
                 }
             }
@@ -102,26 +102,26 @@ namespace FrigidBlackwaters.Game
                     currentNumberWaves > this.nextWaveIndex &&
                     this.mobGeneratorStrategy.CanAdvanceToNextWave(this.nextWaveIndex, this.MobsInPreviousWaves))
                 {
-                    List<Mob> mobsInNextWave = this.mobsInWaves[this.nextWaveIndex];
-                    if (mobsInNextWave.Count != 0)
+                    MobSet mobsInWave = this.mobsInWaves[this.nextWaveIndex];
+                    if (mobsInWave.Count != 0)
                     {
                         this.isAdvancingWaves = true;
                         int numberSpawnsCompleted = 0;
-                        foreach (Mob mob in mobsInNextWave)
+                        foreach (Mob mobInWave in mobsInWave)
                         {
-                            Vector2Int size = Vector2Int.one; // TODO Mobs V2, hook up actual new mobs and size
+                            Vector2Int tileSize = mobInWave.TileSize;
                             float delayDuration = this.mobGeneratorStrategy.WaveSpawnDelayDuration;
                             int numberSignalsWindupFinished = 0;
                             int numberSignalsComplete = 0;
-                            int numberSignals = size.x * size.y;
-                            for (int x = 0; x < size.x; x++)
+                            int numberSignals = tileSize.x * tileSize.y;
+                            for (int x = 0; x < tileSize.x; x++)
                             {
-                                for (int y = 0; y < size.y; y++)
+                                for (int y = 0; y < tileSize.y; y++)
                                 {
                                     TiledAreaWaveSignal waveSignal = this.waveSignalPool.Retrieve();
-                                    Vector2 signalPosition = 
-                                        (Vector2)mob.AbsolutePosition - 
-                                        new Vector2(size.x * GameConstants.UNIT_WORLD_SIZE, size.y * GameConstants.UNIT_WORLD_SIZE) / 2 +
+                                    Vector2 signalPosition =
+                                        mobInWave.Position - 
+                                        new Vector2((tileSize.x - 1) * GameConstants.UNIT_WORLD_SIZE , (tileSize.y - 1) * GameConstants.UNIT_WORLD_SIZE) / 2 +
                                         new Vector2(x * GameConstants.UNIT_WORLD_SIZE, y * GameConstants.UNIT_WORLD_SIZE);
                                     waveSignal.DoSignal(
                                         signalPosition,
@@ -131,7 +131,7 @@ namespace FrigidBlackwaters.Game
                                             numberSignalsWindupFinished++;
                                             if (numberSignalsWindupFinished >= numberSignals)
                                             {
-                                                mob.SetActive(true);
+                                                mobInWave.Active = true;
                                             }
                                         }, 
                                         () =>
@@ -140,7 +140,7 @@ namespace FrigidBlackwaters.Game
                                             if (numberSignalsComplete >= numberSignals)
                                             {
                                                 numberSpawnsCompleted++;
-                                                if (numberSpawnsCompleted == mobsInNextWave.Count) this.isAdvancingWaves = false;
+                                                if (numberSpawnsCompleted == mobsInWave.Count) this.isAdvancingWaves = false;
                                             }
                                             this.waveSignalPool.Pool(waveSignal);
                                         }
@@ -172,23 +172,23 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            private List<Mob> MobsInPreviousWaves
+            private MobSet MobsInPreviousWaves
             {
                 get
                 {
-                    List<Mob> mobsInPreviousWaves = new List<Mob>();
-                    for (int i = 0; i < Mathf.Min(this.nextWaveIndex, this.mobsInWaves.Count); i++) mobsInPreviousWaves.AddRange(this.mobsInWaves[i]);
+                    MobSet mobsInPreviousWaves = new MobSet();
+                    for (int i = 0; i < Mathf.Min(this.nextWaveIndex, this.mobsInWaves.Count); i++) mobsInPreviousWaves.UnionWith(this.mobsInWaves[i]);
                     return mobsInPreviousWaves;
                 }
             }
 
-            private List<Mob> MobsInWavesToAdvance
+            private MobSet MobsInWavesToAdvance
             {
                 get
                 {
-                    List<Mob> mobsInWavesToAdvance = new List<Mob>();
+                    MobSet mobsInWavesToAdvance = new MobSet();
                     if (this.allAdvanced) return mobsInWavesToAdvance;
-                    for (int i = this.nextWaveIndex; i < Mathf.Min(this.mobGeneratorStrategy.GetCurrentNumberWaves(this.planArea, this.tiledArea), this.mobsInWaves.Count); i++) mobsInWavesToAdvance.AddRange(this.mobsInWaves[i]);
+                    for (int i = this.nextWaveIndex; i < Mathf.Min(this.mobGeneratorStrategy.GetCurrentNumberWaves(this.planArea, this.tiledArea), this.mobsInWaves.Count); i++) mobsInWavesToAdvance.UnionWith(this.mobsInWaves[i]);
                     return mobsInWavesToAdvance;
                 }
             }

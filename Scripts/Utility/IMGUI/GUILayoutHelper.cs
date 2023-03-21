@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
@@ -87,16 +86,25 @@ namespace FrigidBlackwaters.Utility
             return new UnityEngine.Object[0];
         }
 
-        public static SF SerializedReferenceField<SF, T>(string label, SF serializedReference, Func<string, T, T> toDrawValue, Func<T[]> toGetRange, Func<T[]> toDrawRange) where SF : SerializedReference<T>
+        public static SF SerializedReferenceField<SF, T>(
+            string label, 
+            SF serializedReference, 
+            Func<string, T, T> toDrawValue, 
+            Func<T[]> toGetRange = null, 
+            Func<T[]> toDrawRange = null, 
+            Func<T[]> toGetInherited = null,
+            Func<T[]> toDrawInherited = null
+            ) where SF : SerializedReference<T>
         {
             if (serializedReference == null) return null;
 
             SerializedReferenceType referenceType = serializedReference.ReferenceType;
             T customValue = serializedReference.CustomValue;
             ScriptableConstant<T> scriptableConstant = serializedReference.ScriptableConstant;
-            T[] rangeParameters = toGetRange.Invoke();
+            T[] rangeParameters = toGetRange?.Invoke();
             List<T> selection = serializedReference.Selection;
             ScriptableVariable<T> scriptableVariable = serializedReference.ScriptableVariable;
+            T[] inheritedParameters = toGetInherited?.Invoke();
 
             using (new EditorGUILayout.VerticalScope())
             {
@@ -116,7 +124,7 @@ namespace FrigidBlackwaters.Utility
                             scriptableConstant = (ScriptableConstant<T>)EditorGUILayout.ObjectField("Scriptable Constant", scriptableConstant, typeof(ScriptableConstant<T>), false);
                             break;
                         case SerializedReferenceType.RandomFromRange:
-                            rangeParameters = toDrawRange.Invoke();
+                            rangeParameters = toDrawRange?.Invoke();
                             break;
                         case SerializedReferenceType.RandomFromSelection:
                             selection = new List<T>(selection);
@@ -133,12 +141,17 @@ namespace FrigidBlackwaters.Utility
                         case SerializedReferenceType.ScriptableVariable:
                             scriptableVariable = (ScriptableVariable<T>)EditorGUILayout.ObjectField("Scriptable Variable", scriptableVariable, typeof(ScriptableVariable<T>), false);
                             break;
+                        case SerializedReferenceType.Inherited:
+                            inheritedParameters = toDrawInherited?.Invoke();
+                            break;
                     }
                 }
             }
 
             int rangeParametersLength = 0;
             if (rangeParameters != null) rangeParametersLength = rangeParameters.Length;
+            int inheritedParametersLength = 0;
+            if (inheritedParameters != null) inheritedParametersLength = inheritedParameters.Length;
 
             object[] parameters = new object[5 + rangeParametersLength];
             parameters[0] = referenceType;
@@ -147,6 +160,7 @@ namespace FrigidBlackwaters.Utility
             for (int i = 0; i < rangeParametersLength; i++) parameters[3 + i] = rangeParameters[i];
             parameters[3 + rangeParametersLength] = selection;
             parameters[4 + rangeParametersLength] = scriptableVariable;
+            for (int i = 0; i < inheritedParametersLength; i++) parameters[5 + rangeParametersLength + i] = inheritedParameters[i];
 
             return (SF)Activator.CreateInstance(typeof(SF), parameters);
         }

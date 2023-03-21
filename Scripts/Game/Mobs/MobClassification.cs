@@ -2,9 +2,10 @@ namespace FrigidBlackwaters.Game
 {
     public enum MobClassification
     {
-        Golem,
-        Skeleton,
+        None,
         Human,
-        Ship
+        Ship,
+        Golem,
+        Skeleton
     }
 }

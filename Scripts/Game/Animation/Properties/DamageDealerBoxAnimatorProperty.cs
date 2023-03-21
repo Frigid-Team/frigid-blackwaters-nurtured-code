@@ -7,7 +7,7 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
-    public abstract class DamageDealerBoxAnimatorProperty<DB, RB, I> : ColliderAnimatorProperty where DB : DamageDealerBox<DB, RB, I> where RB : DamageReceiverBox<RB, DB, I> 
+    public abstract class DamageDealerBoxAnimatorProperty<DB, RB, I> : ColliderAnimatorProperty where DB : DamageDealerBox<DB, RB, I> where RB : DamageReceiverBox<RB, DB, I> where I : DamageInfo
     {
         [SerializeField]
         [ReadOnly]
@@ -15,9 +15,6 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         [HideInInspector]
         private bool playAudioOnDealt;
-        [SerializeField]
-        [ReadOnly]
-        private AudioSource audioSource;
         [SerializeField]
         [HideInInspector]
         private AudioClipSerializedReference audioClipOnDealt;
@@ -34,6 +31,18 @@ namespace FrigidBlackwaters.Game
             set
             {
                 this.damageDealerBox.DamageAlignment = value;
+            }
+        }
+
+        public DamageChannel DamageChannel
+        {
+            get
+            {
+                return this.damageDealerBox.DamageChannel;
+            }
+            set
+            {
+                this.damageDealerBox.DamageChannel = value;
             }
         }
 
@@ -73,15 +82,6 @@ namespace FrigidBlackwaters.Game
                 {
                     FrigidEditMode.RecordPotentialChanges(this);
                     this.playAudioOnDealt = value;
-                    if (this.playAudioOnDealt)
-                    {
-                        this.audioSource = FrigidEditMode.AddComponent<AudioSource>(this.gameObject);
-                        this.audioSource.playOnAwake = false;
-                    }
-                    else
-                    {
-                        FrigidEditMode.RemoveComponent(this.audioSource);
-                    }
                 }
             }
         }
@@ -94,7 +94,11 @@ namespace FrigidBlackwaters.Game
             }
             set
             {
-                this.audioClipOnDealt = value;
+                if (this.audioClipOnDealt != value)
+                {
+                    FrigidEditMode.RecordPotentialChanges(this);
+                    this.audioClipOnDealt = value;
+                }
             }
         }
 
@@ -144,17 +148,21 @@ namespace FrigidBlackwaters.Game
             this.damageDealerBox.OnDealt +=
                 (I info) =>
                 {
-                    if (this.PlayAudioOnDealt)
-                    {
-                        this.audioSource.PlayOneShot(this.AudioClipOnDealtByReference.MutableValue);
-                    }
+                    if (!info.IsNonTrivial) return;
 
-                    foreach (SpriteAnimatorProperty spriteProperty in this.Body.GetProperties<SpriteAnimatorProperty>())
+                    foreach (SpriteAnimatorProperty spriteProperty in this.Body.GetCurrentProperties<SpriteAnimatorProperty>())
                     {
                         for (int effectIndex = 0; effectIndex < GetNumberMaterialTweensOnDealt(); effectIndex++)
                         {
                             spriteProperty.OneShotMaterialTween(GetMaterialTweenOnDealtByReferenceAt(effectIndex).ImmutableValue);
                         }
+                    }
+
+                    if (!this.PlayAudioOnDealt) return;
+                    foreach (AudioAnimatorProperty audioProperty in this.Body.GetCurrentProperties<AudioAnimatorProperty>())
+                    {
+                        if (audioProperty.Loop) continue;
+                        audioProperty.PlayOneShot(this.audioClipOnDealt.MutableValue);
                     }
                 };
         }

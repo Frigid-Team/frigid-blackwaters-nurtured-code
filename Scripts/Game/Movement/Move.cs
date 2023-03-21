@@ -4,46 +4,77 @@ namespace FrigidBlackwaters.Game
 {
     public abstract class Move : FrigidMonoBehaviour
     {
-        private float elapsedDuration;
-        private float elapsedDurationDelta;
-        private Vector2 velocity;
+        private Mover mover;
+        private float movingDuration;
+        private float movingDurationDelta;
 
-        public Vector2 Velocity
+        public virtual bool IsFinished
         {
             get
             {
-                return this.velocity;
+                return false;
             }
         }
 
-        public void StartMoving(Vector2 movementPosition, float speedBonus) 
+        public virtual bool IsInMotion
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        public abstract Vector2 Velocity
+        {
+            get;
+        }
+
+        public void Assign(Mover mover)
+        {
+            this.mover = mover;
+        }
+
+        public void Unassign()
+        {
+            this.mover = null;
+        }
+
+        public virtual void StartMoving() 
         { 
-            this.elapsedDuration = 0;
-            this.elapsedDurationDelta = 0;
-            StartedMoving(movementPosition, speedBonus);
-            this.velocity = GetVelocity(movementPosition, this.elapsedDuration, this.elapsedDurationDelta, speedBonus);
+            this.movingDuration = 0;
+            this.movingDurationDelta = 0;
         }
 
-        public void StopMoving() 
+        public virtual void StopMoving() { }
+
+        public virtual void ContinueMovement()
         {
-            StoppedMoving();
-            this.velocity = Vector2.zero;
+            this.movingDurationDelta = Time.fixedDeltaTime * (this.Mover.GetIsIgnoringTimeScale(this) ? 1f : this.Mover.TimeScale);
+            this.movingDuration += this.movingDurationDelta;
         }
 
-        public void ContinueMovement(Vector2 movementPosition, float speedBonus)
+        protected Mover Mover
         {
-            this.elapsedDuration += Time.deltaTime;
-            this.elapsedDurationDelta = Time.deltaTime;
-            ContinueMoving(movementPosition, this.elapsedDuration, this.elapsedDurationDelta, speedBonus);
-            this.velocity = GetVelocity(movementPosition, this.elapsedDuration, this.elapsedDurationDelta, speedBonus);
+            get
+            {
+                return this.mover;
+            }
         }
 
-        protected virtual void StartedMoving(Vector2 movementPosition, float speedBonus) { }
+        protected float MovingDuration
+        {
+            get
+            {
+                return this.movingDuration;
+            }
+        }
 
-        protected virtual void StoppedMoving() { }
-
-        protected virtual void ContinueMoving(Vector2 movementPosition, float elapsedDuration, float elapsedDurationDelta, float speedBonus) { }
-
-        protected abstract Vector2 GetVelocity(Vector2 movementPosition, float elapsedDuration, float elapsedDurationDelta, float speedBonus);
+        protected float MovingDurationDelta
+        {
+            get
+            {
+                return this.movingDurationDelta;
+            }
+        }
     }
 }

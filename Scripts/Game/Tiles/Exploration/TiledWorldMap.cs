@@ -101,13 +101,13 @@ namespace FrigidBlackwaters.Game
             {
                 float clampedX = Mathf.Clamp(
                     worldPosition.x,
-                    -focusedTiledLevel.AbsoluteCenterPosition.x - focusedTiledLevel.WallBoundsSize.x / 2, 
-                    -focusedTiledLevel.AbsoluteCenterPosition.x + focusedTiledLevel.WallBoundsSize.x / 2
+                    -focusedTiledLevel.CenterPosition.x - focusedTiledLevel.WallBoundsSize.x / 2, 
+                    -focusedTiledLevel.CenterPosition.x + focusedTiledLevel.WallBoundsSize.x / 2
                     );
                 float clampedY = Mathf.Clamp(
                     worldPosition.y,
-                    -focusedTiledLevel.AbsoluteCenterPosition.y - focusedTiledLevel.WallBoundsSize.y / 2,
-                    -focusedTiledLevel.AbsoluteCenterPosition.y + focusedTiledLevel.WallBoundsSize.y / 2
+                    -focusedTiledLevel.CenterPosition.y - focusedTiledLevel.WallBoundsSize.y / 2,
+                    -focusedTiledLevel.CenterPosition.y + focusedTiledLevel.WallBoundsSize.y / 2
                     );
                 this.cellsTransform.localPosition = new Vector2(clampedX, clampedY) * this.worldToMapScalingFactor;
                 if (this.showTokens) this.tokensTransform.localPosition = this.cellsTransform.localPosition;
@@ -133,16 +133,16 @@ namespace FrigidBlackwaters.Game
                 }
 
                 List<TiledLevelPlanConnection> areaToAreaPlanConnections = focusedTiledLevel.TiledLevelPlan.Connections.ToList().FindAll(
-                    (TiledLevelPlanConnection planConnection) => { return !planConnection.IsSubLevelConnection && planConnection.PlanEntrances.Length == 2; }
+                    (TiledLevelPlanConnection planConnection) => !planConnection.IsSubLevelConnection
                     );
                 this.cellConnectorPool.Cycle(this.currentCellConnectors, areaToAreaPlanConnections.Count);
                 for (int i = 0; i < areaToAreaPlanConnections.Count; i++)
                 {
-                    TiledArea firstTiledArea = focusedTiledLevel.SpawnedAreaPerPlanAreas[areaToAreaPlanConnections[i].PlanEntrances[0].Area];
-                    TiledArea secondTiledArea = focusedTiledLevel.SpawnedAreaPerPlanAreas[areaToAreaPlanConnections[i].PlanEntrances[1].Area];
+                    TiledArea firstTiledArea = focusedTiledLevel.SpawnedAreaPerPlanAreas[areaToAreaPlanConnections[i].FirstEntrance.Area];
+                    TiledArea secondTiledArea = focusedTiledLevel.SpawnedAreaPerPlanAreas[areaToAreaPlanConnections[i].SecondEntrance.Area];
                     this.currentCellConnectors[i].FillConnector(
-                        focusedTiledLevel.SpawnedEntrancePerPlanEntrances[areaToAreaPlanConnections[i].PlanEntrances[0]],
-                        focusedTiledLevel.SpawnedEntrancePerPlanEntrances[areaToAreaPlanConnections[i].PlanEntrances[1]],
+                        focusedTiledLevel.SpawnedEntrancePerPlanEntrances[areaToAreaPlanConnections[i].FirstEntrance],
+                        focusedTiledLevel.SpawnedEntrancePerPlanEntrances[areaToAreaPlanConnections[i].SecondEntrance],
                         TiledWorldExplorer.ExploredTiledAreas.Contains(firstTiledArea) || TiledWorldExplorer.ExploredTiledAreas.Contains(secondTiledArea),
                         this.worldToMapScalingFactor
                         );
@@ -162,7 +162,7 @@ namespace FrigidBlackwaters.Game
                 int numberTokens = 0;
                 foreach (TiledArea spawnedTiledArea in focusedTiledLevel.SpawnedAreaPerPlanAreas.Values)
                 {
-                    if (TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(spawnedTiledArea, out HashSet<TiledWorldDiscovery> tiledWorldDiscoveries))
+                    if (TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(spawnedTiledArea, out HashSet<TiledWorldDiscovery> tiledWorldDiscoveries) && TiledWorldExplorer.ExploredTiledAreas.Contains(spawnedTiledArea))
                     {
                         numberTokens += tiledWorldDiscoveries.Count;
                     }
@@ -173,7 +173,7 @@ namespace FrigidBlackwaters.Game
                 int numTokensUsed = 0;
                 foreach (TiledArea tiledArea in focusedTiledLevel.SpawnedAreaPerPlanAreas.Values)
                 {
-                    if (TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(tiledArea, out HashSet<TiledWorldDiscovery> tiledWorldDiscoveries))
+                    if (TiledWorldExplorer.ExploredTiledAreas.Contains(tiledArea) && TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(tiledArea, out HashSet<TiledWorldDiscovery> tiledWorldDiscoveries))
                     {
                         int tokenIndex = 0;
                         foreach (TiledWorldDiscovery tiledWorldDiscovery in tiledWorldDiscoveries)

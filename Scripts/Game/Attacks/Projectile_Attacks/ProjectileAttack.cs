@@ -10,74 +10,96 @@ namespace FrigidBlackwaters.Game
         private static SceneVariable<Dictionary<Projectile, RecyclePool<Projectile>>> projectilePools;
 
         [SerializeField]
+        private IntSerializedReference numberSpawns;
+        [SerializeField]
+        private FloatSerializedReference durationBetweenSpawns;
+        [SerializeField]
         private Targeter baseSpawnTargeter;
 
         static ProjectileAttack()
         {
-            projectilePools = new SceneVariable<Dictionary<Projectile, RecyclePool<Projectile>>>(() => { return new Dictionary<Projectile, RecyclePool<Projectile>>(); });
+            projectilePools = new SceneVariable<Dictionary<Projectile, RecyclePool<Projectile>>>(() => new Dictionary<Projectile, RecyclePool<Projectile>>());
         }
 
         public override void Perform(float elapsedDuration)
         {
-            Vector2 baseSpawnPosition = this.baseSpawnTargeter.Calculate(this.transform.position, elapsedDuration, 0);
-
-            if (!TiledArea.TryGetTiledAreaAtPosition(baseSpawnPosition, out TiledArea tiledArea))
+            IEnumerator<FrigidCoroutine.Delay> Perform()
             {
-                return;
-            }
-
-            foreach (ProjectileSpawnParameters projectileSpawnParameters in GetProjectileSpawnParameters(baseSpawnPosition, elapsedDuration))
-            {
-                if (!TilePositioning.TileAbsolutePositionWithinBounds(projectileSpawnParameters.AbsoluteSpawnPosition, tiledArea.AbsoluteCenterPosition, tiledArea.MainAreaDimensions))
+                Vector2[] baseSpawnPositions = this.baseSpawnTargeter.Calculate(new Vector2[this.numberSpawns.ImmutableValue], elapsedDuration, 0);
+                foreach (Vector2 baseSpawnPosition in baseSpawnPositions)
                 {
-                    continue;
-                }
+                    if (!TiledArea.TryGetTiledAreaAtPosition(baseSpawnPosition, out TiledArea tiledArea))
+                    {
+                        continue;
+                    }
 
-                if (!projectilePools.Current.ContainsKey(projectileSpawnParameters.ProjectilePrefab))
-                {
-                    projectilePools.Current.Add(
-                        projectileSpawnParameters.ProjectilePrefab, 
-                        new RecyclePool<Projectile>(
-                            () => FrigidInstancing.CreateInstance<Projectile>(projectileSpawnParameters.ProjectilePrefab), 
-                            (Projectile projectile) => FrigidInstancing.DestroyInstance(projectile)
-                            )
-                        );
+                    foreach (ProjectileSpawnParameters projectileSpawnParameters in GetProjectileSpawnParameters(baseSpawnPosition, elapsedDuration))
+                    {
+                        if (!TilePositioning.TilePositionWithinBounds(projectileSpawnParameters.SpawnPosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions))
+                        {
+                            continue;
+                        }
+
+                        if (!projectilePools.Current.ContainsKey(projectileSpawnParameters.ProjectilePrefab))
+                        {
+                            projectilePools.Current.Add(
+                                projectileSpawnParameters.ProjectilePrefab,
+                                new RecyclePool<Projectile>(
+                                    () => FrigidInstancing.CreateInstance<Projectile>(projectileSpawnParameters.ProjectilePrefab),
+                                    (Projectile projectile) => FrigidInstancing.DestroyInstance(projectile)
+                                    )
+                                );
+                        }
+                        RecyclePool<Projectile> projectilePool = projectilePools.Current[projectileSpawnParameters.ProjectilePrefab];
+                        Projectile spawnedProjectile = projectilePool.Retrieve();
+                        spawnedProjectile.LaunchProjectile(
+                            Mathf.RoundToInt(this.DamageBonus * projectileSpawnParameters.DamageBonusMultiplier),
+                            this.DamageAlignment,
+                            () => projectilePool.Pool(spawnedProjectile),
+                            projectileSpawnParameters.SpawnPosition,
+                            projectileSpawnParameters.LaunchDirection,
+                            this.OnHitDealt,
+                            this.OnBreakDealt,
+                            this.OnThreatDealt
+                            );
+                    }
+
+                    yield return new FrigidCoroutine.DelayForSeconds(this.durationBetweenSpawns.MutableValue);
                 }
-                RecyclePool<Projectile> projectilePool = projectilePools.Current[projectileSpawnParameters.ProjectilePrefab];
-                Projectile spawnedProjectile = projectilePool.Retrieve();
-                spawnedProjectile.LaunchProjectile(
-                    this.DamageBonus,
-                    this.DamageAlignment, 
-                    () => projectilePool.Pool(spawnedProjectile),
-                    projectileSpawnParameters.AbsoluteSpawnPosition, 
-                    projectileSpawnParameters.LaunchDirection,
-                    this.OnHitDealt,
-                    this.OnBreakDealt,
-                    this.OnThreatDealt
-                    );
             }
+            FrigidCoroutine.Run(Perform(), this.gameObject);
         }
 
         protected abstract List<ProjectileSpawnParameters> GetProjectileSpawnParameters(Vector2 baseSpawnPosition, float elapsedDuration);
 
         protected struct ProjectileSpawnParameters
         {
-            private Vector2 absoluteSpawnPosition;
+            private float damageBonusMultiplier;
+            private Vector2 spawnPosition;
             private Vector2 launchDirection;
             private Projectile projectilePrefab;
 
-            public ProjectileSpawnParameters(Vector2 absoluteSpawnPosition, Vector2 launchDirection, Projectile projectilePrefab)
+            public ProjectileSpawnParameters(float damageBonusMultiplier, Vector2 spawnPosition, Vector2 launchDirection, Projectile projectilePrefab)
             {
-                this.absoluteSpawnPosition = absoluteSpawnPosition;
+                this.damageBonusMultiplier = damageBonusMultiplier;
+                this.spawnPosition = spawnPosition;
                 this.launchDirection = launchDirection;
                 this.projectilePrefab = projectilePrefab;
             }
 
-            public Vector2 AbsoluteSpawnPosition
+            public float DamageBonusMultiplier
             {
                 get
                 {
-                    return this.absoluteSpawnPosition;
+                    return this.damageBonusMultiplier;
+                }
+            }
+
+            public Vector2 SpawnPosition
+            {
+                get
+                {
+                    return this.spawnPosition;
                 }
             }
 

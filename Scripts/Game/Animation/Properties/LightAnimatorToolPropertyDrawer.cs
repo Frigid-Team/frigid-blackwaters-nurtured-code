@@ -101,7 +101,7 @@ namespace FrigidBlackwaters.Game
             base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
         }
 
-        public override void DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
+        public override Vector2 DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
         {
             LightAnimatorProperty lightProperty = (LightAnimatorProperty)this.Property;
 
@@ -110,10 +110,11 @@ namespace FrigidBlackwaters.Game
             Vector2 handleSize = new Vector2(this.Config.HandleLength, this.Config.HandleLength);
             Vector2 grabSize = new Vector2(this.Config.HandleGrabLength, this.Config.HandleGrabLength);
 
+            Vector2 localPreviewOffset = lightProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1);
             switch (lightProperty.LightType)
             {
                 case Light2D.LightType.Point:
-                    Vector2 circleDrawCenter = previewSize / 2 + lightProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1) + previewOffset;
+                    Vector2 circleDrawCenter = previewSize / 2 + localPreviewOffset + previewOffset;
                     float outerCircleDrawRadius = lightProperty.GetOuterRadius(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
                     float innerCircleDrawRadius = lightProperty.GetInnerRadius(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
 
@@ -183,7 +184,7 @@ namespace FrigidBlackwaters.Game
                     Vector2[] drawPoints = new Vector2[lightProperty.NumberFreeformPoints];
                     for (int pointIndex = 0; pointIndex < lightProperty.NumberFreeformPoints; pointIndex++)
                     {
-                        drawPoints[pointIndex] = lightProperty.GetFreeformPointAt(animationIndex, pointIndex) * worldToWindowScalingFactor * new Vector2(1, -1) + previewSize / 2 + previewOffset;
+                        drawPoints[pointIndex] = localPreviewOffset + lightProperty.GetFreeformPointAt(animationIndex, pointIndex) * worldToWindowScalingFactor * new Vector2(1, -1) + previewSize / 2 + previewOffset;
                     }
                     using (new GUIHelper.ColorScope(this.AccentColor))
                     {
@@ -206,8 +207,7 @@ namespace FrigidBlackwaters.Game
                     }
                     break;
             }
-
-            base.DrawPreview(previewSize, previewOffset, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected, out List<(Rect rect, Action onDrag)> baseDragRequests);
+            return localPreviewOffset;
         }
 
         public override void DrawFrameCellPreview(Vector2 cellSize, int animationIndex, int frameIndex)

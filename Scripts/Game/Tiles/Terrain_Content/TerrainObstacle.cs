@@ -17,13 +17,13 @@ namespace FrigidBlackwaters.Game
         {
             base.Populated(orientationDirection, navigationGrid, allTileIndices);
             this.chosenAnimations = this.obstacleAnimations[UnityEngine.Random.Range(0, this.obstacleAnimations.Length)];
-            this.AnimatorBody.PlayByName(this.chosenAnimations.DefaultAnimationName);
+            this.AnimatorBody.Play(this.chosenAnimations.DefaultAnimationName);
         }
 
         protected override void Break()
         {
             base.Break();
-            this.AnimatorBody.PlayByName(this.chosenAnimations.BrokenAnimationName);
+            this.AnimatorBody.Play(this.chosenAnimations.BrokenAnimationName);
         }
 
         [Serializable]

@@ -33,7 +33,7 @@ namespace FrigidBlackwaters.Game
                 explosionSpawnParameters.Add(
                     new ExplosionSpawnParameters(
                         baseSpawnPosition + lineDirection * (lengthBetweenExplosions * i + offsetLength),
-                        lineDirection.ComponentAngle0To360(),
+                        lineDirection.ComponentAngle0To2PI(),
                         this.explosionPrefab
                         )
                     );

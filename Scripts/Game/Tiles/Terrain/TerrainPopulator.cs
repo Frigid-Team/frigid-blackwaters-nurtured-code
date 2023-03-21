@@ -5,9 +5,6 @@ namespace FrigidBlackwaters.Game
 {
     public class TerrainPopulator : FrigidMonoBehaviour
     {
-        [SerializeField]
-        private TerrainTileAssetGroup terrainTileAssetGroup;
-
         public void PopulateTerrain(TiledAreaBlueprint tiledAreaBlueprint, Transform contentsTransform)
         {
             for (int x = 0; x < tiledAreaBlueprint.MainAreaDimensions.x; x++)
@@ -15,50 +12,48 @@ namespace FrigidBlackwaters.Game
                 for (int y = 0; y < tiledAreaBlueprint.MainAreaDimensions.y; y++)
                 {
                     Vector2Int terrainTileIndices = new Vector2Int(x, y);
-                    TileTerrain terrainAtCurrentTile = tiledAreaBlueprint.GetTerrainAtTile(terrainTileIndices);
-                    string terrainTileIdAtCurrentTile = tiledAreaBlueprint.GetTerrainTileIDAtTile(terrainTileIndices);
+                    TerrainTileAsset terrainTileAssetAtCurrentTile = tiledAreaBlueprint.GetTerrainTileAssetAt(terrainTileIndices);
                     List<Vector2Int> terrainTileCorners = new List<Vector2Int>() { new Vector2Int(2, 2), new Vector2Int(2, -2), new Vector2Int(-2, -2), new Vector2Int(-2, 2) };
 
                     Vector2Int currentPosition = Vector2Int.zero;
                     Vector2Int previousPosition;
-                    string[] previousTerrainTileIds = new string[3];
+                    TerrainTileAsset[] previousTerrainTileAssets = new TerrainTileAsset[3];
                     bool pushEnabled = false;
 
                     for (int i = 0; i < 10; i++)
                     {
                         previousPosition = currentPosition;
-                        previousTerrainTileIds[0] = previousTerrainTileIds[1];
-                        previousTerrainTileIds[1] = previousTerrainTileIds[2];
+                        previousTerrainTileAssets[0] = previousTerrainTileAssets[1];
+                        previousTerrainTileAssets[1] = previousTerrainTileAssets[2];
 
                         float currentDirection = i * Mathf.PI / 4;
                         currentPosition = new Vector2Int(Mathf.RoundToInt(Mathf.Cos(currentDirection)), Mathf.RoundToInt(Mathf.Sin(currentDirection)));
 
                         if (TilePositioning.TileIndicesWithinBounds(new Vector2Int(x, y) + currentPosition, tiledAreaBlueprint.MainAreaDimensions))
                         {
-                            previousTerrainTileIds[2] = tiledAreaBlueprint.GetTerrainTileIDAtTile(new Vector2Int(x + currentPosition.x, y + currentPosition.y));
+                            previousTerrainTileAssets[2] = tiledAreaBlueprint.GetTerrainTileAssetAt(new Vector2Int(x + currentPosition.x, y + currentPosition.y));
                         }
                         else
                         {
-                            previousTerrainTileIds[2] = "";
+                            previousTerrainTileAssets[2] = null;
                         }
 
                         if (i >= 2)
                         {
                             Vector2Int crossoverTileIndices = new Vector2Int(x + previousPosition.x, y + previousPosition.y);
                             Vector2 crossoverDirection = ((crossoverTileIndices - terrainTileIndices) * new Vector2(1, -1)).normalized;
-                            if (TilePositioning.TileIndicesWithinBounds(crossoverTileIndices, tiledAreaBlueprint.MainAreaDimensions) && previousTerrainTileIds[1] != terrainTileIdAtCurrentTile)
+                            if (TilePositioning.TileIndicesWithinBounds(crossoverTileIndices, tiledAreaBlueprint.MainAreaDimensions) && previousTerrainTileAssets[1] != terrainTileAssetAtCurrentTile)
                             {
                                 pushEnabled = true;
                                 if (i % 2 == 0)
                                 {
-                                    if (previousTerrainTileIds[0] != terrainTileIdAtCurrentTile && previousTerrainTileIds[2] != terrainTileIdAtCurrentTile)
+                                    if (previousTerrainTileAssets[0] != terrainTileAssetAtCurrentTile && previousTerrainTileAssets[2] != terrainTileAssetAtCurrentTile)
                                     {
                                         SpawnCrossoverTile(
                                             crossoverTileIndices,
                                             terrainTileIndices,
                                             tiledAreaBlueprint,
                                             contentsTransform,
-                                            terrainAtCurrentTile,
                                             false,
                                             crossoverDirection
                                             );
@@ -86,14 +81,13 @@ namespace FrigidBlackwaters.Game
                                             terrainTileCorners.Insert(startingIndex, secondSlantPoint);
                                         }
                                     }
-                                    else if (previousTerrainTileIds[0] == terrainTileIdAtCurrentTile && previousTerrainTileIds[2] == terrainTileIdAtCurrentTile)
+                                    else if (previousTerrainTileAssets[0] == terrainTileAssetAtCurrentTile && previousTerrainTileAssets[2] == terrainTileAssetAtCurrentTile)
                                     {
                                         SpawnCrossoverTile(
                                             crossoverTileIndices,
                                             terrainTileIndices,
                                             tiledAreaBlueprint,
                                             contentsTransform,
-                                            terrainAtCurrentTile,
                                             true,
                                             crossoverDirection
                                             );
@@ -101,9 +95,9 @@ namespace FrigidBlackwaters.Game
                                 }
                                 else
                                 {
-                                    if ((previousTerrainTileIds[0] != terrainTileIdAtCurrentTile && previousTerrainTileIds[2] != terrainTileIdAtCurrentTile) ||
-                                        (previousTerrainTileIds[0] == "" && previousTerrainTileIds[2] != terrainTileIdAtCurrentTile) ||
-                                        (previousTerrainTileIds[0] != terrainTileIdAtCurrentTile && previousTerrainTileIds[2] == ""))
+                                    if ((previousTerrainTileAssets[0] != terrainTileAssetAtCurrentTile && previousTerrainTileAssets[2] != terrainTileAssetAtCurrentTile) ||
+                                        (previousTerrainTileAssets[0] == null && previousTerrainTileAssets[2] != terrainTileAssetAtCurrentTile) ||
+                                        (previousTerrainTileAssets[0] != terrainTileAssetAtCurrentTile && previousTerrainTileAssets[2] == null))
                                     {
 
                                         SpawnCrossoverTile(
@@ -111,7 +105,6 @@ namespace FrigidBlackwaters.Game
                                             terrainTileIndices,
                                             tiledAreaBlueprint,
                                             contentsTransform,
-                                            terrainAtCurrentTile,
                                             false,
                                             crossoverDirection
                                             );
@@ -125,7 +118,6 @@ namespace FrigidBlackwaters.Game
                         terrainTileIndices, 
                         tiledAreaBlueprint, 
                         contentsTransform,
-                        terrainAtCurrentTile,
                         pushEnabled,
                         terrainTileCorners
                         );
@@ -137,20 +129,17 @@ namespace FrigidBlackwaters.Game
             Vector2Int terrainTileIndices,
             TiledAreaBlueprint tiledAreaBlueprint,
             Transform contentsTransform,
-            TileTerrain terrain,
             bool pushEnabled,
             List<Vector2Int> cornerPoints
             )
         {
-            if (this.terrainTileAssetGroup.TryGetTerrainTileAsset(terrain, tiledAreaBlueprint.GetTerrainTileIDAtTile(terrainTileIndices), out TerrainTileAsset terrainTileAsset))
-            {
-                TerrainTile spawnedTerrainTile = FrigidInstancing.CreateInstance<TerrainTile>(
-                    terrainTileAsset.TerrainTilePrefab,
-                    TilePositioning.TileAbsolutePositionFromIndices(terrainTileIndices, contentsTransform.position, tiledAreaBlueprint.MainAreaDimensions),
-                    contentsTransform
-                    );
-                spawnedTerrainTile.Populated(pushEnabled, cornerPoints);
-            }
+            TerrainTileAsset terrainTileAsset = tiledAreaBlueprint.GetTerrainTileAssetAt(terrainTileIndices);
+            TerrainTile spawnedTerrainTile = FrigidInstancing.CreateInstance<TerrainTile>(
+                terrainTileAsset.TerrainTilePrefab,
+                TilePositioning.TilePositionFromIndices(terrainTileIndices, contentsTransform.position, tiledAreaBlueprint.MainAreaDimensions),
+                contentsTransform
+                );
+            spawnedTerrainTile.Populated(pushEnabled, cornerPoints);
         }
 
         private void SpawnCrossoverTile(
@@ -158,22 +147,19 @@ namespace FrigidBlackwaters.Game
             Vector2Int terrainTileIndices,
             TiledAreaBlueprint tiledAreaBlueprint,
             Transform contentsTransform,
-            TileTerrain terrain,
             bool isOuter,
             Vector2 direction
             )
         {
-            if (this.terrainTileAssetGroup.TryGetTerrainTileAsset(terrain, tiledAreaBlueprint.GetTerrainTileIDAtTile(terrainTileIndices), out TerrainTileAsset terrainTileAsset))
+            TerrainTileAsset terrainTileAsset = tiledAreaBlueprint.GetTerrainTileAssetAt(terrainTileIndices);
+            if (terrainTileAsset.TryGetTerrainCrossoverTilePrefab(tiledAreaBlueprint.GetTerrainTileAssetAt(crossoverTileIndices), out TerrainCrossoverTile terrainCrossoverTilePrefab))
             {
-                if (terrainTileAsset.TryGetTerrainCrossoverTilePrefab(tiledAreaBlueprint.GetTerrainTileIDAtTile(crossoverTileIndices), out TerrainCrossoverTile terrainCrossoverTilePrefab))
-                {
-                    TerrainCrossoverTile spawnedCrossoverTile = FrigidInstancing.CreateInstance<TerrainCrossoverTile>(
-                        terrainCrossoverTilePrefab,
-                        TilePositioning.TileAbsolutePositionFromIndices(crossoverTileIndices, contentsTransform.position, tiledAreaBlueprint.MainAreaDimensions),
-                        contentsTransform
-                        );
-                    spawnedCrossoverTile.Populated(direction, isOuter);
-                }
+                TerrainCrossoverTile spawnedCrossoverTile = FrigidInstancing.CreateInstance<TerrainCrossoverTile>(
+                    terrainCrossoverTilePrefab,
+                    TilePositioning.TilePositionFromIndices(crossoverTileIndices, contentsTransform.position, tiledAreaBlueprint.MainAreaDimensions),
+                    contentsTransform
+                    );
+                spawnedCrossoverTile.Populated(direction, isOuter);
             }
         }
     }

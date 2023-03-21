@@ -40,7 +40,7 @@ namespace FrigidBlackwaters.Utility
                                     break;
                                 }
                             }
-                            if (drawThrough)
+                            if (drawThrough && iterator != null)
                             {
                                 EditorGUILayout.PropertyField(iterator, true);
                             }

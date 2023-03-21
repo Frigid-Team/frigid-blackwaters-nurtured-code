@@ -4,9 +4,9 @@ namespace FrigidBlackwaters.Core
 {
     public static class TimePauser
     {
-        private static CountingSemaphore paused;
+        private static ControlCounter paused;
 
-        public static CountingSemaphore Paused
+        public static ControlCounter Paused
         {
             get
             {
@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Core
 
         static TimePauser()
         {
-            paused = new CountingSemaphore();
+            paused = new ControlCounter();
             paused.OnFirstRequest += () => Time.timeScale = 0f;
             paused.OnLastRelease += () => Time.timeScale = 1f;
         }

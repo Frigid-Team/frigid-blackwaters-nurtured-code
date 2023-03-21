@@ -19,7 +19,7 @@ namespace FrigidBlackwaters.Game
             int damageBonus,
             DamageAlignment damageAlignment,
             Action onTeardown,
-            Vector2 absoluteSpawnPosition,
+            Vector2 spawnPosition,
             float summonRotationDeg,
             Action<HitInfo> onHitDealt,
             Action<BreakInfo> onBreakDealt,
@@ -43,13 +43,26 @@ namespace FrigidBlackwaters.Game
                 attackProperty.DamageAlignment = damageAlignment;
             }
 
-            this.transform.position = absoluteSpawnPosition;
+            this.transform.position = spawnPosition;
             if (this.alignToSummonRotation) this.transform.rotation = Quaternion.Euler(0, 0, summonRotationDeg);
 
-            if (TiledArea.TryGetTiledAreaAtPosition(absoluteSpawnPosition, out TiledArea tiledArea))
+            if (TiledArea.TryGetTiledAreaAtPosition(spawnPosition, out TiledArea tiledArea))
             {
                 this.transform.SetParent(tiledArea.ContentsTransform);
-                FrigidCoroutine.Run(ExplosionLifetime(damageBonus, onTeardown, onHitDealt, onBreakDealt, onThreatDealt), this.gameObject);
+                FrigidCoroutine.Run(
+                    ExplosionLifetime(
+                        damageBonus, 
+                        () =>
+                        {
+                            this.transform.SetParent(null);
+                            onTeardown?.Invoke();
+                        }, 
+                        onHitDealt, 
+                        onBreakDealt, 
+                        onThreatDealt
+                        ), 
+                    this.gameObject
+                    );
             }
             else
             {
@@ -59,7 +72,7 @@ namespace FrigidBlackwaters.Game
 
         private IEnumerator<FrigidCoroutine.Delay> ExplosionLifetime(
             int damageBonus,
-            Action onTeardown,
+            Action onComplete,
             Action<HitInfo> onHitDealt,
             Action<BreakInfo> onBreakDealt,
             Action<ThreatInfo> onThreatDealt
@@ -87,7 +100,7 @@ namespace FrigidBlackwaters.Game
             }
 
             bool explosionFinished = false;
-            this.animatorBody.PlayByName(this.explodeAnimationName, () => { explosionFinished = true; });
+            this.animatorBody.Play(this.explodeAnimationName, () => { explosionFinished = true; });
             yield return new FrigidCoroutine.DelayWhile(() => { return !explosionFinished; });
 
             foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>())
@@ -111,7 +124,7 @@ namespace FrigidBlackwaters.Game
                 attackProperty.OnThreatDealt -= onThreatDealt;
             }
 
-            onTeardown?.Invoke();
+            onComplete?.Invoke();
         }
     }
 }

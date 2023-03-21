@@ -31,24 +31,24 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Text loreDescriptionText;
 
-        public void FillInfo(ItemStash itemStash)
+        public void FillInfo(ItemStash stash)
         {
-            if (itemStash.TryGetItemStorable(out ItemStorable itemStorable))
+            if (stash.TryGetStorable(out ItemStorable storable))
             {
                 this.gameObject.SetActive(true);
 
-                this.itemIconImage.sprite = itemStorable.Icon;
-                this.itemNameText.text = itemStorable.DisplayName;
+                this.itemIconImage.sprite = storable.Icon;
+                this.itemNameText.text = storable.DisplayName;
 
-                this.classificationIconImage.sprite = itemStorable.Classification.Icon;
-                this.classificationNameText.text = itemStorable.Classification.DisplayName;
-                this.stackQuantityText.text = itemStash.CurrentQuantity.ToString() + "/" + itemStash.MaxQuantity.ToString();
+                this.classificationIconImage.sprite = storable.Classification.Icon;
+                this.classificationNameText.text = storable.Classification.DisplayName;
+                this.stackQuantityText.text = stash.CurrentQuantity.ToString() + "/" + stash.MaxQuantity.ToString();
 
-                this.powerPlate.SetActive(itemStorable.PowerDescription.Length > 0);
-                this.powerDescriptionText.text = itemStorable.PowerDescription;
+                this.powerPlate.SetActive(storable.PowerDescription.Length > 0);
+                this.powerDescriptionText.text = storable.PowerDescription;
 
-                this.effectDescriptionText.text = itemStorable.EffectDescription;
-                this.loreDescriptionText.text = itemStorable.LoreDescription;
+                this.effectDescriptionText.text = storable.EffectDescription;
+                this.loreDescriptionText.text = storable.LoreDescription;
                 return;
             }
             this.gameObject.SetActive(false);

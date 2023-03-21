@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Vector2 localPosition;
         [SerializeField]
-        private List<MobReach> reaches;
+        private List<MobSpawnable> restrictedMobSpawnables;
 
         public Vector2 LocalPosition
         {
@@ -21,27 +21,20 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public List<MobReach> Reaches
-        {
-            get
-            {
-                return this.reaches;
-            }
-        }
-
-        public TiledAreaMobSpawnPoint(Vector2 localPosition, List<MobReach> reaches)
+        public TiledAreaMobSpawnPoint(Vector2 localPosition, List<MobSpawnable> restrictedMobSpawnables)
         {
             this.localPosition = localPosition;
-            this.reaches = reaches;
+            this.restrictedMobSpawnables = restrictedMobSpawnables;
         }
 
-        public bool CanSpawnHere(MobSpawnable mobSpawnable, Vector2 absoluteCenterPosition)
+        public Vector2 GetSpawnPosition(TiledArea tiledArea)
         {
-            return false;
-            /* TODO Fix later
-                this.reaches.Intersect(mobSpawnable.Reaches).Count() > 0 && 
-                mobSpawnable.CanSpawnAt(this.localPosition + absoluteCenterPosition);
-            */
+            return this.localPosition + tiledArea.CenterPosition;
+        }
+
+        public bool CanSpawnHere(MobSpawnable mobSpawnable, TiledArea tiledArea)
+        {
+            return !this.restrictedMobSpawnables.Contains(mobSpawnable) && mobSpawnable.CanSpawnMobAt(GetSpawnPosition(tiledArea));
         }
     }
 }

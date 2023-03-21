@@ -14,5 +14,10 @@ namespace FrigidBlackwaters.Core
         public ColorSerializedReference(ColorSerializedReference other) : base(other) { }
 
         public ColorSerializedReference(SerializedReferenceType referenceType, Color customValue, ScriptableConstant<Color> scriptableConstant, List<Color> selection, ScriptableVariable<Color> scriptableVariable) : base(referenceType, customValue, scriptableConstant, selection, scriptableVariable) { }
+
+        protected override Color GetDefaultCustomValue()
+        {
+            return Color.white;
+        }
     }
 }

@@ -15,16 +15,17 @@ namespace FrigidBlackwaters.Game
             Vector2[] directions = new Vector2[currDirections.Length];
             for (int i = 0; i < directions.Length; i++)
             {
-                Vector2 ricochetDirection = currDirections[i];
+                Vector2 ricochetDirection = currDirections[i].normalized;
                 if (ricochetDirection == Vector2.zero)
                 {
                     float randAngle = Mathf.PI / 2 * Random.Range(0, 4) + Mathf.PI / 4;
                     ricochetDirection = new Vector2(Mathf.Cos(randAngle), Mathf.Sin(randAngle));
                 }
-                List<Collider2D> collisions = this.mob.Physicality.LinePushCast(this.mob.AbsolutePosition, new Vector2(0, ricochetDirection.y).normalized, this.detectRange);
-                if (collisions.Count > 0) directions[i] = ricochetDirection * new Vector2(1, -1);
-                collisions = this.mob.Physicality.LinePushCast(this.mob.AbsolutePosition, new Vector2(ricochetDirection.x, 0), this.detectRange);
-                if (collisions.Count > 0) directions[i] = ricochetDirection * new Vector2(-1, 1);
+                List<Collider2D> collisions = this.mob.LinePushCast(this.mob.Position, new Vector2(0, ricochetDirection.y).normalized, this.detectRange);
+                if (collisions.Count > 0) ricochetDirection = ricochetDirection * new Vector2(1, -1);
+                collisions = this.mob.LinePushCast(this.mob.Position, new Vector2(ricochetDirection.x, 0), this.detectRange);
+                if (collisions.Count > 0) ricochetDirection = ricochetDirection * new Vector2(-1, 1);
+                directions[i] = ricochetDirection;
             }
             return directions;
         }

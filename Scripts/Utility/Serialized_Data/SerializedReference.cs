@@ -75,6 +75,8 @@ namespace FrigidBlackwaters.Utility
                         return this.selection.Count == 0 ? default(T) : this.selection[new System.Random(GetHashCode()).Next(this.selection.Count)];
                     case SerializedReferenceType.ScriptableVariable:
                         return this.scriptableVariable.Value;
+                    case SerializedReferenceType.Inherited:
+                        return GetInheritedImmutableValue();
                 }
                 return this.customValue;
             }
@@ -96,6 +98,8 @@ namespace FrigidBlackwaters.Utility
                         return this.selection[new System.Random().Next(this.selection.Count)];
                     case SerializedReferenceType.ScriptableVariable:
                         return this.scriptableVariable.Value;
+                    case SerializedReferenceType.Inherited:
+                        return GetInheritedMutableValue();
                 }
                 return this.customValue;
             }
@@ -141,27 +145,6 @@ namespace FrigidBlackwaters.Utility
             }
         }
 
-        public T[] PossibleValues
-        {
-            get
-            {
-                switch (this.referenceType)
-                {
-                    case SerializedReferenceType.Custom:
-                        return new T[] { this.customValue };
-                    case SerializedReferenceType.ScriptableConstant:
-                        return new T[] { this.scriptableConstant.Value };
-                    case SerializedReferenceType.RandomFromRange:
-                        return new T[] { };
-                    case SerializedReferenceType.RandomFromSelection:
-                        return this.selection.ToArray();
-                    case SerializedReferenceType.ScriptableVariable:
-                        return new T[] { this.scriptableVariable.Value };
-                }
-                return new T[] { this.customValue };
-            }
-        }
-
         public override bool Equals(object obj)
         {
             return Equals(obj as SerializedReference<T>);
@@ -187,6 +170,8 @@ namespace FrigidBlackwaters.Utility
                     return this.selection.SequenceEqual(other.selection);
                 case SerializedReferenceType.ScriptableVariable:
                     return this.scriptableVariable = other.scriptableVariable;
+                case SerializedReferenceType.Inherited:
+                    return InheritEquals(other);
             }
             return false;
         }
@@ -205,6 +190,8 @@ namespace FrigidBlackwaters.Utility
                     return this.selection.GetHashCode();
                 case SerializedReferenceType.ScriptableVariable:
                     return this.scriptableVariable.GetHashCode();
+                case SerializedReferenceType.Inherited:
+                    return GetHashCodeFromInherited();
             }
             return base.GetHashCode();
         }
@@ -232,7 +219,17 @@ namespace FrigidBlackwaters.Utility
             return this.customValue;
         }
 
+        protected virtual T GetInheritedImmutableValue()
+        {
+            return this.customValue;
+        }
+
         protected virtual T GetRandomFromRangeMutableValue()
+        {
+            return this.customValue;
+        }
+
+        protected virtual T GetInheritedMutableValue()
         {
             return this.customValue;
         }
@@ -243,6 +240,10 @@ namespace FrigidBlackwaters.Utility
 
         protected virtual bool RangeEquals(SerializedReference<T> other) { return true; }
 
+        protected virtual bool InheritEquals(SerializedReference<T> other) { return true; }
+
         protected virtual int GetHashCodeFromRange() { return 0; }
+
+        protected virtual int GetHashCodeFromInherited() { return 0; }
     }
 }

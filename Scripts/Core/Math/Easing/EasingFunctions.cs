@@ -304,13 +304,13 @@ namespace FrigidBlackwaters.Core
             end -= start;
 
             float p = 0.3f;
-            float s = 0f;
             float a = 0f;
 
             if (val == 0f) return start;
 
             if (val == 1f) return start + end;
 
+            float s;
             if (a == 0f || a < Mathf.Abs(end))
             {
                 a = end;
@@ -330,13 +330,13 @@ namespace FrigidBlackwaters.Core
             end -= start;
 
             float p = 0.3f;
-            float s = 0f;
             float a = 0f;
 
             if (val == 0f) return start;
 
             if (val == 1f) return start + end;
 
+            float s;
             if (a == 0f || a < Mathf.Abs(end))
             {
                 a = end;
@@ -354,7 +354,6 @@ namespace FrigidBlackwaters.Core
             end -= start;
 
             float p = 0.3f;
-            float s = 0f;
             float a = 0f;
 
             if (val == 0f) return start;
@@ -362,6 +361,7 @@ namespace FrigidBlackwaters.Core
             val = val / (1f / 2f);
             if (val == 2f) return start + end;
 
+            float s;
             if (a == 0f || a < Mathf.Abs(end))
             {
                 a = end;

@@ -56,8 +56,8 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private AudioClip transferFailureClip;
 
-        private ItemStorageGrid itemStorageGrid;
-        private ItemStash itemStash;
+        private ItemStorageGrid storageGrid;
+        private ItemStash stash;
         private ItemInterfaceHand hand;
         private ItemInterfaceTooltip tooltip;
 
@@ -68,49 +68,49 @@ namespace FrigidBlackwaters.Game
         private bool pointerEntered;
 
         public void PopulateForInteraction(
-            ItemStorageGrid itemStorageGrid, 
-            ItemStash itemStash, 
+            ItemStorageGrid storageGrid, 
+            ItemStash stash, 
             ItemInterfaceHand hand, 
             ItemInterfaceTooltip tooltip
             )
         {
-            if (this.itemStash != null) this.itemStash.OnQuantityUpdated -= FillSlot;
+            if (this.stash != null) this.stash.OnQuantityUpdated -= FillSlot;
 
             this.rayCastImage.raycastTarget = true;
             this.accentImage.enabled = true;
             this.highlightImage.enabled = false;
-            this.itemStorageGrid = itemStorageGrid;
-            this.itemStash = itemStash;
+            this.storageGrid = storageGrid;
+            this.stash = stash;
             this.hand = hand;
             this.tooltip = tooltip;
-            this.itemStash.OnQuantityUpdated += FillSlot;
+            this.stash.OnQuantityUpdated += FillSlot;
             FillSlot();
         }
 
-        public void PopulateForDisplay(ItemStash itemStash)
+        public void PopulateForDisplay(ItemStash stash)
         {
-            if (this.itemStash != null) this.itemStash.OnQuantityUpdated -= FillSlot;
+            if (this.stash != null) this.stash.OnQuantityUpdated -= FillSlot;
 
             this.rayCastImage.raycastTarget = false;
             this.borderImage.enabled = false;
             this.accentImage.enabled = false;
             this.highlightImage.enabled = false;
-            this.itemStash = itemStash;
+            this.stash = stash;
             this.hand = null;
-            this.itemStash.OnQuantityUpdated += FillSlot;
+            this.stash.OnQuantityUpdated += FillSlot;
             FillSlot();
         }
 
         public void FillSlot()
         {
-            this.iconImage.enabled = this.itemStash.CurrentQuantity > 0;
-            this.quantityText.enabled = this.itemStash.CurrentQuantity > 1;
+            this.iconImage.enabled = this.stash.CurrentQuantity > 0;
+            this.quantityText.enabled = this.stash.CurrentQuantity > 1;
 
-            if (this.itemStash.TryGetTopmostItem(out Item topmostItem) && this.itemStash.TryGetItemStorable(out ItemStorable itemStorable))
+            if (this.stash.TryGetTopmostItem(out Item topmostItem) && this.stash.TryGetStorable(out ItemStorable storable))
             {
-                this.iconImage.sprite = itemStorable.Icon;
-                this.quantityText.text = this.itemStash.CurrentQuantity.ToString();
-                this.accentImage.color = itemStorable.AccentColor;
+                this.iconImage.sprite = storable.Icon;
+                this.quantityText.text = this.stash.CurrentQuantity.ToString();
+                this.accentImage.color = storable.AccentColor;
                 if (topmostItem.IsInEffect)
                 {
                     this.accentAnimator.Play(Animator.StringToHash(this.addAccentAnimationName), 0, 1);
@@ -134,7 +134,7 @@ namespace FrigidBlackwaters.Game
             this.highlightImage.enabled = true;
             SetContextualHoverColors();
             ResetTransfer();
-            this.tooltip.AddStashToShow(this.itemStash, this.transform.position);
+            this.tooltip.AddStashToShow(this.stash, this.transform.position);
         }
 
         public void OnPointerExit(PointerEventData eventData)
@@ -145,7 +145,7 @@ namespace FrigidBlackwaters.Game
             this.quantityText.color = this.defaultColor.ImmutableValue;
             SetDefaultHoverColors();
             ResetTransfer();
-            this.tooltip.RemoveStashToShow(this.itemStash);
+            this.tooltip.RemoveStashToShow(this.stash);
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -163,9 +163,9 @@ namespace FrigidBlackwaters.Game
             base.OnEnable();
             this.pointerEntered = false;
             this.highlightImage.enabled = false;
-            if (this.itemStash != null)
+            if (this.stash != null)
             {
-                this.itemStash.OnQuantityUpdated += FillSlot;
+                this.stash.OnQuantityUpdated += FillSlot;
                 FillSlot();
             }
             ResetTransfer();
@@ -176,9 +176,9 @@ namespace FrigidBlackwaters.Game
         protected override void OnDisable()
         {
             base.OnDisable();
-            if (this.itemStash != null)
+            if (this.stash != null)
             {
-                this.itemStash.OnQuantityUpdated -= FillSlot;
+                this.stash.OnQuantityUpdated -= FillSlot;
             }
             ResetTransfer();
         }
@@ -189,7 +189,7 @@ namespace FrigidBlackwaters.Game
 
         private void BeginItemAction(PointerEventData eventData)
         {
-            if (!this.hand.TryGetHeldItemStash(out HoldingItemStash heldItemStash) ||
+            if (!this.hand.TryGetHoldingStash(out HoldingItemStash heldItemStash) ||
                 eventData.button != PointerEventData.InputButton.Left &&
                 eventData.button != PointerEventData.InputButton.Right) return;
 
@@ -221,14 +221,14 @@ namespace FrigidBlackwaters.Game
         {
             this.lastClickCount = eventData.clickCount;
 
-            if (!this.hand.TryGetHeldItemStash(out HoldingItemStash heldItemStash) ||
+            if (!this.hand.TryGetHoldingStash(out HoldingItemStash heldItemStash) ||
                 eventData.button != PointerEventData.InputButton.Left &&
                 eventData.button != PointerEventData.InputButton.Right) return;
 
             if (this.transferAction == TransferAction.QuickTransfer)
             {
-                int quantity = this.transferButton == PointerEventData.InputButton.Left ? this.itemStash.CurrentQuantity : 1;
-                this.hand.QuickTransferItems(this.itemStorageGrid, this.itemStash, quantity, out int numItemsTransferred);
+                int quantity = this.transferButton == PointerEventData.InputButton.Left ? this.stash.CurrentQuantity : 1;
+                this.hand.QuickTransferItems(this.storageGrid, this.stash, quantity, out int numItemsTransferred);
 
                 if (numItemsTransferred > 0)
                 {
@@ -249,10 +249,10 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.transferAction == TransferAction.Hold) 
                 {
-                    if (this.itemStash.CurrentQuantity > 0)
+                    if (this.stash.CurrentQuantity > 0)
                     {
-                        int quantity = this.transferButton == PointerEventData.InputButton.Left ? this.itemStash.CurrentQuantity : 1;
-                        this.hand.HoldItems(this.itemStash, quantity, out int numItemsHeld);
+                        int quantity = this.transferButton == PointerEventData.InputButton.Left ? this.stash.CurrentQuantity : 1;
+                        this.hand.HoldItems(this.stash, quantity, out int numItemsHeld);
 
                         if (numItemsHeld > 0)
                         {
@@ -266,14 +266,14 @@ namespace FrigidBlackwaters.Game
                         }
                     }
 
-                    if (this.itemStash.CurrentQuantity == 0) this.transferAction = TransferAction.None;
+                    if (this.stash.CurrentQuantity == 0) this.transferAction = TransferAction.None;
                 }
                 else if (this.transferAction == TransferAction.Deposit)
                 {
                     if (heldItemStash.CurrentQuantity > 0)
                     {
                         int quantity = this.transferButton == PointerEventData.InputButton.Left ? heldItemStash.CurrentQuantity : 1;
-                        this.hand.DepositItems(this.itemStash, quantity, out int numItemsDeposited);
+                        this.hand.DepositItems(this.stash, quantity, out int numItemsDeposited);
 
                         if (numItemsDeposited > 0)
                         {
@@ -296,7 +296,7 @@ namespace FrigidBlackwaters.Game
 
         private void StartWaitForUse()
         {
-            if (this.useHoldRoutine == null && this.itemStash.HasItemAndIsUsable && this.itemStash.HasUsingMobs)
+            if (this.useHoldRoutine == null && this.stash.HasItemAndIsUsable)
             {
                 this.useHoldRoutine = FrigidCoroutine.Run(WaitForUse(), this.gameObject);
             }
@@ -326,15 +326,15 @@ namespace FrigidBlackwaters.Game
                 yield return null;
             }
 
-            if (this.itemStash.TryGetTopmostItem(out Item prevTopmostItem) && this.itemStash.TryGetItemStorable(out ItemStorable itemStorable))
+            if (this.stash.TryGetTopmostItem(out Item prevTopmostItem) && this.stash.TryGetStorable(out ItemStorable itemStorable))
             {
                 bool wasInEffect = prevTopmostItem.IsInEffect;
-                if (this.itemStash.UseTopmostItem())
+                if (this.stash.UseTopmostItem())
                 {
                     this.audioSource.clip = itemStorable.ConsumedAudioClip;
                     this.audioSource.Play();
                 }
-                else if (this.itemStash.TryGetTopmostItem(out Item nextTopmostItem) && nextTopmostItem.IsInEffect != wasInEffect)
+                else if (this.stash.TryGetTopmostItem(out Item nextTopmostItem) && nextTopmostItem.IsInEffect != wasInEffect)
                 {
                     if (nextTopmostItem.IsInEffect)
                     {
@@ -358,18 +358,18 @@ namespace FrigidBlackwaters.Game
         {
             SetDefaultHoverColors();
 
-            if (this.hand.TryGetHeldItemStash(out HoldingItemStash heldItemStash))
+            if (this.hand.TryGetHoldingStash(out HoldingItemStash heldItemStash))
             {
-                if (heldItemStash.TryGetItemStorable(out ItemStorable itemStorable))
+                if (heldItemStash.TryGetStorable(out ItemStorable storable))
                 {
-                    if (!this.itemStash.CanStackItemStorable(itemStorable))
+                    if (!this.stash.CanStackStorable(storable))
                     {
                         this.highlightImage.color = this.cannotStackColor.ImmutableValue;
                         this.quantityText.color = this.cannotStackColor.ImmutableValue;
                         return;
                     }
 
-                    if (this.itemStash.IsFull)
+                    if (this.stash.IsFull)
                     {
                         this.highlightImage.color = this.isFullColor.ImmutableValue;
                         this.quantityText.color = this.isFullColor.ImmutableValue;

@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Game
         protected override void Init()
         {
             base.Init();
-            this.mobSpawnablesRemaining = new SceneVariable<List<MobSpawnable>>(() => { return new List<MobSpawnable>(this.mobSpawnables); });
+            this.mobSpawnablesRemaining = new SceneVariable<List<MobSpawnable>>(() => new List<MobSpawnable>(this.mobSpawnables));
         }
 
         protected override Dictionary<TiledAreaMobSpawnPoint, MobSpawnable> DetermineMobSpawnsInTiledArea(TiledLevelPlanArea planArea, TiledArea tiledArea, HashSet<TiledAreaMobSpawnPoint> spawnPoints, int waveIndex)

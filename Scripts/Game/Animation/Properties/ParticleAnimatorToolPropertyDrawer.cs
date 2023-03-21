@@ -56,16 +56,21 @@ namespace FrigidBlackwaters.Game
             if (!particleProperty.Loop)
             {
                 particleProperty.SetPlayThisFrame(animationIndex, frameIndex, EditorGUILayout.Toggle("Play This Frame", particleProperty.GetPlayThisFrame(animationIndex, frameIndex)));
+                if (particleProperty.GetPlayThisFrame(animationIndex, frameIndex))
+                {
+                    particleProperty.SetOnlyPlayOnFirstCycle(animationIndex, frameIndex, EditorGUILayout.Toggle("Only Play On First Cycle", particleProperty.GetOnlyPlayOnFirstCycle(animationIndex, frameIndex)));
+                }
             }
             base.DrawFrameEditFields(animationIndex, frameIndex);
         }
 
-        public override void DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
+        public override Vector2 DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
         {
             ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
             dragRequests = new List<(Rect rect, Action onDrag)>();
 
-            Vector2 particleDrawPosition = previewSize / 2 + particleProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * new Vector2(1, -1) * worldToWindowScalingFactor + previewOffset;
+            Vector2 localPreviewOffset = particleProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * new Vector2(1, -1) * worldToWindowScalingFactor;
+            Vector2 particleDrawPosition = previewSize / 2 + localPreviewOffset + previewOffset;
             (Vector2 position, float radius)[] draws = new (Vector2 position, float radius)[9];
             draws[0] = (particleDrawPosition, this.Config.HandleLength);
             for (int i = 0; i < 3; i++)
@@ -99,8 +104,7 @@ namespace FrigidBlackwaters.Game
                     }
                 }
             }
-
-            base.DrawPreview(previewSize, previewOffset, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected, out List<(Rect rect, Action onDrag)> baseDragRequests);
+            return localPreviewOffset;
         }
 
         public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)
@@ -118,7 +122,7 @@ namespace FrigidBlackwaters.Game
             {
                 using (new GUIHelper.ColorScope(this.AccentColor))
                 {
-                    GUI.DrawTexture(new Rect(cellSize / 2, cellSize), this.Config.CellPreviewDiamondTexture);
+                    GUI.DrawTexture(new Rect(Vector2.zero, cellSize), this.Config.CellPreviewDiamondTexture);
                 }
             }
             base.DrawFrameCellPreview(cellSize, animationIndex, frameIndex);

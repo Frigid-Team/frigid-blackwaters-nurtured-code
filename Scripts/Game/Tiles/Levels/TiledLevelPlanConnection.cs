@@ -4,9 +4,9 @@ namespace FrigidBlackwaters.Game
 {
     public class TiledLevelPlanConnection
     {
-        private int numberEntrances;
-        private TiledLevelPlanEntrance[] planEntrances;
-        private Vector2Int[] entryDirections;
+        private TiledLevelPlanEntrance firstEntrance;
+        private TiledLevelPlanEntrance secondEntrance;
+        private Vector2Int direction;
         private TileTerrain connectionTerrain;
         private bool isSubLevelConnection;
 
@@ -20,42 +20,52 @@ namespace FrigidBlackwaters.Game
             if (!TilePositioning.IsValidWallDirection(direction))
             {
                 Debug.LogError("Connection has invalid direction: " + direction);
+                return;
             }
 
-            this.numberEntrances = 2;
-            this.planEntrances = new TiledLevelPlanEntrance[2] { firstEntrance, secondEntrance };
-            this.entryDirections = new Vector2Int[2] { direction, -direction };
+            if (firstEntrance.Area == secondEntrance.Area)
+            {
+                Debug.LogError("Connection connects to the same area!");
+                return;
+            }
+
+            this.firstEntrance = firstEntrance;
+            this.secondEntrance = secondEntrance;
+            this.direction = direction;
             this.connectionTerrain = connectionTerrain;
 
-            this.isSubLevelConnection = false;
-            for (int i = 0; i < this.numberEntrances; i++)
+            this.isSubLevelConnection = this.firstEntrance.IsSubLevelEntrance || this.secondEntrance.IsSubLevelEntrance;
+            if (!this.firstEntrance.IsSubLevelEntrance)
             {
-                if (!this.planEntrances[i].IsSubLevelEntrance) this.planEntrances[i].Area.AddWallEntry(this.entryDirections[i], this.connectionTerrain);
-                else this.isSubLevelConnection = true;
+                this.firstEntrance.Area.AddWallEntry(this.direction, this.connectionTerrain);
+            }
+            if (!this.secondEntrance.IsSubLevelEntrance)
+            {
+                this.secondEntrance.Area.AddWallEntry(-this.direction, this.connectionTerrain);
             }
         }
 
-        public int NumberEntrances
+        public TiledLevelPlanEntrance FirstEntrance
         {
             get
             {
-                return this.numberEntrances;
+                return this.firstEntrance;
             }
         }
 
-        public TiledLevelPlanEntrance[] PlanEntrances
+        public TiledLevelPlanEntrance SecondEntrance
         {
             get
             {
-                return this.planEntrances;
+                return this.secondEntrance;
             }
         }
 
-        public Vector2Int[] EntryDirections
+        public Vector2Int Direction
         {
             get
             {
-                return this.entryDirections;
+                return this.direction;
             }
         }
 
@@ -68,10 +78,13 @@ namespace FrigidBlackwaters.Game
             set
             {
                 this.connectionTerrain = value;
-                for (int i = 0; i < this.numberEntrances; i++)
+                if (!this.firstEntrance.IsSubLevelEntrance)
                 {
-                    if (this.planEntrances[i].IsSubLevelEntrance) continue;
-                    this.planEntrances[i].Area.SetWallEntry(this.entryDirections[i], this.connectionTerrain);
+                    this.firstEntrance.Area.SetWallEntry(this.direction, this.connectionTerrain);
+                }
+                if (!this.secondEntrance.IsSubLevelEntrance)
+                {
+                    this.secondEntrance.Area.SetWallEntry(-this.direction, this.connectionTerrain);
                 }
             }
         }

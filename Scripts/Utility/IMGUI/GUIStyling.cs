@@ -28,9 +28,9 @@ namespace FrigidBlackwaters.Utility
             return newStyle;
         }
 
-        public static Color Darken(Color baseColor)
+        public static Color Darken(Color baseColor, int times = 1)
         {
-            return baseColor * new Color(0.5f, 0.5f, 0.5f, 1);
+            return baseColor * new Color(Mathf.Pow(0.5f, times), Mathf.Pow(0.5f, times), Mathf.Pow(0.5f, times), 1);
         }
     }
 }

@@ -13,7 +13,7 @@ namespace FrigidBlackwaters.Game
 
         public void Populated(bool isEdge)
         {
-            this.animatorBody.PlayByName(isEdge ? this.edgeAnimationName : this.cornerAnimationName);
+            this.animatorBody.Play(isEdge ? this.edgeAnimationName : this.cornerAnimationName);
         }
 
 #if UNITY_EDITOR

@@ -1,7 +1,7 @@
-using FrigidBlackwaters.Utility;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
+
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
@@ -91,14 +91,6 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override List<AnimatorProperty> ChildProperties 
-        { 
-            get
-            {
-                return new List<AnimatorProperty>();
-            }
-        }
-
         public Type GetAttackType()
         {
             return this.attack.GetType();
@@ -107,6 +99,7 @@ namespace FrigidBlackwaters.Game
         public void SetAttackType(Type attackType)
         {
             FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEditMode.RemoveComponent(this.attack);
             this.attack = (Attack)FrigidEditMode.AddComponent(this.gameObject, attackType);
         }
 
@@ -246,19 +239,18 @@ namespace FrigidBlackwaters.Game
             this.forceStop = false;
         }
 
-        public override void SetFrameEnter(int animationIndex, int frameIndex, float elapsedDuration, int loopsElapsed)
+        public override void FrameEnter()
         {
-            if (GetAttackThisFrame(animationIndex, frameIndex) && !this.forceStop)
+            if (GetAttackThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex) && !this.forceStop)
             {
-                this.attack.Perform(elapsedDuration);
+                this.transform.localPosition = GetLocalOffset(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                this.attack.Perform(this.Body.ElapsedDuration);
             }
-            base.SetFrameEnter(animationIndex, frameIndex, elapsedDuration, loopsElapsed);
-        }
-
-        public override void OrientFrameEnter(int animationIndex, int frameIndex, int orientationIndex, float elapsedDuration)
-        {
-            this.transform.localPosition = GetLocalOffset(animationIndex, frameIndex, orientationIndex);
-            base.OrientFrameEnter(animationIndex, frameIndex, orientationIndex, elapsedDuration);
+            else
+            {
+                this.transform.localPosition = Vector2.zero;
+            }
+            base.FrameEnter();
         }
     }
 }

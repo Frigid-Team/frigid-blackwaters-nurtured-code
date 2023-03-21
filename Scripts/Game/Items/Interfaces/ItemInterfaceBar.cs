@@ -53,8 +53,8 @@ namespace FrigidBlackwaters.Game
 
         private List<ItemInterfaceContainerSlot> currentSlots;
         private RecyclePool<ItemInterfaceContainerSlot> slotPool;
-        private ItemPowerBudget currentItemPowerBudget;
-        private ItemCurrencyWallet currentItemCurrencyWallet;
+        private ItemPowerBudget currentPowerBudget;
+        private ItemCurrencyWallet currentCurrencyWallet;
         private FrigidCoroutine scrollRoutine;
 
         private Vector2 onScreenLocalPosition;
@@ -70,16 +70,16 @@ namespace FrigidBlackwaters.Game
         public void Populate(
             float scrollWidth,
             Action<int> onClicked, 
-            List<ItemStorageGrid> itemStorageGrids,
-            ItemPowerBudget itemPowerBudget,
-            ItemCurrencyWallet itemCurrencyWallet,
+            List<ItemStorageGrid> storageGrids,
+            ItemPowerBudget powerBudget,
+            ItemCurrencyWallet currencyWallet,
             int startIndex, 
             Vector2 localCenterPosition
             )
         {
             this.focusedIndex = startIndex;
 
-            this.slotPool.Cycle(this.currentSlots, itemStorageGrids.Count);
+            this.slotPool.Cycle(this.currentSlots, storageGrids.Count);
 
             RectTransform rectTransform = (RectTransform)this.transform;
             float arrowsWidth = ((RectTransform)this.leftArrow.transform).rect.width + ((RectTransform)this.rightArrow.transform).rect.width;
@@ -87,14 +87,14 @@ namespace FrigidBlackwaters.Game
 
             float slotWidth = ((RectTransform)this.slotPrefab.transform).rect.width;
             RectTransform scrollRectTransform = (RectTransform)this.scrollRect.transform;
-            this.contentTransform.sizeDelta = new Vector2((itemStorageGrids.Count - 1) * slotWidth + scrollRectTransform.rect.width, rectTransform.rect.height);
-            for (int i = 0; i < itemStorageGrids.Count; i++)
+            this.contentTransform.sizeDelta = new Vector2((storageGrids.Count - 1) * slotWidth + scrollRectTransform.rect.width, rectTransform.rect.height);
+            for (int i = 0; i < storageGrids.Count; i++)
             {
                 ItemInterfaceContainerSlot containerSlot = this.currentSlots[i];
-                containerSlot.transform.localPosition = new Vector2(-slotWidth * (itemStorageGrids.Count - 1) / 2 + slotWidth * i, 0);
+                containerSlot.transform.localPosition = new Vector2(-slotWidth * (storageGrids.Count - 1) / 2 + slotWidth * i, 0);
 
                 int storageGridIndex = i;
-                containerSlot.Populate(itemStorageGrids[i].ItemContainer, () => onClicked.Invoke(storageGridIndex));
+                containerSlot.Populate(storageGrids[i].Container, () => onClicked.Invoke(storageGridIndex));
                 if (storageGridIndex == this.focusedIndex) containerSlot.Focus();
             }
 
@@ -107,13 +107,13 @@ namespace FrigidBlackwaters.Game
             this.rightArrow.onClick.AddListener(() => onClicked.Invoke(this.focusedIndex + 1));
             this.rightArrow.interactable = this.focusedIndex < this.currentSlots.Count - 1;
 
-            this.powerCountImage.enabled = itemPowerBudget.MaxPower > 0;
-            this.powerCountText.enabled = itemPowerBudget.MaxPower > 0;
-            this.currentItemPowerBudget = itemPowerBudget;
+            this.powerCountImage.enabled = powerBudget.MaxPower > 0;
+            this.powerCountText.enabled = powerBudget.MaxPower > 0;
+            this.currentPowerBudget = powerBudget;
 
-            this.currencyCountImage.enabled = !itemCurrencyWallet.IsIgnoringTransactionCosts;
-            this.currencyCountText.enabled = !itemCurrencyWallet.IsIgnoringTransactionCosts;
-            this.currentItemCurrencyWallet = itemCurrencyWallet;
+            this.currencyCountImage.enabled = !currencyWallet.IsIgnoringTransactionCosts;
+            this.currencyCountText.enabled = !currencyWallet.IsIgnoringTransactionCosts;
+            this.currentCurrencyWallet = currencyWallet;
 
             RectTransform parentRectTransform = (RectTransform)this.transform.parent;
             this.onScreenLocalPosition = new Vector2(localCenterPosition.x, -parentRectTransform.rect.height / 2 + this.yPadding);
@@ -166,12 +166,12 @@ namespace FrigidBlackwaters.Game
                     ),
                 this.gameObject
                 );
-            this.currentItemPowerBudget.OnCurrentPowerChanged += UpdatePowerCount;
-            this.currentItemPowerBudget.OnUsePowerFailed += ShowPowerCountFailure;
+            this.currentPowerBudget.OnCurrentPowerChanged += UpdatePowerCount;
+            this.currentPowerBudget.OnUsePowerFailed += ShowPowerCountFailure;
             UpdatePowerCount();
             this.currencyCountText.color = this.originalCurrencyCountTextColor;
-            this.currentItemCurrencyWallet.OnCurrencyCountUpdated += UpdateCurrencyCount;
-            this.currentItemCurrencyWallet.OnTransferFailed += ShowCurrencyCountFailure;
+            this.currentCurrencyWallet.OnCurrencyCountUpdated += UpdateCurrencyCount;
+            this.currentCurrencyWallet.OnTransferFailed += ShowCurrencyCountFailure;
             UpdateCurrencyCount();
             this.powerCountText.color = this.originalPowerCountTextColor;
         }
@@ -190,10 +190,10 @@ namespace FrigidBlackwaters.Game
                     ),
                 this.gameObject
                 );
-            this.currentItemPowerBudget.OnCurrentPowerChanged -= UpdatePowerCount;
-            this.currentItemPowerBudget.OnUsePowerFailed -= ShowPowerCountFailure;
-            this.currentItemCurrencyWallet.OnCurrencyCountUpdated -= UpdateCurrencyCount;
-            this.currentItemCurrencyWallet.OnTransferFailed -= ShowCurrencyCountFailure;
+            this.currentPowerBudget.OnCurrentPowerChanged -= UpdatePowerCount;
+            this.currentPowerBudget.OnUsePowerFailed -= ShowPowerCountFailure;
+            this.currentCurrencyWallet.OnCurrencyCountUpdated -= UpdateCurrencyCount;
+            this.currentCurrencyWallet.OnTransferFailed -= ShowCurrencyCountFailure;
         }
 
         protected override void Awake()
@@ -211,7 +211,7 @@ namespace FrigidBlackwaters.Game
 
         private void UpdatePowerCount()
         {
-            this.powerCountText.text = this.currentItemPowerBudget.CurrentPower.ToString() + "/" + this.currentItemPowerBudget.MaxPower.ToString();
+            this.powerCountText.text = this.currentPowerBudget.CurrentPower.ToString() + "/" + this.currentPowerBudget.MaxPower.ToString();
         }
 
         private void ShowPowerCountFailure()
@@ -232,7 +232,7 @@ namespace FrigidBlackwaters.Game
 
         private void UpdateCurrencyCount()
         {
-            this.currencyCountText.text = this.currentItemCurrencyWallet.CurrencyCount.ToString();
+            this.currencyCountText.text = this.currentCurrencyWallet.CurrencyCount.ToString();
         }
 
         private void ShowCurrencyCountFailure()

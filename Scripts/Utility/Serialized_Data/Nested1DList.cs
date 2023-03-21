@@ -15,6 +15,19 @@ namespace FrigidBlackwaters.Utility
         {
             this.items = new List<T>();
         }
+
+        public Nested1DList(IEnumerable<T> items)
+        {
+            this.items = new List<T>(items);
+        }
+
+        public List<T> Items
+        {
+            get
+            {
+                return this.items;
+            }
+        }
   
         public T this[int index] 
         {

@@ -3,7 +3,7 @@ using UnityEngine.SceneManagement;
 
 namespace FrigidBlackwaters.Core
 {
-    public class SceneVariable<T> where T : new()
+    public class SceneVariable<T>
     {
         private Scene? currentScene;
         private T currentInstance;

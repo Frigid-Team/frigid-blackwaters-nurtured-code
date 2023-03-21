@@ -7,9 +7,21 @@ namespace FrigidBlackwaters.Utility
 {
     public static class AssetDatabaseUpdater
     {
+        public static void EditPrefabs(Action<GameObject> onVisited)
+        {
+            string[] guids = AssetDatabase.FindAssets("t:Prefab", new string[] { FrigidPaths.ProjectFolder.ASSETS + FrigidPaths.ProjectFolder.PREFABS });
+            foreach (string guid in guids)
+            {
+                using (PrefabUtility.EditPrefabContentsScope editPrefabContentsScope = new PrefabUtility.EditPrefabContentsScope(AssetDatabase.GUIDToAssetPath(guid)))
+                {
+                    onVisited?.Invoke(editPrefabContentsScope.prefabContentsRoot);
+                }
+            }
+        }
+
         public static void EditPrefabComponents<T>(Action<T> onVisited) where T : Component
         {
-            string[] guids = AssetDatabase.FindAssets("t:Prefab", new string[] { "Assets/Prefabs" });
+            string[] guids = AssetDatabase.FindAssets("t:Prefab", new string[] { FrigidPaths.ProjectFolder.ASSETS + FrigidPaths.ProjectFolder.PREFABS });
             foreach (string guid in guids)
             {
                 using (PrefabUtility.EditPrefabContentsScope editPrefabContentsScope = new PrefabUtility.EditPrefabContentsScope(AssetDatabase.GUIDToAssetPath(guid)))

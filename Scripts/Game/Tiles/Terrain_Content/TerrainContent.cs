@@ -24,6 +24,14 @@ namespace FrigidBlackwaters.Game
         public virtual void Populated(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> allTileIndices) 
         {
             this.animatorBody.Direction = orientationDirection;
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            {
+                breakBoxProperty.DamageAlignment = DamageAlignment.Environment;
+            }
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetProperties<ResistBoxAnimatorProperty>())
+            {
+                resistBoxProperty.DamageAlignment = DamageAlignment.Environment;
+            }
             this.navigationGrid = navigationGrid;
             this.allTileIndices = allTileIndices;
         }

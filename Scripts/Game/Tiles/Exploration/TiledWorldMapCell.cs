@@ -12,7 +12,7 @@ namespace FrigidBlackwaters.Game
         {
             this.cellImage.enabled = isRevealed;
             if (!isRevealed) return;
-            this.transform.localPosition = tiledArea.AbsoluteCenterPosition * worldToMapScalingFactor;
+            this.transform.localPosition = tiledArea.CenterPosition * worldToMapScalingFactor;
             ((RectTransform)this.transform).sizeDelta = (Vector2)tiledArea.WallAreaDimensions * worldToMapScalingFactor;
         }
 

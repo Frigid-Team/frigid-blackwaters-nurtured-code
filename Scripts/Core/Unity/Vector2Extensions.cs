@@ -13,7 +13,7 @@ namespace FrigidBlackwaters.Core
                 position.y <= (boxPosition.y + dimensions.y / 2);
         }
 
-        public static float ComponentAngle0To360(this Vector2 vector)
+        public static float ComponentAngle0To2PI(this Vector2 vector)
         {
             return (Mathf.Atan2(vector.y, vector.x) + Mathf.PI * 2) % (Mathf.PI * 2);
         }
@@ -33,11 +33,21 @@ namespace FrigidBlackwaters.Core
             return Mathf.RoundToInt((Mathf.Atan2(vector.y, vector.x) + (2 * Mathf.PI)) % (2 * Mathf.PI) / (2 * Mathf.PI / numberDivisions)) % numberDivisions;
         }
 
-        public static void RotateAround(this Vector2 vector, Vector2 pivot, float angleRad)
+        public static Vector2 RotateAround(this Vector2 vector, Vector2 pivot, float angleRad)
         {
-            Vector2 original = vector;
-            vector.x = original.x + (original.x - pivot.x) * Mathf.Cos(angleRad) - (original.y - pivot.y) * Mathf.Sin(angleRad);
-            vector.y = original.y + (original.y - pivot.y) * Mathf.Sin(angleRad) + (original.y - pivot.y) * Mathf.Cos(angleRad);
+            float s = Mathf.Sin(angleRad);
+            float c = Mathf.Cos(angleRad);
+
+            vector.x -= pivot.x;
+            vector.y -= pivot.y;
+
+            float xNew = vector.x * c - vector.y * s;
+            float yNew = vector.x * s + vector.y * c;
+
+            vector.x = xNew + pivot.x;
+            vector.y = yNew + pivot.y;
+
+            return vector;
         } 
     }
 }

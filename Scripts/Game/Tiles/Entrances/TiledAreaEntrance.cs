@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    public class TiledAreaEntrance : FrigidMonoBehaviour
+    public class TiledAreaEntrance : FrigidMonoBehaviourWithPhysics
     {
         private const float PLAYER_ANGLE_ENTRY_TOLERANCE = 2.5f;
 
@@ -15,33 +15,47 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private TiledAreaEntryArrow entryArrowPrefab;
         [SerializeField]
-        private Transform arrowSpawnPosition;
+        private Transform arrowPoint;
         [SerializeField]
         private FloatSerializedReference entryTime;
         [SerializeField]
         private AnimatorBody animatorBody;
         [SerializeField]
         private List<TerrainAppearance> terrainAppearances;
+        [SerializeField]
+        private Transform entryPoint;
 
+        private TiledArea containedArea;
         private Vector2Int entryDirection;
         private TileTerrain entranceTerrain;
         private EntranceAnimationSet chosenAnimations;
-        private List<TiledAreaEntrance> connectedEntrances;
-        private Vector2 positionInFront;
+        private TiledAreaEntrance connectedEntrance;
  
         private float entryTimer;
         private FrigidCoroutine checkPlayerEntryRoutine;
         private TiledAreaEntryArrow spawnedEntryArrow;
-        private CountingSemaphore locked;
+        private ControlCounter locked;
 
         private Action<TiledAreaTransition, Vector2> onEntered;
         private Action<TiledAreaTransition, Vector2> onExited;
 
-        public List<TiledAreaEntrance> ConnectedEntrances
+        public TiledArea ContainedArea
         {
             get
             {
-                return this.connectedEntrances;
+                return this.containedArea;
+            }
+        }
+
+        public TiledAreaEntrance ConnectedEntrance
+        {
+            get
+            {
+                return this.connectedEntrance;
+            }
+            set
+            {
+                this.connectedEntrance = value;
             }
         }
 
@@ -77,15 +91,15 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Vector2 PositionInFront
+        public Vector2 EntryPosition
         {
             get
             {
-                return this.positionInFront;
+                return this.entryPoint.position;
             }
         }
 
-        public CountingSemaphore Locked
+        public ControlCounter Locked
         {
             get
             {
@@ -93,8 +107,9 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public void Populate(Vector2Int entryDirection, TileTerrain entranceTerrain)
+        public void Populate(Vector2Int entryDirection, TileTerrain entranceTerrain, TiledArea containedArea)
         {
+            this.containedArea = containedArea;
             this.entryDirection = entryDirection;
             this.entranceTerrain = entranceTerrain;
 
@@ -115,97 +130,66 @@ namespace FrigidBlackwaters.Game
 
             this.chosenAnimations = appropriateAppearance.Value.EntranceAnimations[UnityEngine.Random.Range(0, appropriateAppearance.Value.EntranceAnimations.Length)];
 
-            this.animatorBody.PlayByName(this.chosenAnimations.OpenedAnimationName);
-
-            this.positionInFront = (Vector2)this.transform.position + new Vector2(-this.entryDirection.x, -this.entryDirection.y) * GameConstants.UNIT_WORLD_SIZE;
+            this.animatorBody.Play(this.chosenAnimations.OpenedAnimationName);
 
             this.spawnedEntryArrow = FrigidInstancing.CreateInstance<TiledAreaEntryArrow>(
                 this.entryArrowPrefab,
-                this.arrowSpawnPosition.position,
+                this.arrowPoint.position,
                 Quaternion.Euler(0, 0, this.entryDirection.CartesianAngle() * Mathf.Rad2Deg - 90),
-                this.transform
+                containedArea.ContentsTransform
                 );
             this.spawnedEntryArrow.ShowEntryProgress(0);
 
+            this.locked = new ControlCounter();
             this.locked.OnFirstRequest += Close;
             this.locked.OnLastRelease += Open;
-        }
-
-        public void AddConnectedEntrance(TiledAreaEntrance tiledAreaEntrance)
-        {
-            this.connectedEntrances.Add(tiledAreaEntrance);
-        }
-
-        protected override void Awake()
-        {
-            base.Awake();
-            this.locked = new CountingSemaphore();
-            this.connectedEntrances = new List<TiledAreaEntrance>();
         }
 
         protected override void OnTriggerEnter2D(Collider2D collision)
         {
             base.OnTriggerEnter2D(collision);
-            // Right now, we really only have plans to have a door have 0 or 1 connections (spawn doors and decorative doors have 0
-            // connections, normal doors have 1...). We could make a door connect to multiple doors, but that begs of the question of
-            // how we would allow the player to choose what door to exit out of. But the world building technically allows a door to
-            // connect to multiple other doors! We just cancel entering behaviour for doors that don't only have 1 connection
-            if (this.locked || this.connectedEntrances.Count != 1)
+            if (this.locked)
             {
                 return;
             }
 
-            /*
-            if (collision.attachedRigidbody.TryGetComponent<Mob_Legacy>(out Mob_Legacy mob))
+            if (collision.attachedRigidbody.TryGetComponent<Mob>(out Mob mob))
             {
-                if (!mob.TraversableTerrain.Includes(this.entranceTerrain))
-                {
-                    return;
-                }
-
                 // Currently only have functionality for the player to leave and enter entrances
-                if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob) && recentPlayerMob == mob)
+                if (PlayerMob.TryGet(out PlayerMob player) && player == mob)
                 {
-                    StartCheckingPlayerEntry(recentPlayerMob);
+                    StartCheckingPlayerEntry();
                 }
             }
-            */
         }
 
         protected override void OnTriggerExit2D(Collider2D collision)
         {
             base.OnTriggerExit2D(collision);
 
-            if (this.locked || this.connectedEntrances.Count != 1)
+            if (this.locked)
             {
                 return;
             }
 
-            /*
-            if (collision.attachedRigidbody.TryGetComponent<Mob_Legacy>(out Mob_Legacy mob))
+            if (collision.attachedRigidbody.TryGetComponent<Mob>(out Mob mob))
             {
-                if (!mob.TraversableTerrain.Includes(this.entranceTerrain))
-                {
-                    return;
-                }
-
                 // Currently only have functionality for the player to leave and enter entrances
-                if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob) && recentPlayerMob == mob)
+                if (PlayerMob.TryGet(out PlayerMob player) && player == mob)
                 {
                     StopCheckingPlayerEntry();
                 }
             }
-            */
         }
 
 #if UNITY_EDITOR
         protected override bool OwnsGameObject() { return true; }
 #endif
 
-        private void StartCheckingPlayerEntry(Mob playerMob)
+        private void StartCheckingPlayerEntry()
         {
             StopCheckingPlayerEntry();
-            this.checkPlayerEntryRoutine = FrigidCoroutine.Run(CheckPlayerEntryLoop(playerMob), this.gameObject);
+            this.checkPlayerEntryRoutine = FrigidCoroutine.Run(CheckPlayerEntryLoop(), this.gameObject);
         }
 
         private void StopCheckingPlayerEntry()
@@ -215,21 +199,24 @@ namespace FrigidBlackwaters.Game
             this.spawnedEntryArrow.ShowEntryProgress(0);
         }
 
-        private IEnumerator<FrigidCoroutine.Delay> CheckPlayerEntryLoop(Mob playerMob)
+        private IEnumerator<FrigidCoroutine.Delay> CheckPlayerEntryLoop()
         {
+            if (!PlayerMob.TryGet(out PlayerMob player))
+            {
+                yield break;
+            }
+
             while (true)
             {
-                if (CharacterInput.CurrentMovementVector.magnitude > 0 && Vector2.Angle(CharacterInput.CurrentMovementVector, this.entryDirection) <= PLAYER_ANGLE_ENTRY_TOLERANCE)
+                if (player.TraversableTerrain.Includes(this.entranceTerrain) && 
+                    CharacterInput.CurrentMovementVector.magnitude > 0 && Vector2.Angle(CharacterInput.CurrentMovementVector, this.entryDirection) <= PLAYER_ANGLE_ENTRY_TOLERANCE)
                 {
                     this.entryTimer += Time.deltaTime;
-                    if (this.entryTimer >= this.entryTime.ImmutableValue)
+                    if (this.entryTimer >= this.entryTime.ImmutableValue && player.CanMoveTo(this.connectedEntrance.EntryPosition))
                     {
-                        TiledAreaEntrance nextEntrance = this.connectedEntrances[0];
-
-                        this.onExited?.Invoke(this.transition, this.positionInFront);
-                        nextEntrance.onEntered?.Invoke(nextEntrance.transition, nextEntrance.positionInFront);
-
-                        playerMob.AbsolutePosition = nextEntrance.positionInFront;
+                        this.onExited?.Invoke(this.transition, this.EntryPosition);
+                        this.connectedEntrance.onEntered?.Invoke(this.connectedEntrance.transition, this.connectedEntrance.EntryPosition);
+                        player.MoveTo(this.connectedEntrance.EntryPosition);
                         break;
                     }
                 }
@@ -237,6 +224,7 @@ namespace FrigidBlackwaters.Game
                 {
                     this.entryTimer = 0;
                 }
+                this.spawnedEntryArrow.transform.position = this.arrowPoint.position;
                 this.spawnedEntryArrow.ShowEntryProgress(this.entryTimer / this.entryTime.ImmutableValue);
                 yield return null;
             }
@@ -244,18 +232,18 @@ namespace FrigidBlackwaters.Game
 
         private void Open()
         {
-            this.animatorBody.PlayByName(
+            this.animatorBody.Play(
                 this.chosenAnimations.OpenAnimationName, 
-                () => this.animatorBody.PlayByName(this.chosenAnimations.OpenedAnimationName)
+                () => this.animatorBody.Play(this.chosenAnimations.OpenedAnimationName)
                 );
         }
 
         private void Close()
         {
             StopCheckingPlayerEntry();
-            this.animatorBody.PlayByName(
+            this.animatorBody.Play(
                 this.chosenAnimations.CloseAnimationName,
-                () => this.animatorBody.PlayByName(this.chosenAnimations.ClosedAnimationName)
+                () => this.animatorBody.Play(this.chosenAnimations.ClosedAnimationName)
                 );
         }
 

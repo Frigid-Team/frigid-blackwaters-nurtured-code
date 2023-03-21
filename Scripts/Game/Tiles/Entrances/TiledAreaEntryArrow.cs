@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Game
             {
                 float normalizedProgress = Mathf.Clamp01(progress01);
                 this.progressSpriteRenderer.enabled = normalizedProgress != 0;
-                this.progressSpriteRenderer.sprite = this.progressSprites[Mathf.FloorToInt(this.progressSprites.Count * normalizedProgress)];
+                this.progressSpriteRenderer.sprite = this.progressSprites[Mathf.Min(this.progressSprites.Count - 1, Mathf.FloorToInt(this.progressSprites.Count * normalizedProgress))];
             }
         }
     }

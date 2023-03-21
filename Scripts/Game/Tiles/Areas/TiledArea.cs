@@ -46,8 +46,8 @@ namespace FrigidBlackwaters.Game
 
         static TiledArea()
         {
-            spawnedTiledAreas = new SceneVariable<HashSet<TiledArea>>(() => { return new HashSet<TiledArea>(); });
-            tiledAreasOrderedByDurationOpened = new SceneVariable<List<TiledArea>>(() => { return new List<TiledArea>(); });
+            spawnedTiledAreas = new SceneVariable<HashSet<TiledArea>>(() => new HashSet<TiledArea>());
+            tiledAreasOrderedByDurationOpened = new SceneVariable<List<TiledArea>>(() => new List<TiledArea>());
         }
 
         public static HashSet<TiledArea> SpawnedTiledAreas
@@ -98,7 +98,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Vector2 AbsoluteCenterPosition
+        public Vector2 CenterPosition
         {
             get
             {
@@ -199,7 +199,7 @@ namespace FrigidBlackwaters.Game
             tiledArea = null;
             foreach (TiledArea spawnedTiledArea in spawnedTiledAreas.Current)
             {
-                if (TilePositioning.TileAbsolutePositionWithinBounds(currentPosition, spawnedTiledArea.AbsoluteCenterPosition, spawnedTiledArea.WallAreaDimensions))
+                if (TilePositioning.TilePositionWithinBounds(currentPosition, spawnedTiledArea.CenterPosition, spawnedTiledArea.WallAreaDimensions))
                 {
                     tiledArea = spawnedTiledArea;
                     return true;
@@ -230,20 +230,26 @@ namespace FrigidBlackwaters.Game
 
         public void Populate(TiledAreaBlueprint tiledAreaBlueprint, bool isFirstTiledArea)
         {
-            this.mainAreaDimensions = tiledAreaBlueprint.MainAreaDimensions;
-            this.wallAreaDimensions = tiledAreaBlueprint.WallAreaDimensions;
+            if (spawnedTiledAreas.Current.Add(this))
+            {
+                this.mainAreaDimensions = tiledAreaBlueprint.MainAreaDimensions;
+                this.wallAreaDimensions = tiledAreaBlueprint.WallAreaDimensions;
 
-            this.navigationGrid = new NavigationGrid(tiledAreaBlueprint);
-            this.wallsPopulator.PopulateWalls(tiledAreaBlueprint, this.contentsTransform);
-            this.terrainPopulator.PopulateTerrain(tiledAreaBlueprint, this.contentsTransform);
-            this.terrainContentPopulator.PopulateTerrainContent(tiledAreaBlueprint, this.contentsTransform, this.navigationGrid);
-            this.wallContentPopulator.PopulateWallContent(tiledAreaBlueprint, this.contentsTransform);
-            this.tiledAreaTransitioner.SetDimensions(tiledAreaBlueprint.WallAreaDimensions);
+                this.navigationGrid = new NavigationGrid(tiledAreaBlueprint);
+                this.wallsPopulator.PopulateWalls(tiledAreaBlueprint, this.contentsTransform);
+                this.terrainPopulator.PopulateTerrain(tiledAreaBlueprint, this.contentsTransform);
+                this.terrainContentPopulator.PopulateTerrainContent(tiledAreaBlueprint, this.contentsTransform, this.navigationGrid);
+                this.wallContentPopulator.PopulateWallContent(tiledAreaBlueprint, this.contentsTransform);
+                this.tiledAreaTransitioner.SetDimensions(tiledAreaBlueprint.WallAreaDimensions);
 
-            spawnedTiledAreas.Current.Add(this);
-            onTiledAreaSpawned?.Invoke(this);
-            if (isFirstTiledArea) OpenTiledArea();
-            else CloseTiledArea();
+                onTiledAreaSpawned?.Invoke(this);
+                if (isFirstTiledArea) OpenTiledArea();
+                else CloseTiledArea();
+            }
+            else
+            {
+                Debug.Log("Populate called twice on TiledArea " + this.name + ".");
+            }
         }
 
         public void TransitionTo(TiledAreaTransition transition, Vector2 entryPosition)

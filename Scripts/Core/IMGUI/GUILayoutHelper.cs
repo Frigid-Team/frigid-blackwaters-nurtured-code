@@ -13,9 +13,7 @@ namespace FrigidBlackwaters.Core
             return Utility.GUILayoutHelper.SerializedReferenceField<MaterialTweenCoroutineTemplateSerializedReference, MaterialTweenCoroutineTemplate>(
                 label,
                 serializedReference,
-                (string label, MaterialTweenCoroutineTemplate value) => { return MaterialTweenCoroutineTemplateField(label, value); },
-                () => { return null; },
-                () => { return null; }
+                (string label, MaterialTweenCoroutineTemplate value) => { return MaterialTweenCoroutineTemplateField(label, value); }
                 );
         }
 
@@ -50,9 +48,7 @@ namespace FrigidBlackwaters.Core
             return Utility.GUILayoutHelper.SerializedReferenceField<TweenCoroutineTemplateSerializedReference, TweenCoroutineTemplate>(
                 label,
                 serializedReference,
-                (string label, TweenCoroutineTemplate value) => { return TweenCoroutineTemplateField(label, value); },
-                () => { return null; },
-                () => { return null; }
+                (string label, TweenCoroutineTemplate value) => { return TweenCoroutineTemplateField(label, value); }
                 );
         }
 
@@ -116,9 +112,7 @@ namespace FrigidBlackwaters.Core
             return Utility.GUILayoutHelper.SerializedReferenceField<StringSerializedReference, string>(
                 label,
                 serializedReference,
-                (string label, string value) => { return EditorGUILayout.TextField(label, value); },
-                () => { return null; },
-                () => { return null; }
+                (string label, string value) => { return EditorGUILayout.TextField(label, value); }
                 );
         }
 
@@ -127,9 +121,7 @@ namespace FrigidBlackwaters.Core
             return Utility.GUILayoutHelper.SerializedReferenceField<AnimationCurveSerializedReference, AnimationCurve>(
                 label,
                 serializedReference,
-                (string label, AnimationCurve value) => { return EditorGUILayout.CurveField(label, value); },
-                () => { return null; },
-                () => { return null; }
+                (string label, AnimationCurve value) => { return EditorGUILayout.CurveField(label, value); }
                 );
         }
 
@@ -138,9 +130,7 @@ namespace FrigidBlackwaters.Core
             return Utility.GUILayoutHelper.SerializedReferenceField<ColorSerializedReference, Color>(
                 label,
                 serializedReference,
-                (string label, Color value) => { return EditorGUILayout.ColorField(label, value); },
-                () => { return null; },
-                () => { return null; }
+                (string label, Color value) => { return EditorGUILayout.ColorField(label, value); }
                 );
         }
 
@@ -149,9 +139,7 @@ namespace FrigidBlackwaters.Core
             return Utility.GUILayoutHelper.SerializedReferenceField<SF, T>(
                 label,
                 serializedReference,
-                (string label, T value) => { return (T)EditorGUILayout.ObjectField(label, value, typeof(T), false, GUILayout.MaxHeight(EditorGUIUtility.singleLineHeight)); },
-                () => { return null; },
-                () => { return null; }
+                (string label, T value) => { return (T)EditorGUILayout.ObjectField(label, value, typeof(T), false, GUILayout.MaxHeight(EditorGUIUtility.singleLineHeight)); }
                 );
         }
 
@@ -160,9 +148,7 @@ namespace FrigidBlackwaters.Core
             return Utility.GUILayoutHelper.SerializedReferenceField<Vector2SerializedReference, Vector2>(
                 label,
                 serializedReference,
-                (string label, Vector2 value) => { return EditorGUILayout.Vector2Field(label, value); },
-                () => { return null; },
-                () => { return null; }
+                (string label, Vector2 value) => { return EditorGUILayout.Vector2Field(label, value); }
                 );
         }
     }

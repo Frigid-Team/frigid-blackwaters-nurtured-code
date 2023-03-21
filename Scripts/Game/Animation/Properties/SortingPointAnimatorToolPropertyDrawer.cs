@@ -28,19 +28,29 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public override void DrawAnimationEditFields(int animationIndex)
+        {
+            SortingPointAnimatorProperty sortingPointProperty = (SortingPointAnimatorProperty)this.Property;
+            sortingPointProperty.SetShownInAnimation(animationIndex, EditorGUILayout.Toggle("Shown In Animation", sortingPointProperty.GetShownInAnimation(animationIndex)));
+            base.DrawAnimationEditFields(animationIndex);
+        }
+
         public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)
         {
             SortingPointAnimatorProperty sortingPointProperty = (SortingPointAnimatorProperty)this.Property;
-            sortingPointProperty.SetLocalOffset(
-                animationIndex,
-                frameIndex,
-                orientationIndex, 
-                EditorGUILayout.Vector2Field("Local Offset", sortingPointProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex))
-                );
-            base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
+            if (sortingPointProperty.GetShownInAnimation(animationIndex))
+            {
+                sortingPointProperty.SetLocalOffset(
+                    animationIndex,
+                    frameIndex,
+                    orientationIndex,
+                    EditorGUILayout.Vector2Field("Local Offset", sortingPointProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex))
+                    );
+                base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
+            }
         }
 
-        public override void DrawPreview(
+        public override Vector2 DrawPreview(
             Vector2 previewSize, 
             Vector2 previewOffset, 
             float worldToWindowScalingFactor,
@@ -53,9 +63,12 @@ namespace FrigidBlackwaters.Game
         {
             SortingPointAnimatorProperty sortingPointProperty = (SortingPointAnimatorProperty)this.Property;
             dragRequests = new List<(Rect rect, Action onDrag)>();
-
             Vector2 currLocalOffset = sortingPointProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex);
-            Vector2 drawPoint = previewSize / 2 + currLocalOffset * new Vector2(1, -1) * worldToWindowScalingFactor + previewOffset;
+            Vector2 localPreviewOffset = currLocalOffset * new Vector2(1, -1) * worldToWindowScalingFactor;
+
+            if (!sortingPointProperty.GetShownInAnimation(animationIndex)) return localPreviewOffset;
+
+            Vector2 drawPoint = previewSize / 2 + localPreviewOffset + previewOffset;
             Vector2 grabSize = new Vector2(this.Config.HandleGrabLength, this.Config.HandleGrabLength);
             using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
             {
@@ -70,7 +83,7 @@ namespace FrigidBlackwaters.Game
                     () => sortingPointProperty.SetLocalOffset(animationIndex, frameIndex, orientationIndex, currLocalOffset + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor))
                     );
             }
-            base.DrawPreview(previewSize, previewOffset, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected, out List<(Rect rect, Action onDrag)> baseDragRequests);
+            return localPreviewOffset;
         }
     }
 }

@@ -5,15 +5,15 @@ namespace FrigidBlackwaters.Game
     public class MobHasLineOfSightConditional : Conditional
     {
         [SerializeField]
-        private Mob mob;
+        private MobSerializedReference mob;
         [SerializeField]
         private Targeter sightTargeter;
         [SerializeField]
         private float blockingRadius;
 
-        protected override bool CustomValidate()
+        public override bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
         {
-            return this.mob.Physicality.IsInSightFrom(this.mob.AbsolutePosition, this.sightTargeter.Calculate(this.mob.transform.position, 0, 0), this.blockingRadius);
+            return this.mob.ImmutableValue.CanSeeThrough(this.mob.ImmutableValue.Position, this.sightTargeter.Calculate(this.mob.ImmutableValue.Position, elapsedDuration, elapsedDurationDelta), this.blockingRadius);
         }
     }
 }

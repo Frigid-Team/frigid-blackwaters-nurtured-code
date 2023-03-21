@@ -4,7 +4,7 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
-    public abstract class Menu : FrigidMonoBehaviour
+    public abstract class Menu : FrigidMonoBehaviourWithUpdate
     {
         [SerializeField]
         private CanvasGroup canvasGroup;
@@ -24,12 +24,14 @@ namespace FrigidBlackwaters.Game
         public void Open()
         {
             this.canvasGroup.interactable = true;
+            this.canvasGroup.blocksRaycasts = true;
             Opened();
         }
 
         public void Close()
         {
             this.canvasGroup.interactable = false;
+            this.canvasGroup.blocksRaycasts = false;
             Closed();
         }
 
@@ -41,9 +43,9 @@ namespace FrigidBlackwaters.Game
 
         protected abstract void Closed();
 
-        protected virtual bool ShouldShowPrompt(out Vector2 trackedAbsolutePosition)
+        protected virtual bool ShouldShowPrompt(out Vector2 trackedPosition)
         {
-            trackedAbsolutePosition = Vector2.zero;
+            trackedPosition = Vector2.zero;
             return false;
         }
 
@@ -51,6 +53,7 @@ namespace FrigidBlackwaters.Game
         {
             base.Awake();
             this.canvasGroup.interactable = false;
+            this.canvasGroup.blocksRaycasts = false;
             if (this.hasPrompt) 
             {
                 this.menuPrompt = FrigidInstancing.CreateInstance<MenuPrompt>(this.menuPromptPrefab);
@@ -62,9 +65,9 @@ namespace FrigidBlackwaters.Game
             base.Update();
             if (this.hasPrompt)
             {
-                if (ShouldShowPrompt(out Vector2 trackedAbsolutePosition))
+                if (ShouldShowPrompt(out Vector2 trackedPosition))
                 {
-                    this.menuPrompt.ShowPrompt(this.promptIcon, trackedAbsolutePosition);
+                    this.menuPrompt.ShowPrompt(this.promptIcon, trackedPosition);
                 }
                 else
                 {

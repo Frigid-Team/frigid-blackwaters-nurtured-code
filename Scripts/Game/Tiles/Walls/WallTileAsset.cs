@@ -8,22 +8,12 @@ namespace FrigidBlackwaters.Game
     public class WallTileAsset : FrigidScriptableObject
     {
         [SerializeField]
-        private string blueprintId;
-        [SerializeField]
         [Range(0, WallsPopulator.MAX_WALL_DEPTH)]
         private int depth;
         [SerializeField]
         private List<WallTile> wallTilePrefabs;
         [SerializeField]
         private List<WallTerrainBoundary> terrainBoundaries;
-
-        public string BlueprintID
-        {
-            get
-            {
-                return this.blueprintId;
-            }
-        }
 
         public int Depth
         {
@@ -42,11 +32,11 @@ namespace FrigidBlackwaters.Game
             throw new Exception("Wall tile depth is not within bounds!");
         }
 
-        public bool TryGetBoundaryTilePrefab(string nearestBlueprintId, out WallTile wallBoundaryTilePrefab)
+        public bool TryGetBoundaryTilePrefab(TerrainTileAsset nearestTerrainTileAsset, out WallTile wallBoundaryTilePrefab)
         {
             foreach(WallTerrainBoundary wallTerrainBoundary in this.terrainBoundaries)
             {
-                if(wallTerrainBoundary.BoundaryBlueprintIDs.Contains(nearestBlueprintId))
+                if(wallTerrainBoundary.BoundaryTerrainTileAssets.Contains(nearestTerrainTileAsset))
                 {
                     wallBoundaryTilePrefab = wallTerrainBoundary.WallBoundaryTilePrefab;
                     return true;
@@ -60,15 +50,15 @@ namespace FrigidBlackwaters.Game
         public struct WallTerrainBoundary
         {
             [SerializeField]
-            private List<string> boundaryBlueprintIds;
+            private List<TerrainTileAsset> boundaryTerrainTileAssets;
             [SerializeField]
             private WallTile wallBoundaryTilePrefab;
 
-            public List<string> BoundaryBlueprintIDs
+            public List<TerrainTileAsset> BoundaryTerrainTileAssets
             {
                 get
                 {
-                    return this.boundaryBlueprintIds;
+                    return this.boundaryTerrainTileAssets;
                 }
             }
 

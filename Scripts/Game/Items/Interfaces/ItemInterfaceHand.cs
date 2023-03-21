@@ -4,31 +4,31 @@ namespace FrigidBlackwaters.Game
 {
     public class ItemInterfaceHand
     {
-        private HoldingItemStash heldItemStash;
+        private HoldingItemStash holdingStash;
         private List<ItemStorage> currentStorages;
         private Dictionary<ItemStorage, int> gridIndexes;
 
         public ItemInterfaceHand(List<ItemStorage> currentStorages, Dictionary<ItemStorage, int> gridIndexes)
         {
-            this.heldItemStash = null;
+            this.holdingStash = null;
             this.currentStorages = currentStorages;
             this.gridIndexes = gridIndexes;
         }
 
-        public bool TryGetHeldItemStash(out HoldingItemStash heldItemStash)
+        public bool TryGetHoldingStash(out HoldingItemStash heldItemStash)
         {
-            heldItemStash = this.heldItemStash;
-            return this.heldItemStash != null;
+            heldItemStash = this.holdingStash;
+            return this.holdingStash != null;
         }
         
-        public void CreateHeldItemStash()
+        public void CreateHoldingStash()
         {
-            this.heldItemStash = new HoldingItemStash(new List<Mob>(), new ItemPowerBudget(0), this.currentStorages[0].ItemCurrencyWallet, 0, 0, null);
+            this.holdingStash = new HoldingItemStash(this.currentStorages[0]);
         }
 
-        public void EraseHeldItemStash()
+        public void EraseHoldingStash()
         {
-            this.heldItemStash = null;
+            this.holdingStash = null;
         }
 
         public void RestoreHeldItems()
@@ -38,38 +38,38 @@ namespace FrigidBlackwaters.Game
             {
                 for (int y = 0; y < firstStorageGrid.Dimensions.y; y++)
                 {
-                    if (this.heldItemStash.CurrentQuantity == 0) return;
+                    if (this.holdingStash.CurrentQuantity == 0) return;
 
                     if (firstStorageGrid.TryGetStash(new UnityEngine.Vector2Int(x, y), out ContainerItemStash currentItemStash))
                     {
-                        currentItemStash.TransferItemsFromStash(this.heldItemStash, this.heldItemStash.CurrentQuantity, false);
+                        currentItemStash.TransferItemsFromStash(this.holdingStash, this.holdingStash.CurrentQuantity, false);
                     }
                 }
             }
         }
 
-        public void HoldItems(ItemStash itemStash, int quantity, out int numItemsHeld)
+        public void HoldItems(ItemStash stash, int quantity, out int numItemsHeld)
         {
-            int prevQuantity = this.heldItemStash.CurrentQuantity;
-            this.heldItemStash.TransferItemsFromStash(itemStash, quantity, true);
-            numItemsHeld = this.heldItemStash.CurrentQuantity - prevQuantity;
+            int prevQuantity = this.holdingStash.CurrentQuantity;
+            this.holdingStash.TransferItemsFromStash(stash, quantity, true);
+            numItemsHeld = this.holdingStash.CurrentQuantity - prevQuantity;
         }
 
-        public void DepositItems(ItemStash itemStash, int quantity, out int numItemsDeposited)
+        public void DepositItems(ItemStash stash, int quantity, out int numItemsDeposited)
         {
-            int prevQuantity = this.heldItemStash.CurrentQuantity;
-            itemStash.TransferItemsFromStash(this.heldItemStash, quantity, false);
-            numItemsDeposited = prevQuantity - this.heldItemStash.CurrentQuantity;
+            int prevQuantity = this.holdingStash.CurrentQuantity;
+            stash.TransferItemsFromStash(this.holdingStash, quantity, false);
+            numItemsDeposited = prevQuantity - this.holdingStash.CurrentQuantity;
         }
 
-        public void QuickTransferItems(ItemStorageGrid itemStorageGrid, ItemStash itemStash, int quantity, out int numItemsTransferred)
+        public void QuickTransferItems(ItemStorageGrid storageGrid, ItemStash stash, int quantity, out int numItemsTransferred)
         {
             numItemsTransferred = 0;
-            int originalQuantity = itemStash.CurrentQuantity;
+            int originalQuantity = stash.CurrentQuantity;
             foreach (ItemStorage currentStorage in this.currentStorages)
             {
                 ItemStorageGrid currentStorageGrid = currentStorage.StorageGrids[this.gridIndexes[currentStorage]];
-                if (currentStorageGrid != itemStorageGrid)
+                if (currentStorageGrid != storageGrid)
                 {
                     for (int y = 0; y < currentStorageGrid.Dimensions.y; y++)
                     {
@@ -77,8 +77,8 @@ namespace FrigidBlackwaters.Game
                         {
                             if (currentStorageGrid.TryGetStash(new UnityEngine.Vector2Int(x, y), out ContainerItemStash currentItemStash))
                             {
-                                currentItemStash.TransferItemsFromStash(itemStash, quantity, itemStorageGrid != this.currentStorages[0].StorageGrids[this.gridIndexes[this.currentStorages[0]]]);
-                                numItemsTransferred = originalQuantity - itemStash.CurrentQuantity;
+                                currentItemStash.TransferItemsFromStash(stash, quantity, storageGrid != this.currentStorages[0].StorageGrids[this.gridIndexes[this.currentStorages[0]]]);
+                                numItemsTransferred = originalQuantity - stash.CurrentQuantity;
                                 if (numItemsTransferred == quantity) return;
                             }
                         }

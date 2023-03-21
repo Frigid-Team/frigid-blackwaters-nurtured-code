@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Core
         private static Action onReturn;
         private static Action onExpand;
         private static bool quickHeld;
-        private static CountingSemaphore disabled;
+        private static ControlCounter disabled;
 
         public static Vector2 PointPosition
         {
@@ -65,7 +65,7 @@ namespace FrigidBlackwaters.Core
             }
         }
 
-        public static CountingSemaphore Disabled
+        public static ControlCounter Disabled
         {
             get
             {
@@ -82,7 +82,7 @@ namespace FrigidBlackwaters.Core
             playerActions.Interface.Expand.performed += ExpandPerformed;
             playerActions.Interface.Quick.started += QuickStarted;
             playerActions.Interface.Quick.canceled += QuickCanceled;
-            disabled = new CountingSemaphore();
+            disabled = new ControlCounter();
             disabled.OnFirstRequest += playerActions.Character.Disable;
             disabled.OnLastRelease += playerActions.Character.Enable;
             quickHeld = false;

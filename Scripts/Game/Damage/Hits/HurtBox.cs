@@ -17,7 +17,7 @@ namespace FrigidBlackwaters.Game
 
         static HurtBox()
         {
-            hitPopupPools = new SceneVariable<Dictionary<HitPopup, RecyclePool<HitPopup>>>(() => { return new Dictionary<HitPopup, RecyclePool<HitPopup>>(); });
+            hitPopupPools = new SceneVariable<Dictionary<HitPopup, RecyclePool<HitPopup>>>(() => new Dictionary<HitPopup, RecyclePool<HitPopup>>());
         }
 
         public int DamageMitigation
@@ -42,7 +42,7 @@ namespace FrigidBlackwaters.Game
             this.hitModifiers.Remove(hitModifier);
         }
 
-        protected override HitInfo ProcessDamage(HitBox hitBox, Vector2 position, Vector2 direction)
+        protected override HitInfo ProcessDamage(HitBox hitBox, Vector2 position, Vector2 direction, Collider2D collision)
         {
             HitInfo hitInfo = new HitInfo(
                 hitBox.BaseDamage,
@@ -50,7 +50,8 @@ namespace FrigidBlackwaters.Game
                 this.damageMitigation,
                 position,
                 direction,
-                this.hitModifiers
+                this.hitModifiers,
+                collision
                 );
             if (!hitPopupPools.Current.ContainsKey(this.hitPopupPrefab))
             {

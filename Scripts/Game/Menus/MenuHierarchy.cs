@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    public class MenuHierarchy : FrigidMonoBehaviour
+    public class MenuHierarchy : FrigidMonoBehaviourWithUpdate
     {
         [Header("Menus")]
         [SerializeField]

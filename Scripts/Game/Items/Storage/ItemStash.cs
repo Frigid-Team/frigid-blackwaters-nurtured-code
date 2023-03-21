@@ -6,33 +6,16 @@ namespace FrigidBlackwaters.Game
 {
     public abstract class ItemStash
     {
-        private ItemStorable itemStorable;
+        private ItemStorable storable;
         private List<Item> stackedItems;
         private Action onQuantityUpdated;
-        private List<Mob> usingMobs;
-        private ItemPowerBudget itemPowerBudget;
-        private ItemCurrencyWallet itemCurrencyWallet;
-        private float buyCostModifier;
-        private float sellCostModifier;
-        private Transform stashTransform;
+        private ItemStorage storage;
 
-        public ItemStash(
-            List<Mob> usingMobs, 
-            ItemPowerBudget itemPowerBudget,
-            ItemCurrencyWallet itemCurrencyWallet, 
-            float buyCostModifier,
-            float sellCostModifier,
-            Transform stashTransform
-            )
+        public ItemStash(ItemStorage storage)
         {
-            this.itemStorable = null;
+            this.storable = null;
             this.stackedItems = new List<Item>();
-            this.usingMobs = usingMobs;
-            this.itemPowerBudget = itemPowerBudget;
-            this.itemCurrencyWallet = itemCurrencyWallet;
-            this.buyCostModifier = buyCostModifier;
-            this.sellCostModifier = sellCostModifier;
-            this.stashTransform = stashTransform;
+            this.storage = storage;
         }
 
         public int CurrentQuantity
@@ -47,7 +30,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.itemStorable == null ? int.MaxValue : CalculateMaxCapacity(this.itemStorable);
+                return this.storable == null ? int.MaxValue : CalculateMaxCapacity(this.storable);
             }
         }
 
@@ -55,7 +38,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.itemStorable != null && this.stackedItems.Count >= CalculateMaxCapacity(this.itemStorable);
+                return this.storable != null && this.stackedItems.Count >= CalculateMaxCapacity(this.storable);
             }
         }
 
@@ -63,15 +46,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.stackedItems.Count > 0 && this.stackedItems[this.stackedItems.Count - 1].IsUsable;
-            }
-        }
-
-        public bool HasUsingMobs
-        {
-            get
-            {
-                return this.usingMobs.Count > 0;
+                return this.stackedItems.Count > 0 && this.storage.TryGetUsingMob(out _) && this.stackedItems[this.stackedItems.Count - 1].IsUsable;
             }
         }
 
@@ -100,108 +75,111 @@ namespace FrigidBlackwaters.Game
 
         public bool UseTopmostItem()
         {
-            if (this.stackedItems.Count > 0 && this.stackedItems[this.stackedItems.Count - 1].Used(this.usingMobs, this.itemPowerBudget))
+            if (this.HasItemAndIsUsable && this.stackedItems[this.stackedItems.Count - 1].Used())
             {
-                RemoveItems(1, out List<Item> removedItems, out ItemStorable removedItemStorable);
+                RemoveItems(1, out _, out _);
                 return true;
             }
             return false;
         }
 
-        public bool CanStackItemStorable(ItemStorable itemStorable)
+        public bool CanStackStorable(ItemStorable storable)
         {
-            return (this.itemStorable == null || itemStorable == this.itemStorable) && CalculateMaxCapacity(itemStorable) > 0;
+            return (this.storable == null || storable == this.storable) && CalculateMaxCapacity(storable) > 0;
         }
 
-        public bool TryGetItemStorable(out ItemStorable itemStorable)
+        public bool TryGetStorable(out ItemStorable storable)
         {
-            itemStorable = this.itemStorable;
+            storable = this.storable;
             return this.stackedItems.Count > 0;
         }
 
-        public void RemoveItems(int quantity, out List<Item> removedItems, out ItemStorable removedItemStorable)
+        public void TransferItemsFromStash(ItemStash otherStash, int quantity, bool isOtherSupplier)
         {
-            int quantityRemoved = Mathf.Clamp(quantity, 0, this.stackedItems.Count);
-            removedItems = this.stackedItems.GetRange(this.stackedItems.Count - quantity, quantityRemoved);
-            removedItemStorable = this.itemStorable;
-            this.stackedItems.RemoveRange(this.stackedItems.Count - quantity, quantityRemoved);
-
-            foreach (Item removedItem in removedItems)
-            {
-                removedItem.Unstashed(this.usingMobs, this.itemPowerBudget);
-                removedItem.transform.SetParent(null);
-            }
-
-            if (this.stackedItems.Count == 0)
-            {
-                this.itemStorable = null;
-            }
-
-            this.onQuantityUpdated?.Invoke();
-        }
-
-        public void AddItems(List<Item> itemsToAdd, ItemStorable itemStorableToAdd)
-        {
-            if (itemStorableToAdd != this.itemStorable && this.itemStorable != null)
+            if (otherStash.storable == null || otherStash.storable != this.storable && this.storable != null)
             {
                 return;
             }
 
-            int maxQuantity = CalculateMaxCapacity(itemStorableToAdd);
+            int maxQuantity = CalculateMaxCapacity(otherStash.storable);
+            int quantityTransferred = 
+                Mathf.Clamp(quantity, 0, Mathf.Min(maxQuantity - this.stackedItems.Count, otherStash.stackedItems.Count));
+
+            if (this.storage.CurrencyWallet != otherStash.storage.CurrencyWallet) 
+            {
+                int cost;
+                if (isOtherSupplier)
+                {
+                    cost = otherStash.CalculateBuyCost(otherStash.storable) * quantityTransferred;
+                }
+                else
+                {
+                    cost = CalculateSellCost(otherStash.storable) * quantityTransferred;
+                }
+
+                if (!otherStash.storage.CurrencyWallet.TryTransactionFrom(this.storage.CurrencyWallet, cost))
+                {
+                    return;
+                }
+            }
+
+            otherStash.RemoveItems(quantityTransferred, out List<Item> transferredItems, out ItemStorable transferredItemStorable);
+            if (otherStash.storage != this.storage)
+            {
+                otherStash.storage.RemoveStoredItems(transferredItems);
+                this.storage.AddStoredItems(transferredItems);
+            }
+            AddItems(transferredItems, transferredItemStorable);
+        }
+
+        public void AddItems(List<Item> itemsToAdd, ItemStorable storableToAdd)
+        {
+            if (storableToAdd != this.storable && this.storable != null)
+            {
+                return;
+            }
+
+            int maxQuantity = CalculateMaxCapacity(storableToAdd);
             int quantityAdded = Mathf.Clamp(itemsToAdd.Count, 0, maxQuantity - this.stackedItems.Count);
             List<Item> addedItems = itemsToAdd.GetRange(0, quantityAdded);
             this.stackedItems.AddRange(addedItems);
 
             foreach (Item addedItem in addedItems)
             {
-                addedItem.transform.SetParent(this.stashTransform);
-                addedItem.Stashed(this.usingMobs, this.itemPowerBudget);
+                addedItem.Stashed();
             }
 
             if (this.stackedItems.Count > 0)
             {
-                this.itemStorable = itemStorableToAdd;
+                this.storable = storableToAdd;
             }
 
             this.onQuantityUpdated?.Invoke();
         }
 
-        public void TransferItemsFromStash(ItemStash otherItemStash, int quantity, bool isOtherSupplier)
+        public void RemoveItems(int quantity, out List<Item> removedItems, out ItemStorable removedStorable)
         {
-            if (otherItemStash.itemStorable == null || otherItemStash.itemStorable != this.itemStorable && this.itemStorable != null)
+            int quantityRemoved = Mathf.Clamp(quantity, 0, this.stackedItems.Count);
+            removedItems = this.stackedItems.GetRange(this.stackedItems.Count - quantity, quantityRemoved);
+            removedStorable = this.storable;
+            this.stackedItems.RemoveRange(this.stackedItems.Count - quantity, quantityRemoved);
+
+            foreach (Item removedItem in removedItems)
             {
-                return;
+                removedItem.Unstashed();
             }
 
-            int maxQuantity = CalculateMaxCapacity(otherItemStash.itemStorable);
-            int quantityTransferred = 
-                Mathf.Clamp(quantity, 0, Mathf.Min(maxQuantity - this.stackedItems.Count, otherItemStash.stackedItems.Count));
-
-            if (this.itemCurrencyWallet != otherItemStash.itemCurrencyWallet) 
+            if (this.stackedItems.Count == 0)
             {
-                int cost;
-                if (isOtherSupplier)
-                {
-                    cost = otherItemStash.CalculateBuyCost(otherItemStash.itemStorable) * quantityTransferred;
-                }
-                else
-                {
-                    cost = CalculateSellCost(otherItemStash.itemStorable) * quantityTransferred;
-                }
-
-                if (!otherItemStash.itemCurrencyWallet.TryTransactionFrom(this.itemCurrencyWallet, cost))
-                {
-                    return;
-                }
+                this.storable = null;
             }
 
-            otherItemStash.RemoveItems(quantityTransferred, out List<Item> removedItems, out ItemStorable removedItemStorable);
-            AddItems(removedItems, removedItemStorable);
+            this.onQuantityUpdated?.Invoke();
         }
 
-        public int CalculateBuyCost(ItemStorable itemStorable)
+        public int CalculateBuyCost(ItemStorable storable)
         {
-            float modifiedBuyCost = itemStorable.CurrencyValue * (itemStorable.IgnoreBuyCostModifiers && this.buyCostModifier != 0 ? 1 : this.buyCostModifier);
+            float modifiedBuyCost = storable.CurrencyValue * (storable.IgnoreBuyCostModifiers && this.storage.BuyCostModifier != 0 ? 1 : this.storage.BuyCostModifier);
             if (modifiedBuyCost > 0)
             {
                 return Mathf.Max(1, Mathf.FloorToInt(modifiedBuyCost));
@@ -209,9 +187,9 @@ namespace FrigidBlackwaters.Game
             return 0;
         }
 
-        public int CalculateSellCost(ItemStorable itemStorable)
+        public int CalculateSellCost(ItemStorable storable)
         {
-            float modifiedSellCost = itemStorable.CurrencyValue * (itemStorable.IgnoreBuyCostModifiers && this.sellCostModifier != 0 ? 1 : this.sellCostModifier);
+            float modifiedSellCost = storable.CurrencyValue * (storable.IgnoreBuyCostModifiers && this.storage.SellCostModifier != 0 ? 1 : this.storage.SellCostModifier);
             if (modifiedSellCost > 0)
             {
                 return Mathf.Max(1, Mathf.FloorToInt(modifiedSellCost));
@@ -219,6 +197,6 @@ namespace FrigidBlackwaters.Game
             return 0;
         }
 
-        protected abstract int CalculateMaxCapacity(ItemStorable itemStorable);
+        protected abstract int CalculateMaxCapacity(ItemStorable storable);
     }
 }

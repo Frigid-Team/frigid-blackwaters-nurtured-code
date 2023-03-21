@@ -30,9 +30,9 @@ namespace FrigidBlackwaters.Game
                 {
                     float spawnAngleRad = angleBetweenRad * i;
                     Vector2 spawnPosition = baseSpawnPosition + new Vector2(Mathf.Cos(spawnAngleRad), Mathf.Sin(spawnAngleRad)) * distance;
-                    if (TilePositioning.TileAbsolutePositionWithinBounds(spawnPosition, tiledArea.AbsoluteCenterPosition, tiledArea.MainAreaDimensions))
+                    if (TilePositioning.TilePositionWithinBounds(spawnPosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions))
                     {
-                        Vector2Int tileIndices = TilePositioning.RectIndicesFromAbsolutePosition(spawnPosition, tiledArea.AbsoluteCenterPosition, tiledArea.MainAreaDimensions, this.rippleDimensions);
+                        Vector2Int tileIndices = TilePositioning.RectIndicesFromPosition(spawnPosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions, this.rippleDimensions);
                         if (tiledArea.NavigationGrid.IsTraversable(tileIndices, this.rippleDimensions, this.traversableTerrain))
                         {
                             explosionSpawnParameters.Add(new ExplosionSpawnParameters(spawnPosition, spawnAngleRad * Mathf.Rad2Deg, this.explosionPrefab));

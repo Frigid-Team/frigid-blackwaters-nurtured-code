@@ -8,7 +8,7 @@ namespace FrigidBlackwaters.Game
 {
     public static class TilePositioning
     {
-        public static Vector2 RandomTileAbsolutePosition(Vector2 centerPosition, Vector2Int boundsDimensions)
+        public static Vector2 RandomTilePosition(Vector2 centerPosition, Vector2Int boundsDimensions)
         {
             return RandomTileLocalPosition(boundsDimensions) + centerPosition;
         }
@@ -26,7 +26,7 @@ namespace FrigidBlackwaters.Game
             return new Vector2Int(UnityEngine.Random.Range(0, boundsDimensions.x), UnityEngine.Random.Range(0, boundsDimensions.y));
         }
 
-        public static Vector2 TileAbsolutePositionFromIndices(Vector2Int indices, Vector2 centerPosition, Vector2Int boundsDimensions)
+        public static Vector2 TilePositionFromIndices(Vector2Int indices, Vector2 centerPosition, Vector2Int boundsDimensions)
         {
             return TileLocalPositionFromIndices(indices, boundsDimensions) + centerPosition;
         }
@@ -39,9 +39,9 @@ namespace FrigidBlackwaters.Game
                 );
         }
 
-        public static Vector2Int TileIndicesFromAbsolutePosition(Vector2 absolutePosition, Vector2 centerPosition, Vector2Int boundsDimensions)
+        public static Vector2Int TileIndicesFromPosition(Vector2 position, Vector2 centerPosition, Vector2Int boundsDimensions)
         {
-            return TileIndicesFromLocalPosition(absolutePosition - centerPosition, boundsDimensions);
+            return TileIndicesFromLocalPosition(position - centerPosition, boundsDimensions);
         }
 
         public static Vector2Int TileIndicesFromLocalPosition(Vector2 localPosition, Vector2Int boundsDimensions)
@@ -56,9 +56,9 @@ namespace FrigidBlackwaters.Game
             return indices.x >= 0 && indices.x < boundsDimensions.x && indices.y >= 0 && indices.y < boundsDimensions.y;
         }
 
-        public static bool TileAbsolutePositionWithinBounds(Vector2 absolutePosition, Vector2 centerPosition, Vector2Int boundsDimensions, float tolerance = 0)
+        public static bool TilePositionWithinBounds(Vector2 position, Vector2 centerPosition, Vector2Int boundsDimensions, float tolerance = 0)
         {
-            return TileLocalPositionWithinBounds(absolutePosition - centerPosition, boundsDimensions, tolerance);
+            return TileLocalPositionWithinBounds(position - centerPosition, boundsDimensions, tolerance);
         }
 
         public static bool TileLocalPositionWithinBounds(Vector2 localPosition, Vector2Int boundsDimensions, float tolerance = 0)
@@ -70,19 +70,70 @@ namespace FrigidBlackwaters.Game
                 localPosition.y < (boundsDimensions.y / 2f) * GameConstants.UNIT_WORLD_SIZE - tolerance;
         }
 
-        public static void VisitTileIndicesInRect(Vector2Int indices, Vector2Int rectDimensions, Vector2Int boundsDimensions, Action<Vector2Int> onVisited)
+        public static Vector2 ClampTileLocalPosition(Vector2 localPosition, Vector2Int boundsDimensions)
+        {
+            return new Vector2(
+                Mathf.Clamp(localPosition.x, -boundsDimensions.x / 2f * GameConstants.UNIT_WORLD_SIZE, boundsDimensions.x / 2f * GameConstants.UNIT_WORLD_SIZE),
+                Mathf.Clamp(localPosition.y, -boundsDimensions.y / 2f * GameConstants.UNIT_WORLD_SIZE, boundsDimensions.y / 2f * GameConstants.UNIT_WORLD_SIZE)
+                );
+        }
+
+        public static Vector2 ClampTilePosition(Vector2 position, Vector2 centerPosition, Vector2Int boundsDimensions)
+        {
+            return ClampTileLocalPosition(position - centerPosition, boundsDimensions) + centerPosition;
+        }
+
+        public static Vector2Int ClampTileIndices(Vector2Int indices, Vector2Int boundsDimensions)
+        {
+            return new Vector2Int(Mathf.Clamp(indices.x, 0, boundsDimensions.x - 1), Mathf.Clamp(indices.y, 0, boundsDimensions.y - 1));
+        }
+
+        public static bool VisitTileIndicesInLocalRect(Vector2 localPosition, Vector2 size, Vector2Int boundsDimensions, Action<Vector2Int> onVisited)
+        {
+            Vector2Int topLeft = TileIndicesFromLocalPosition(localPosition + new Vector2(-size.x, size.y) / 2, boundsDimensions);
+            Vector2Int bottomRight = TileIndicesFromLocalPosition(localPosition + new Vector2(size.x, -size.y) / 2, boundsDimensions);
+
+            for (int x = topLeft.x; x <= bottomRight.x; x++)
+            {
+                for (int y = topLeft.y; y <= bottomRight.y; y++)
+                {
+                    Vector2Int tileIndices = new Vector2Int(x, y);
+                    if (TileIndicesWithinBounds(tileIndices, boundsDimensions))
+                    {
+                        onVisited?.Invoke(tileIndices);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        public static bool VisitTileIndicesInRect(Vector2 position, Vector2 size, Vector2 centerPosition, Vector2Int boundsDimensions, Action<Vector2Int> onVisited)
+        {
+            return VisitTileIndicesInLocalRect(position - centerPosition, size, boundsDimensions, onVisited);
+        }
+
+        public static bool VisitTileIndicesInTileRect(Vector2Int indices, Vector2Int rectDimensions, Vector2Int boundsDimensions, Action<Vector2Int> onVisited)
         {
             for (int x = indices.x; x > indices.x - rectDimensions.x; x--)
             {
                 for (int y = indices.y; y > indices.y - rectDimensions.y; y--)
                 {
-                    Vector2Int positionIndices = new Vector2Int(x, y);
-                    if (TileIndicesWithinBounds(positionIndices, boundsDimensions))
+                    Vector2Int tileIndices = new Vector2Int(x, y);
+                    if (TileIndicesWithinBounds(tileIndices, boundsDimensions))
                     {
-                        onVisited?.Invoke(positionIndices);
+                        onVisited?.Invoke(tileIndices);
+                    }
+                    else
+                    {
+                        return false;
                     }
                 }
             }
+            return true;
         }
 
         public static Vector2 RectLocalPositionFromIndices(Vector2Int indices, Vector2Int boundsDimensions, Vector2Int rectDimensions)
@@ -90,7 +141,7 @@ namespace FrigidBlackwaters.Game
             return TileLocalPositionFromIndices(indices, boundsDimensions) + new Vector2(-(rectDimensions.x - 1) * GameConstants.UNIT_WORLD_SIZE / 2, (rectDimensions.y - 1) * GameConstants.UNIT_WORLD_SIZE / 2);
         }
 
-        public static Vector2 RectAbsolutePositionFromIndices(Vector2Int indices, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
+        public static Vector2 RectPositionFromIndices(Vector2Int indices, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
         {
             return RectLocalPositionFromIndices(indices, boundsDimensions, rectDimensions) + centerPosition;
         }
@@ -103,9 +154,9 @@ namespace FrigidBlackwaters.Game
                 );
         }
 
-        public static Vector2Int RectIndicesFromAbsolutePosition(Vector2 absolutePosition, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
+        public static Vector2Int RectIndicesFromPosition(Vector2 position, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
         {
-            return RectIndicesFromLocalPosition(absolutePosition - centerPosition, boundsDimensions, rectDimensions);
+            return RectIndicesFromLocalPosition(position - centerPosition, boundsDimensions, rectDimensions);
         }
 
         public static bool RectIndicesWithinBounds(Vector2Int indices, Vector2Int boundsDimensions, Vector2Int rectDimensions)
@@ -118,9 +169,27 @@ namespace FrigidBlackwaters.Game
             return TileLocalPositionWithinBounds(localPosition, boundsDimensions - rectDimensions + Vector2Int.one, tolerance);
         }
 
-        public static bool RectAbsolutePositionWithinBounds(Vector2 absolutePosition, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions, float tolerance = 0)
+        public static bool RectPositionWithinBounds(Vector2 position, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions, float tolerance = 0)
         {
-            return RectLocalPositionWithinBounds(absolutePosition - centerPosition, boundsDimensions, rectDimensions, tolerance);
+            return RectLocalPositionWithinBounds(position - centerPosition, boundsDimensions, rectDimensions, tolerance);
+        }
+
+        public static Vector2 ClampRectLocalPosition(Vector2 localPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
+        {
+            return new Vector2(
+                Mathf.Clamp(localPosition.x, (-boundsDimensions.x + rectDimensions.x - 1) / 2f * GameConstants.UNIT_WORLD_SIZE, (boundsDimensions.x - rectDimensions.x + 1) / 2f * GameConstants.UNIT_WORLD_SIZE),
+                Mathf.Clamp(localPosition.y, (-boundsDimensions.y + rectDimensions.y - 1) / 2f * GameConstants.UNIT_WORLD_SIZE, (boundsDimensions.y - rectDimensions.y + 1) / 2f * GameConstants.UNIT_WORLD_SIZE)
+                );
+        }
+
+        public static Vector2 ClampRectPosition(Vector2 position, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
+        {
+            return ClampRectLocalPosition(position - centerPosition, boundsDimensions, rectDimensions) + centerPosition;
+        }
+
+        public static Vector2Int ClampRectIndices(Vector2Int indices, Vector2Int boundsDimensions, Vector2Int rectDimensions)
+        {
+            return new Vector2Int(Mathf.Clamp(indices.x, rectDimensions.x - 1, boundsDimensions.x - 1), Mathf.Clamp(indices.y, rectDimensions.y - 1, boundsDimensions.y - 1));
         }
 
         public static int WallArrayIndex(Vector2Int wallDirection)
@@ -144,7 +213,7 @@ namespace FrigidBlackwaters.Game
             return new Vector2(wallDirection.x * boundsDimensions.x, wallDirection.y * boundsDimensions.y) * GameConstants.UNIT_WORLD_SIZE / 2;
         }
 
-        public static Vector2 AbsoluteWallCenterPosition(Vector2Int wallDirection, Vector2 centerPosition, Vector2Int boundsDimensions)
+        public static Vector2 WallCenterPosition(Vector2Int wallDirection, Vector2 centerPosition, Vector2Int boundsDimensions)
         {
             return LocalWallCenterPosition(wallDirection, boundsDimensions) + centerPosition;
         }

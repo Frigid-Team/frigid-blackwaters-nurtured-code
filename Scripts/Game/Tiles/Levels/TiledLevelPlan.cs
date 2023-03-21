@@ -69,10 +69,14 @@ namespace FrigidBlackwaters.Game
         {
             this.connections.Add(tiledPlanConnection);
             this.isSubLevel |= tiledPlanConnection.IsSubLevelConnection;
-            foreach (TiledLevelPlanEntrance planEntrance in tiledPlanConnection.PlanEntrances)
+
+            if (!tiledPlanConnection.FirstEntrance.IsSubLevelEntrance)
             {
-                if (planEntrance.IsSubLevelEntrance) continue;
-                AddArea(planEntrance.Area);
+                AddArea(tiledPlanConnection.FirstEntrance.Area);
+            }
+            if (!tiledPlanConnection.SecondEntrance.IsSubLevelEntrance)
+            {
+                AddArea(tiledPlanConnection.SecondEntrance.Area);
             }
         }
     }

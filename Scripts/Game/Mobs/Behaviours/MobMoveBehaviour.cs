@@ -10,29 +10,37 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private MobMovePriority movePriority;
 
-        public override bool Finished
+        private int numAddedMoves;
+        private int numFinishedMoves;
+
+        public override bool IsFinished
         {
             get
             {
-                return false;
+                return this.numFinishedMoves >= this.numAddedMoves;
             }
         }
 
-        public override void Apply()
+        public override void Enter()
         {
-            base.Apply();
+            base.Enter();
+            this.numAddedMoves = 0;
+            this.numFinishedMoves = 0;
             foreach (Move move in this.moves)
             {
-                this.Owner.Movement.AddMove(move, this.movePriority);
+                if (this.Owner.AddMove(move, this.movePriority, this.Owner.GetIsIgnoringTimeScale(this), () => this.numFinishedMoves++))
+                {
+                    this.numAddedMoves++;
+                }
             }
         }
 
-        public override void Unapply()
+        public override void Exit()
         {
-            base.Unapply();
+            base.Exit();
             foreach (Move move in this.moves)
             {
-                this.Owner.Movement.RemoveMove(move);
+                this.Owner.RemoveMove(move);
             }
         }
     }

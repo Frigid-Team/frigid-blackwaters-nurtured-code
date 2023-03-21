@@ -4,7 +4,7 @@ namespace FrigidBlackwaters.Game
 {
     public class AttackInputHeldConditional : Conditional
     {
-        protected override bool CustomValidate()
+        public override bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
         {
             return CharacterInput.AttackHeld;
         }

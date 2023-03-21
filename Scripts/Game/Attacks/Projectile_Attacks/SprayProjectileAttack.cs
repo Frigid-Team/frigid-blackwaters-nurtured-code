@@ -27,16 +27,16 @@ namespace FrigidBlackwaters.Game
             int currNumberProjectiles = this.numberProjectiles.MutableValue;
             float currAngleBetweenProjectilesDegrees = this.angleBetweenProjectilesDegrees.MutableValue;
 
-            float baseAngleDeg = this.launchDirection.Calculate(Vector2.zero, elapsedDuration, 0).ComponentAngle0To360() * Mathf.Rad2Deg + (currNumberProjectiles % 2 == 0 ? currAngleBetweenProjectilesDegrees/ 2 : 0);
+            float baseAngleDeg = this.launchDirection.Calculate(Vector2.zero, elapsedDuration, 0).ComponentAngle0To2PI() * Mathf.Rad2Deg + (currNumberProjectiles % 2 == 0 ? currAngleBetweenProjectilesDegrees/ 2 : 0);
             for (int i = 0; i < currNumberProjectiles; i++)
             {
                 float projectileAngleDeg = baseAngleDeg - currNumberProjectiles / 2 * currAngleBetweenProjectilesDegrees + i * currAngleBetweenProjectilesDegrees;
                 float projectileAngleRad = projectileAngleDeg * Mathf.Deg2Rad;
                 Vector2 projectileSpawnDirection = new Vector2(Mathf.Cos(projectileAngleRad), Mathf.Sin(projectileAngleRad));
-                float summonAngleRad = this.summonDirection.Calculate(Vector2.zero, elapsedDuration, 0).ComponentAngle0To360();
+                float summonAngleRad = this.summonDirection.Calculate(Vector2.zero, elapsedDuration, 0).ComponentAngle0To2PI();
                 Vector2 projectileSpawnPosition = baseSpawnPosition + new Vector2(Mathf.Cos(summonAngleRad), Mathf.Sin(summonAngleRad)) * this.distanceFromSpawnPosition.ImmutableValue;
 
-                spawnParameters.Add(new ProjectileSpawnParameters(projectileSpawnPosition, projectileSpawnDirection, this.projectilePrefab));
+                spawnParameters.Add(new ProjectileSpawnParameters(1f / currNumberProjectiles, projectileSpawnPosition, projectileSpawnDirection, this.projectilePrefab));
             }
 
             return spawnParameters;

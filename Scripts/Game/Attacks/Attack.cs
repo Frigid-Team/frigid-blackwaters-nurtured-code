@@ -1,10 +1,13 @@
 using System;
+using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
     public abstract class Attack : FrigidMonoBehaviour
     {
+        [SerializeField]
         private DamageAlignment damageAlignment;
+
         private int damageBonus;
         private Action<HitInfo> onHitDealt;
         private Action<BreakInfo> onBreakDealt;

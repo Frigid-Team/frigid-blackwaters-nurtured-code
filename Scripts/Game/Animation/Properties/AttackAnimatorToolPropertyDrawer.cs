@@ -70,7 +70,7 @@ namespace FrigidBlackwaters.Game
             base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
         }
 
-        public override void DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
+        public override Vector2 DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
         {
             AttackAnimatorProperty attackProperty = (AttackAnimatorProperty)this.Property;
 
@@ -79,7 +79,8 @@ namespace FrigidBlackwaters.Game
             {
                 Vector2 handleSize = new Vector2(this.Config.HandleLength, this.Config.HandleLength);
                 Vector2 grabSize = new Vector2(this.Config.HandleGrabLength, this.Config.HandleGrabLength);
-                Vector2 handlePosition = previewSize / 2 + attackProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * new Vector2(1, -1) * worldToWindowScalingFactor - handleSize / 2 + previewOffset;
+                Vector2 localPreviewOffset = attackProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * new Vector2(1, -1) * worldToWindowScalingFactor;
+                Vector2 handlePosition = previewSize / 2 + localPreviewOffset - handleSize / 2 + previewOffset;
                 Rect handleRect = new Rect(handlePosition, handleSize);
                 Rect grabRect = new Rect(handlePosition - (grabSize - handleSize) / 2, grabSize);
 
@@ -105,9 +106,9 @@ namespace FrigidBlackwaters.Game
                         attackProperty.SetLocalOffset(animationIndex, frameIndex, orientationIndex, newLocalOffset);
                     })
                     );
+                return localPreviewOffset;
             }
-
-            base.DrawPreview(previewSize, previewOffset, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected, out List<(Rect rect, Action onDrag)> baseDragRequests);
+            return Vector2.zero;
         }
 
         public override void DrawFrameCellPreview(Vector2 cellSize, int animationIndex, int frameIndex)

@@ -74,6 +74,7 @@ namespace FrigidBlackwaters.Game
             this.onBroken?.Invoke();
         }
 
+#if UNITY_EDITOR
         private bool CanBreak()
         {
             if (this.AnimatorBody == null) return false;
@@ -86,5 +87,6 @@ namespace FrigidBlackwaters.Game
             }
             return false;
         }
+#endif
     }
 }

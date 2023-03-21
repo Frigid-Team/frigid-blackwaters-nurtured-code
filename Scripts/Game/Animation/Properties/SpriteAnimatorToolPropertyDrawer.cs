@@ -49,20 +49,28 @@ namespace FrigidBlackwaters.Game
             }
             else
             {
-                EditorGUILayout.LabelField("Material Tweens", GUIStyling.WordWrapAndCenter(EditorStyles.label));
-                Utility.GUILayoutHelper.DrawIndexedList(
-                    spriteProperty.GetNumberMaterialTweens(animationIndex),
-                    (int index) => spriteProperty.AddMaterialTweenByReferenceAt(animationIndex, index),
-                    (int index) => spriteProperty.RemoveMaterialTweenByReferenceAt(animationIndex, index),
-                    (int index) =>
-                    {
-                        MaterialTweenCoroutineTemplateSerializedReference materialTween = Core.GUILayoutHelper.MaterialTweenTemplateSerializedReferenceField(string.Format("Tween [{0}]", index), spriteProperty.GetMaterialTweenByReferenceAt(animationIndex, index));
-                        spriteProperty.SetMaterialTweenByReferenceAt(animationIndex, index, materialTween);
-                    }
-                    );
+                spriteProperty.SetEnableOutline(animationIndex, EditorGUILayout.Toggle("Enable Outline", spriteProperty.GetEnableOutline(animationIndex)));
             }
+            spriteProperty.SetColorByReference(animationIndex, Core.GUILayoutHelper.ColorSerializedReferenceField("Color", spriteProperty.GetColorByReference(animationIndex)));
             spriteProperty.SetHideChance(animationIndex, EditorGUILayout.FloatField("Hide Chance (0 - 1)", spriteProperty.GetHideChance(animationIndex)));
             base.DrawAnimationEditFields(animationIndex);
+        }
+
+        public override void DrawFrameEditFields(int animationIndex, int frameIndex)
+        {
+            SpriteAnimatorProperty spriteProperty = (SpriteAnimatorProperty)this.Property;
+            EditorGUILayout.LabelField("Material Tweens In Frame", GUIStyling.WordWrapAndCenter(EditorStyles.label));
+            Utility.GUILayoutHelper.DrawIndexedList(
+                spriteProperty.GetNumberMaterialTweensInFrame(animationIndex, frameIndex),
+                (int index) => spriteProperty.AddMaterialTweenInFrameByReferenceAt(animationIndex, frameIndex, index),
+                (int index) => spriteProperty.RemoveMaterialTweenInFrameByReferenceAt(animationIndex, frameIndex, index),
+                (int index) =>
+                {
+                    MaterialTweenCoroutineTemplateSerializedReference materialTween = Core.GUILayoutHelper.MaterialTweenTemplateSerializedReferenceField(string.Format("Tween [{0}]", index), spriteProperty.GetMaterialTweenInFrameByReferenceAt(animationIndex, frameIndex, index));
+                    spriteProperty.SetMaterialTweenInFrameByReferenceAt(animationIndex, frameIndex, index, materialTween);
+                }
+                );
+            base.DrawFrameEditFields(animationIndex, frameIndex);
         }
 
         public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)
@@ -88,7 +96,7 @@ namespace FrigidBlackwaters.Game
             base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
         }
 
-        public override void DrawPreview(
+        public override Vector2 DrawPreview(
             Vector2 previewSize,
             Vector2 previewOffset, 
             float worldToWindowScalingFactor,
@@ -102,14 +110,12 @@ namespace FrigidBlackwaters.Game
             SpriteAnimatorProperty spriteProperty = (SpriteAnimatorProperty)this.Property;
             Sprite sprite = spriteProperty.GetSpriteByReference(animationIndex, frameIndex, orientationIndex).ImmutableValue;
             dragRequests = new List<(Rect rect, Action onDrag)>();
+            Vector2 localPreviewOffset = spriteProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * new Vector2(1, -1) * worldToWindowScalingFactor;
             if (sprite != null)
             {
                 Vector2 adjustedSize = sprite.rect.size / GameConstants.PIXELS_PER_UNIT * worldToWindowScalingFactor;
                 Vector2 pivotOffset = adjustedSize * (Vector2.one - new Vector2(sprite.rect.size.x - sprite.pivot.x, sprite.pivot.y) / sprite.rect.size);
-                Vector2 adjustedPosition =
-                    previewSize / 2 - pivotOffset +
-                    spriteProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * new Vector2(1, -1) * worldToWindowScalingFactor +
-                    previewOffset;
+                Vector2 adjustedPosition = previewSize / 2 - pivotOffset + localPreviewOffset + previewOffset;
                 Rect spriteDrawRect = new Rect(adjustedPosition, adjustedSize);
                 using (new GUIHelper.ColorScope(spriteProperty.RendererColor))
                 {
@@ -134,8 +140,7 @@ namespace FrigidBlackwaters.Game
                         );
                 }
             }
-
-            base.DrawPreview(previewSize, previewOffset, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected, out List<(Rect rect, Action onDrag)> baseDragRequests);
+            return localPreviewOffset;
         }
 
         public override void DrawOrientationCellPreview(

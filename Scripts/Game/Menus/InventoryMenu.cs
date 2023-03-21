@@ -11,33 +11,20 @@ namespace FrigidBlackwaters.Game
 
         public override bool IsOpenable()
         {
-            /*
-            if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob))
-            {
-                return ItemStorage.FindStoragesUsedByMob(recentPlayerMob).Count > 0;
-            }
-            */
-            return false;
+            return PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out _);
         }
 
         protected override void Opened()
         {
             List<ItemStorage> itemStorages = new List<ItemStorage>();
-            /*
-            if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob))
+            if (PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out ItemStorage playerItemStorage))
             {
-                itemStorages.AddRange(ItemStorage.FindStoragesUsedByMob(recentPlayerMob));
-                if (ItemStorage.TryFindNearestActiveStorage(
-                    recentPlayerMob.transform.position,
-                    itemStorages, 
-                    out ItemStorage nearbyStorage, 
-                    out Vector2 nearestAbsoluteAccessPosition
-                    ))
+                itemStorages.Add(playerItemStorage);
+                if (ItemStorage.TryGetNearestFindableStorage(player.Position, itemStorages, out ItemStorage nearbyStorage,  out _))
                 {
                     itemStorages.Add(nearbyStorage);
                 }
             }
-            */
             this.itemInterface.OpenStorages(itemStorages);
         }
 
@@ -46,24 +33,17 @@ namespace FrigidBlackwaters.Game
             this.itemInterface.CloseStorages();
         }
 
-        protected override bool ShouldShowPrompt(out Vector2 trackedAbsolutePosition)
+        protected override bool ShouldShowPrompt(out Vector2 trackedPosition)
         {
-            trackedAbsolutePosition = Vector2.zero;
-            /*
-            if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob))
+            trackedPosition = Vector2.zero;
+            if (PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out ItemStorage playerItemStorage))
             {
-                if (ItemStorage.TryFindNearestActiveStorage(
-                    recentPlayerMob.transform.position,
-                    ItemStorage.FindStoragesUsedByMob(recentPlayerMob),
-                    out ItemStorage nearbyStorage,
-                    out Vector2 nearestAbsoluteAccessPosition
-                    ))
+                if (ItemStorage.TryGetNearestFindableStorage(player.Position, new List<ItemStorage>() { playerItemStorage }, out _, out Vector2 nearestAccessPosition))
                 {
-                    trackedAbsolutePosition = nearestAbsoluteAccessPosition;
+                    trackedPosition = nearestAccessPosition;
                     return true;
                 }
             }
-            */
             return false;
         }
     }

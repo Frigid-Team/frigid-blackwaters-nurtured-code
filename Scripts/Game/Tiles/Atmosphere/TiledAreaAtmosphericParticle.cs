@@ -41,10 +41,10 @@ namespace FrigidBlackwaters.Game
             float timeElapsed = 0;
             while (timeElapsed < this.animationDuration)
             {
-                timeElapsed += Time.deltaTime;
+                timeElapsed += FrigidCoroutine.DeltaTime;
                 float percentComplete = timeElapsed / this.animationDuration;
 
-                this.transform.localPosition += Vector3.up * Time.deltaTime * this.upwardVelocityOverTime.Evaluate(timeElapsed / this.animationDuration);
+                this.transform.localPosition += Vector3.up * FrigidCoroutine.DeltaTime * this.upwardVelocityOverTime.Evaluate(timeElapsed / this.animationDuration);
                 this.spriteRenderer.sprite = this.animationSprites[Mathf.Clamp(Mathf.FloorToInt(this.animationSprites.Count * percentComplete), 0, this.animationSprites.Count - 1)];
                 this.light2D.pointLightOuterRadius = this.minLightRadius + (this.maxLightRadius - this.minLightRadius) * (percentComplete < 0.5f ? percentComplete : 1 - percentComplete) / 0.5f;
                 this.light2D.color = this.lightColours[UnityEngine.Random.Range(0, this.lightColours.Count)];

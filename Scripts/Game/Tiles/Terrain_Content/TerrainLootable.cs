@@ -32,19 +32,19 @@ namespace FrigidBlackwaters.Game
             }
             if (this.detectionRadius > 0)
             {
-                this.AnimatorBody.PlayByName(this.chosenAnimations.ClosedAnimationName);
+                this.AnimatorBody.Play(this.chosenAnimations.ClosedAnimationName);
                 this.detectionRoutine = FrigidCoroutine.Run(DetectionLoop(), this.gameObject);
             }
             else
             {
-                this.AnimatorBody.PlayByName(this.chosenAnimations.DefaultAnimationName);
+                this.AnimatorBody.Play(this.chosenAnimations.DefaultAnimationName);
             }
         }
 
         protected override void Break()
         {
             base.Break();
-            this.AnimatorBody.PlayByName(this.chosenAnimations.BrokenAnimationName);
+            this.AnimatorBody.Play(this.chosenAnimations.BrokenAnimationName);
             FrigidCoroutine.Kill(this.detectionRoutine);
         }
 
@@ -52,12 +52,10 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                /* TODO MOBS_V2
-                if (Mob_Legacy.GetMobsInGroup(MobGroup_Legacy.Players).TryGetRecentlyPresentMob(out Mob_Legacy recentPlayerMob))
+                if (PlayerMob.TryGet(out PlayerMob player))
                 {
-                    return recentPlayerMob.transform.position;
+                    return player.Position;
                 }
-                */
                 return (Vector2)this.transform.position + Vector2.one * this.detectionRadius;
             }
         }
@@ -70,12 +68,12 @@ namespace FrigidBlackwaters.Game
                 while (Vector2.Distance(this.transform.position, this.DetectionPosition) > this.detectionRadius) yield return null;
 
                 animationFinished = false;
-                this.AnimatorBody.PlayByName(
+                this.AnimatorBody.Play(
                     this.chosenAnimations.OpenAnimationName,
                     () =>
                     {
                         animationFinished = true;
-                        this.AnimatorBody.PlayByName(this.chosenAnimations.OpenedAnimationName);
+                        this.AnimatorBody.Play(this.chosenAnimations.OpenedAnimationName);
                     }
                     );
                 yield return new FrigidCoroutine.DelayUntil(() => { return animationFinished; });
@@ -83,12 +81,12 @@ namespace FrigidBlackwaters.Game
                 while (Vector2.Distance(this.transform.position, this.DetectionPosition) < this.detectionRadius) yield return null;
 
                 animationFinished = false;
-                this.AnimatorBody.PlayByName(
+                this.AnimatorBody.Play(
                     this.chosenAnimations.CloseAnimationName,
                     () =>
                     {
                         animationFinished = true;
-                        this.AnimatorBody.PlayByName(this.chosenAnimations.ClosedAnimationName);
+                        this.AnimatorBody.Play(this.chosenAnimations.ClosedAnimationName);
                     }
                     );
                 yield return new FrigidCoroutine.DelayUntil(() => { return animationFinished; });

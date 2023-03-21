@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+using FrigidBlackwaters.Core;
+
 namespace FrigidBlackwaters.Game
 {
     public class RingExplosionAttack : ExplosionAttack

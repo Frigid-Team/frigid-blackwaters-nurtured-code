@@ -35,7 +35,7 @@ namespace FrigidBlackwaters.Game
         private FrigidCoroutine transitionRoutine;
 
         public void Populate(
-            ItemStorageGrid itemStorageGrid, 
+            ItemStorageGrid storageGrid, 
             ItemInterfaceHand hand,
             ItemInterfaceTooltip tooltip, 
             Vector2 localCenterPosition
@@ -43,29 +43,29 @@ namespace FrigidBlackwaters.Game
         {
             this.slotPool.Cycle(
                 this.currentSlots,
-                itemStorageGrid.Dimensions.x * itemStorageGrid.Dimensions.y
+                storageGrid.Dimensions.x * storageGrid.Dimensions.y
                 );
 
             RectTransform backgroundRectTransform = (RectTransform)this.backgroundImage.transform;
-            this.backgroundImage.sprite = itemStorageGrid.ItemContainer.Background;
+            this.backgroundImage.sprite = storageGrid.Container.Background;
             backgroundRectTransform.sizeDelta = new Vector2(this.backgroundImage.sprite.rect.width, this.backgroundImage.sprite.rect.height);
 
             RectTransform slotRectTransform = (RectTransform)this.slotPrefab.transform;
             float slotHeight = slotRectTransform.rect.width;
             float slotWidth = slotRectTransform.rect.height;
 
-            this.slotsTransform.sizeDelta = new Vector2(itemStorageGrid.Dimensions.x * slotWidth, itemStorageGrid.Dimensions.y * slotHeight);
+            this.slotsTransform.sizeDelta = new Vector2(storageGrid.Dimensions.x * slotWidth, storageGrid.Dimensions.y * slotHeight);
             Vector2 topLeftCorner = new Vector2(-this.slotsTransform.rect.width + slotWidth, this.slotsTransform.rect.height - slotHeight) / 2;
-            for (int x = 0; x < itemStorageGrid.Dimensions.x; x++)
+            for (int x = 0; x < storageGrid.Dimensions.x; x++)
             {
-                for (int y = 0; y < itemStorageGrid.Dimensions.y; y++)
+                for (int y = 0; y < storageGrid.Dimensions.y; y++)
                 {
-                    ItemInterfaceStashSlot slot = this.currentSlots[y * itemStorageGrid.Dimensions.x + x];
-                    slot.transform.SetSiblingIndex(y * itemStorageGrid.Dimensions.x + x);
+                    ItemInterfaceStashSlot slot = this.currentSlots[y * storageGrid.Dimensions.x + x];
+                    slot.transform.SetSiblingIndex(y * storageGrid.Dimensions.x + x);
                     slot.transform.localPosition = topLeftCorner + new Vector2(x * slotWidth, -y * slotHeight);
-                    if (itemStorageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash containerItemStash)) 
+                    if (storageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash containerItemStash)) 
                     {
-                        slot.PopulateForInteraction(itemStorageGrid, containerItemStash, hand, tooltip);
+                        slot.PopulateForInteraction(storageGrid, containerItemStash, hand, tooltip);
                     }
                 }
             }

@@ -17,7 +17,7 @@ namespace FrigidBlackwaters.Game
                 this.navigationTileGrid[x] = new NavigationTile[tiledAreaBlueprint.MainAreaDimensions.y];
                 for (int y = 0; y < tiledAreaBlueprint.MainAreaDimensions.y; y++)
                 {
-                    this.navigationTileGrid[x][y] = new NavigationTile(tiledAreaBlueprint.GetTerrainAtTile(new Vector2Int(x, y)));
+                    this.navigationTileGrid[x][y] = new NavigationTile(tiledAreaBlueprint.GetTerrainTileAssetAt(new Vector2Int(x, y)).Terrain);
                 }
             }
         }
@@ -46,7 +46,7 @@ namespace FrigidBlackwaters.Game
         {
             if (!TilePositioning.RectIndicesWithinBounds(indices, this.gridDimensions, rectDimensions)) return false;
             bool onTerrain = true;
-            TilePositioning.VisitTileIndicesInRect(
+            return TilePositioning.VisitTileIndicesInTileRect(
                 indices,
                 rectDimensions,
                 this.gridDimensions,
@@ -55,26 +55,24 @@ namespace FrigidBlackwaters.Game
                     NavigationTile navigationTile = this.navigationTileGrid[indices.x][indices.y];
                     onTerrain &= traversableTerrain.Includes(navigationTile.Terrain);
                 }
-                );
-            return onTerrain;
+                ) && onTerrain;
         }
 
         public bool IsTraversable(Vector2Int indices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain, Resistance breakingResistance = Resistance.None)
         {
             if (!TilePositioning.RectIndicesWithinBounds(indices, this.gridDimensions, rectDimensions)) return false;
             bool isTraversable = true;
-            TilePositioning.VisitTileIndicesInRect(
+            return TilePositioning.VisitTileIndicesInTileRect(
                 indices,
-                rectDimensions, 
+                rectDimensions,
                 this.gridDimensions,
                 (Vector2Int indices) =>
                 {
                     NavigationTile navigationTile = this.navigationTileGrid[indices.x][indices.y];
-                    BreakInfo resistInfo = new BreakInfo(breakingResistance, navigationTile.HighestObstructiveResistance);
-                    isTraversable &= (navigationTile.Unobstructed || resistInfo.Broken) && traversableTerrain.Includes(navigationTile.Terrain);
+                    BreakInfo breakInfo = new BreakInfo(breakingResistance, navigationTile.HighestObstructiveResistance, null);
+                    isTraversable &= (navigationTile.Unobstructed || breakInfo.Broken) && traversableTerrain.Includes(navigationTile.Terrain);
                 }
-                );
-            return isTraversable;
+                ) && isTraversable;
         }
 
         public List<Vector2Int> GetAdjacentTraversableIndices(Vector2Int originIndices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain)
@@ -116,7 +114,7 @@ namespace FrigidBlackwaters.Game
         {
             List<Vector2Int> reachableTiles = new List<Vector2Int>();
 
-            if (IsTraversable(originIndices, rectDimensions, traversableTerrain))
+            if (!IsTraversable(originIndices, rectDimensions, traversableTerrain))
             {
                 return reachableTiles;
             }
@@ -190,7 +188,7 @@ namespace FrigidBlackwaters.Game
 
         public List<Vector2Int> FindPathIndices(Vector2Int startIndices, Vector2Int targetIndices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain)
         {
-            if (!IsTraversable(startIndices, rectDimensions, traversableTerrain) || !IsTraversable(targetIndices, rectDimensions, traversableTerrain))
+            if (!IsTraversable(startIndices, rectDimensions, traversableTerrain))
             {
                 return new List<Vector2Int>();
             }

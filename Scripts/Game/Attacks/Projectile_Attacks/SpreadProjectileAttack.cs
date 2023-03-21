@@ -26,7 +26,8 @@ namespace FrigidBlackwaters.Game
             {
                 float launchAngleRad = angleBetweenRad * i + angleOffsetRad;
                 Vector2 launchDirection = new Vector2(Mathf.Cos(launchAngleRad), Mathf.Sin(launchAngleRad));
-                spawnParameters.Add(new ProjectileSpawnParameters(baseSpawnPosition + launchDirection * this.distanceFromSpawnPosition.ImmutableValue, launchDirection, this.projectilePrefab));
+                Vector2 projectileSpawnPosition = baseSpawnPosition + launchDirection * this.distanceFromSpawnPosition.ImmutableValue;
+                spawnParameters.Add(new ProjectileSpawnParameters(1f / currNumberProjectiles, projectileSpawnPosition, launchDirection, this.projectilePrefab));
             }
             return spawnParameters;
         }

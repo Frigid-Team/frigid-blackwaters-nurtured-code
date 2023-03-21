@@ -30,7 +30,7 @@ namespace FrigidBlackwaters.Game
         {
             if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea))
             {
-                this.tiledWorldMap.MoveTo(-focusedTiledArea.AbsoluteCenterPosition);
+                this.tiledWorldMap.MoveTo(-focusedTiledArea.CenterPosition);
             }
         }
     }

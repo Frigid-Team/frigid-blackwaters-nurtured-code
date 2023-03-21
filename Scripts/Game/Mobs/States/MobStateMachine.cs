@@ -7,24 +7,37 @@ namespace FrigidBlackwaters.Game
     public class MobStateMachine : MobStateNode
     {
         [SerializeField]
-        private MobState fallbackState;
-        [SerializeField]
-        private MobStateNode chosenStateNode;
+        private List<MobStateNode> startingStateNodes;
         [SerializeField]
         private List<Transition> transitions;
+        [SerializeField]
+        private bool returnToStartingNodeOnEnter;
+        [SerializeField]
+        private bool autoEnter;
+        [SerializeField]
+        private bool autoExit;
 
-        public override MobState InitialState
+        private MobStateNode chosenStartingStateNode;
+        private MobStateNode chosenStateNode;
+
+        public override HashSet<MobState> InitialStates
         {
             get
             {
-                if (this.chosenStateNode == this)
+                HashSet<MobState> initialStates = new HashSet<MobState>();
+                foreach (MobStateNode startingStateNode in this.startingStateNodes)
                 {
-                    return this.fallbackState;
+                    initialStates.UnionWith(startingStateNode.InitialStates);
                 }
-                else
-                {
-                    return this.chosenStateNode.InitialState;
-                }
+                return initialStates;
+            }
+        }
+
+        public override HashSet<MobState> SwitchableStates
+        {
+            get
+            {
+                return this.chosenStateNode.SwitchableStates;
             }
         }
 
@@ -32,95 +45,142 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                HashSet<MobStateNode> referencedNodes = new HashSet<MobStateNode>();
-                referencedNodes.Add(this.fallbackState);
-                if (this.chosenStateNode != this) referencedNodes.Add(this.chosenStateNode);
+                HashSet<MobStateNode> referencedStateNodes = new HashSet<MobStateNode>();
+                foreach (MobStateNode startingStateNode in this.startingStateNodes)
+                {
+                    referencedStateNodes.Add(startingStateNode);
+                }
                 foreach (Transition transition in this.transitions)
                 {
-                    if (transition.FromStateNode != this) referencedNodes.Add(transition.FromStateNode);
-                    if (transition.NextStateNode != this) referencedNodes.Add(transition.NextStateNode);
+                    referencedStateNodes.Add(transition.FromStateNode);
+                    referencedStateNodes.Add(transition.NextStateNode);
                 }
-                return referencedNodes;
+                return referencedStateNodes;
+            }
+        }
+
+        public override bool AutoEnter
+        {
+            get
+            {
+                return this.autoEnter && this.chosenStateNode.AutoEnter;
+            }
+        }
+
+        public override bool AutoExit
+        {
+            get
+            {
+                return this.autoExit && this.chosenStateNode.AutoExit;
+            }
+        }
+
+        public override bool ShouldEnter
+        {
+            get
+            {
+                return this.chosenStateNode.ShouldEnter;
+            }
+        }
+
+        public override bool ShouldExit
+        {
+            get
+            {
+                return this.chosenStateNode.ShouldExit;
+            }
+        }
+
+        public override void Init()
+        {
+            base.Init();
+            foreach (MobStateNode startingStateNode in this.startingStateNodes)
+            {
+                this.chosenStartingStateNode = startingStateNode;
+                this.chosenStateNode = startingStateNode;
+                if (startingStateNode.InitialStates.Contains(this.CurrentState))
+                {
+                    break;
+                }
             }
         }
 
         public override void Enter()
         {
+            if (this.returnToStartingNodeOnEnter)
+            {
+                SetChosenStateNode(this.chosenStartingStateNode);
+            }
             base.Enter();
-            if (this.chosenStateNode == this)
-            {
-                this.fallbackState.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
-                this.fallbackState.Enter();
-            }
-            else
-            {
-                this.chosenStateNode.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
-                this.chosenStateNode.Enter();
-            }
-            SetCurrentStateFromChosenStateNode();
+            this.chosenStateNode.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
+            this.chosenStateNode.Enter();
+
+            CheckTransitions();
         }
 
         public override void Exit()
         {
             base.Exit();
-            if (this.chosenStateNode == this)
-            {
-                this.fallbackState.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
-                this.fallbackState.Exit();
-            }
-            else
-            {
-                this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
-                this.chosenStateNode.Exit();
-            }
+            this.chosenStateNode.Exit();
+            this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
         }
 
         public override void Refresh()
         {
             base.Refresh();
 
-            List<Transition> validTransitions = new List<Transition>();
-            foreach (Transition transition in this.transitions)
+            CheckTransitions();
+            this.chosenStateNode.Refresh();
+        }
+
+        private void CheckTransitions()
+        {
+            if (!this.Owner.CanAct) return;
+            if (this.chosenStateNode.ShouldExit)
             {
-                if (transition.FromStateNode == this.chosenStateNode && transition.TransitionConditions.Evaluate())
+                List<Transition> validTransitions = new List<Transition>();
+                foreach (Transition transition in this.transitions)
                 {
-                    validTransitions.Add(transition);
+                    if (transition.FromStateNode == this.chosenStateNode &&
+                        transition.NextStateNode.ShouldEnter &&
+                        (transition.FromStateNode.AutoExit || transition.NextStateNode.AutoEnter || transition.TransitionConditions.Evaluate(this.EnterDuration, this.EnterDurationDelta)))
+                    {
+                        validTransitions.Add(transition);
+                    }
+                }
+
+                if (validTransitions.Count > 0)
+                {
+                    Transition chosenTransition = validTransitions[0];
+                    SetChosenStateNode(chosenTransition.NextStateNode);
                 }
             }
+        }
 
-            if (validTransitions.Count > 0)
+        private bool CanSetChosenStateNode(MobStateNode chosenStateNode)
+        {
+            return CanSetCurrentState(chosenStateNode.CurrentState);
+        }
+
+        private void SetChosenStateNode(MobStateNode chosenStateNode)
+        {
+            if (CanSetChosenStateNode(chosenStateNode))
             {
-                Transition chosenTransition = validTransitions[UnityEngine.Random.Range(0, validTransitions.Count)];
-
-                if (this.chosenStateNode == this)
+                if (this.Entered)
                 {
-                    this.fallbackState.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
-                    this.fallbackState.Exit();
-                }
-                else
-                {
-                    this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
                     this.chosenStateNode.Exit();
+                    this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
                 }
 
-                this.chosenStateNode = chosenTransition.NextStateNode;
+                this.chosenStateNode = chosenStateNode;
+                SetCurrentStateFromChosenStateNode();
 
-                if (this.chosenStateNode == this)
-                {
-                    this.fallbackState.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
-                    this.fallbackState.Enter();
-                }
-                else
+                if (this.Entered)
                 {
                     this.chosenStateNode.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
                     this.chosenStateNode.Enter();
                 }
-
-                SetCurrentStateFromChosenStateNode();
             }
-
-            if (this.chosenStateNode == this) this.fallbackState.Refresh();
-            else this.chosenStateNode.Refresh();
         }
 
         private void SetCurrentStateFromChosenStateNode(MobState previousState, MobState currentState)

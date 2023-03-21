@@ -6,8 +6,9 @@ namespace FrigidBlackwaters.Game
     public class ItemStorageGrid
     {
         private Vector2Int dimensions;
-        private ContainerItemStash[][] itemStashes;
-        private ItemContainer itemContainer;
+        private ItemContainer container;
+        private ItemStorage storage;
+        private ContainerItemStash[][] stashes;
 
         public Vector2Int Dimensions
         {
@@ -17,53 +18,38 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public ItemContainer ItemContainer
+        public ItemContainer Container
         {
             get
             {
-                return this.itemContainer;
+                return this.container;
             }
         }
 
-        public ItemStorageGrid(
-            ItemContainer itemContainer, 
-            List<Mob> usingMobs,
-            ItemPowerBudget itemPowerBudget,
-            ItemCurrencyWallet itemCurrencyWallet,
-            float buyCostModifier,
-            float sellCostModifier,
-            Transform storageTransform
-            )
+        public ItemStorageGrid(ItemContainer container, ItemStorage storage)
         {
-            this.dimensions = itemContainer.Dimensions;
-            this.itemStashes = new ContainerItemStash[itemContainer.Dimensions.x][];
-            for (int x = 0; x < this.itemStashes.Length; x++)
+            this.dimensions = container.Dimensions;
+            this.container = container;
+            this.storage = storage;
+            this.stashes = new ContainerItemStash[this.container.Dimensions.x][];
+            for (int x = 0; x < this.stashes.Length; x++)
             {
-                this.itemStashes[x] = new ContainerItemStash[itemContainer.Dimensions.y];
-                for (int y = 0; y < this.itemStashes[x].Length; y++)
+                this.stashes[x] = new ContainerItemStash[this.container.Dimensions.y];
+                for (int y = 0; y < this.stashes[x].Length; y++)
                 {
-                    this.itemStashes[x][y] = new ContainerItemStash(
-                        itemContainer, 
-                        usingMobs, 
-                        itemPowerBudget,
-                        itemCurrencyWallet,
-                        buyCostModifier,
-                        sellCostModifier,
-                        storageTransform
-                        );
+                    this.stashes[x][y] = new ContainerItemStash(this.container, this.storage);
                 }
             }
-            this.itemContainer = itemContainer;
         }
         
-        public bool TryGetStash(Vector2Int indices, out ContainerItemStash itemStash)
+        public bool TryGetStash(Vector2Int indices, out ContainerItemStash stash)
         {
             if (indices.x >= dimensions.x || indices.x < 0 || indices.y >= dimensions.y || indices.y < 0)
             {
-                itemStash = null;
+                stash = null;
                 return false;
             }
-            itemStash = this.itemStashes[indices.x][indices.y];
+            stash = this.stashes[indices.x][indices.y];
             return true;
         }
 
@@ -72,22 +58,24 @@ namespace FrigidBlackwaters.Game
             List<ItemLootRoll> lootRolls = itemLootTable.GenerateLootRolls();
             foreach (ItemLootRoll lootRoll in lootRolls)
             {
-                List<ContainerItemStash> availableItemStashes = new List<ContainerItemStash>();
-                foreach (ContainerItemStash[] row in this.itemStashes)
+                List<ContainerItemStash> availableStashes = new List<ContainerItemStash>();
+                foreach (ContainerItemStash[] row in this.stashes)
                 {
-                    foreach (ContainerItemStash itemStash in row)
+                    foreach (ContainerItemStash containerStash in row)
                     {
-                        if (itemStash.CanStackItemStorable(lootRoll.ItemStorable) && itemStash.MaxQuantity - itemStash.CurrentQuantity >= lootRoll.Quantity)
+                        if (containerStash.CanStackStorable(lootRoll.Storable) && containerStash.MaxQuantity - containerStash.CurrentQuantity >= lootRoll.Quantity)
                         {
-                            availableItemStashes.Add(itemStash);
+                            availableStashes.Add(containerStash);
                         }
                     }
                 }
 
-                if (availableItemStashes.Count > 0)
+                if (availableStashes.Count > 0)
                 {
-                    ContainerItemStash pickedItemStash = availableItemStashes[Random.Range(0, availableItemStashes.Count)];
-                    pickedItemStash.AddItems(lootRoll.ItemStorable.CreateItems(lootRoll.Quantity), lootRoll.ItemStorable);
+                    ContainerItemStash pickedContainerStash = availableStashes[Random.Range(0, availableStashes.Count)];
+                    List<Item> items = lootRoll.Storable.CreateItems(lootRoll.Quantity);
+                    this.storage.AddStoredItems(items);
+                    pickedContainerStash.AddItems(items, lootRoll.Storable);
                 }
             }
         }

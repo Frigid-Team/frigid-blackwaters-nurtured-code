@@ -1,16 +1,25 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
 using FrigidBlackwaters.Core;
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
     public class Equippable : Item
     {
         [SerializeField]
-        private List<ItemRule> equippedItemRules;
-        [SerializeField]
         private IntSerializedReference equipPowerUsage;
+        [SerializeField]
+        private bool hasEquippedEffect;
+        [SerializeField]
+        [ShowIfBool("hasEquippedEffect", true)]
+        private ItemNode equippedRootNode;
+        [SerializeField]
+        private bool hasUnequippedEffect;
+        [SerializeField]
+        [ShowIfBool("hasUnequippedEffect", true)]
+        private ItemNode unequippedRootNode;
 
         private bool isEquipped;
 
@@ -30,43 +39,62 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override bool Used(List<Mob> usingMobs, ItemPowerBudget itemPowerBudget)
+        protected override HashSet<ItemNode> RootNodes
+        {
+            get
+            {
+                HashSet<ItemNode> rootNodes = new HashSet<ItemNode>();
+                if (this.hasEquippedEffect) rootNodes.Add(this.equippedRootNode);
+                if (this.hasUnequippedEffect) rootNodes.Add(this.unequippedRootNode);
+                return rootNodes;
+            }
+        }
+
+        public override bool Used()
         {
             if (!this.isEquipped)
             {
-                if (itemPowerBudget.TryUsePower(this, this.equipPowerUsage.ImmutableValue))
+                if (this.Storage.PowerBudget.TryUsePower(this, this.equipPowerUsage.ImmutableValue))
                 {
                     this.isEquipped = true;
-                    foreach (ItemRule equippedItemRule in this.equippedItemRules)
-                    {
-                        ApplyItemRule(usingMobs, equippedItemRule);
-                    }
+                    if (this.hasEquippedEffect) ActivateRootNode(this.equippedRootNode);
+                    if (this.hasUnequippedEffect) DeactivateRootNode(this.unequippedRootNode);
                 }
             }
             else
             {
-                if (itemPowerBudget.TryReleasePower(this))
+                if (this.Storage.PowerBudget.TryReleasePower(this))
                 {
                     this.isEquipped = false;
-                    foreach (ItemRule equippedItemRule in this.equippedItemRules)
-                    {
-                        UnapplyItemRule(usingMobs, equippedItemRule);
-                    }
+                    if (this.hasUnequippedEffect) ActivateRootNode(this.unequippedRootNode);
+                    if (this.hasEquippedEffect) DeactivateRootNode(this.equippedRootNode);
                 }
             }
             return false;
         }
 
-        public override void Unstashed(List<Mob> usingMobs, ItemPowerBudget itemPowerBudget)
+        public override void Stored()
         {
-            if (itemPowerBudget.TryReleasePower(this) && this.isEquipped)
+            base.Stored();
+            this.isEquipped = false;
+            if (this.hasUnequippedEffect) ActivateRootNode(this.unequippedRootNode);
+        }
+
+        public override void Unstored()
+        {
+            base.Unstored();
+            if (this.isEquipped)
             {
-                this.isEquipped = false;
-                foreach (ItemRule equippedItemRule in this.equippedItemRules)
+                if (this.Storage.PowerBudget.TryReleasePower(this))
                 {
-                    UnapplyItemRule(usingMobs, equippedItemRule);
+                    if (this.hasEquippedEffect) DeactivateRootNode(this.equippedRootNode);
                 }
             }
+            else
+            {
+                if (this.hasUnequippedEffect) DeactivateRootNode(this.unequippedRootNode);
+            }
+            this.isEquipped = false;
         }
 
         protected override void Awake()

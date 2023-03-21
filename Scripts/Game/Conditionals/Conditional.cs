@@ -7,12 +7,14 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private bool validateOnFalse;
 
-        public bool Validate()
+        public bool ValidateOnFalse
         {
-            bool evaluation = CustomValidate();
-            return evaluation && !this.validateOnFalse || !evaluation && this.validateOnFalse;
+            get
+            {
+                return this.validateOnFalse;
+            }
         }
 
-        protected abstract bool CustomValidate();
+        public abstract bool Evaluate(float elapsedDuration, float elapsedDurationDelta);
     }
 }

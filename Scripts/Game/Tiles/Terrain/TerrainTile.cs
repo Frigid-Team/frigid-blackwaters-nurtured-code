@@ -38,7 +38,7 @@ namespace FrigidBlackwaters.Game
                 }
                 this.pushCollider.points = colliderPoints;
             }
-            this.animatorBody.PlayByName(this.animationNames[Random.Range(0, this.animationNames.Length)]);
+            this.animatorBody.Play(this.animationNames[Random.Range(0, this.animationNames.Length)]);
         }
     }
 }

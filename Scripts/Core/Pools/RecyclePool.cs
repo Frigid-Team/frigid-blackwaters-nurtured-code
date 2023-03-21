@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Core
 {
-    public class RecyclePool<T> where T : MonoBehaviour
+    public class RecyclePool<T> where T : Component
     {
         private Queue<T> pooledObjects;
         private Func<T> toCreateInstance;

@@ -15,11 +15,11 @@ namespace FrigidBlackwaters.Game
             this.cellConnectorImage.enabled = isRevealed;
             if (!isRevealed) return;
             RectTransform rectTransform = (RectTransform)this.transform;
-            float distanceBetweenEntrances = Vector2.Distance(firstEntrance.PositionInFront, secondEntrance.PositionInFront);
+            float distanceBetweenEntrances = Vector2.Distance(firstEntrance.EntryPosition, secondEntrance.EntryPosition);
             rectTransform.sizeDelta = new Vector2(distanceBetweenEntrances * worldToMapScalingFactor + this.paddedLength, rectTransform.sizeDelta.y);
-            float angle = Mathf.Atan2(secondEntrance.PositionInFront.y - firstEntrance.PositionInFront.y, secondEntrance.PositionInFront.x - firstEntrance.PositionInFront.x);
+            float angle = Mathf.Atan2(secondEntrance.EntryPosition.y - firstEntrance.EntryPosition.y, secondEntrance.EntryPosition.x - firstEntrance.EntryPosition.x);
             rectTransform.localRotation = Quaternion.Euler(0, 0, angle * Mathf.Rad2Deg);
-            rectTransform.localPosition = (firstEntrance.PositionInFront + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distanceBetweenEntrances / 2) * worldToMapScalingFactor;
+            rectTransform.localPosition = (firstEntrance.EntryPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distanceBetweenEntrances / 2) * worldToMapScalingFactor;
         }
 
 #if UNITY_EDITOR

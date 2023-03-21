@@ -70,37 +70,16 @@ namespace FrigidBlackwaters
 
         protected virtual void Awake() { }
 
-        protected virtual void Start() { }
-
-        protected virtual void Update() { }
-
-        protected virtual void OnTriggerEnter2D(Collider2D collision) { }
-
-        protected virtual void OnTriggerStay2D(Collider2D collision) { }
-
-        protected virtual void OnTriggerExit2D(Collider2D collision) { }
-
-        protected virtual void OnCollisionEnter2D(Collision2D collision) { }
-
-        protected virtual void OnCollisionStay2D(Collision2D collision) { }
-
-        protected virtual void OnCollisionExit2D(Collision2D collision) { }
-
         protected virtual void OnEnable() { }
 
         protected virtual void OnDisable() { }
 
+        protected virtual void Start() { }
+
         protected virtual void OnDestroy() { }
 
-        protected virtual void OnApplicationFocus(bool hasFocus) { }
-
 #if UNITY_EDITOR
-
         protected virtual bool OwnsGameObject() { return false; }
-
-        protected virtual void OnDrawGizmos() { }
-
-        protected virtual void OnDrawGizmosSelected() { }
 
         private void Reset()
         {

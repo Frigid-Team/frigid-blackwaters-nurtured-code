@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 using FrigidBlackwaters.Utility;
@@ -49,6 +48,7 @@ namespace FrigidBlackwaters.Game
                     this.damageBonuses[animationIndex].Add(0);
                 }
             }
+            this.gameObject.layer = (int)FrigidLayer.HitBoxes;
             base.Created();
         }
 
@@ -94,16 +94,16 @@ namespace FrigidBlackwaters.Game
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
 
-        public override void SetFrameEnter(int animationIndex, int frameIndex, float elapsedDuration, int loopsElapsed)
+        public override void FrameEnter()
         {
-            this.DamageDealerBox.DamageBonus += GetDamageBonus(animationIndex, frameIndex);
-            base.SetFrameEnter(animationIndex, frameIndex, elapsedDuration, loopsElapsed);
+            this.DamageDealerBox.DamageBonus += GetDamageBonus(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            base.FrameEnter();
         }
 
-        public override void SetFrameExit(int animationIndex, int frameIndex)
+        public override void FrameExit()
         {
-            this.DamageDealerBox.DamageBonus -= GetDamageBonus(animationIndex, frameIndex);
-            base.SetFrameExit(animationIndex, frameIndex);
+            this.DamageDealerBox.DamageBonus -= GetDamageBonus(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            base.FrameExit();
         }
     }
 }

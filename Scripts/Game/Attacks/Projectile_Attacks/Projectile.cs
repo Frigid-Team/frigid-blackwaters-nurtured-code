@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEditor;
 using System.Collections.Generic;
 using System;
 
@@ -8,18 +7,18 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
+    [RequireComponent(typeof(Rigidbody2D))]
     public class Projectile : FrigidMonoBehaviour
     {
         [SerializeField]
         private AnimatorBody animatorBody;
-        [SerializeField]
-        private Rigidbody2D rigidbody;
-        [SerializeField]
-        private bool alignAlongTravelDirection;
 
         [Header("Wind Up")]
         [SerializeField]
         private bool hasWindUp;
+        [SerializeField]
+        [ShowIfBool("hasWindUp", true)]
+        private bool alignAlongLaunchDirection;
         [SerializeField]
         [ShowIfBool("hasWindUp", true)]
         private string windUpAnimationName;
@@ -27,6 +26,8 @@ namespace FrigidBlackwaters.Game
         [Header("Traveling")]
         [SerializeField]
         private bool hasMaxTravelDuration;
+        [SerializeField]
+        private bool alignAlongTravelDirection;
         [SerializeField]
         [ShowIfBool("hasMaxTravelDuration", true)]
         private FloatSerializedReference maxTravelDuration;
@@ -58,7 +59,7 @@ namespace FrigidBlackwaters.Game
             int damageBonus,
             DamageAlignment damageAlignment,
             Action onTeardown,
-            Vector2 absoluteSpawnPosition,
+            Vector2 spawnPosition,
             Vector2 launchDirection,
             Action<HitInfo> onHitDealt,
             Action<BreakInfo> onBreakDealt,
@@ -86,13 +87,27 @@ namespace FrigidBlackwaters.Game
                 attackProperty.DamageAlignment = damageAlignment;
             }
 
-            this.transform.position = absoluteSpawnPosition;
+            this.transform.position = spawnPosition;
             this.launchDirection = launchDirection;
 
-            if (TiledArea.TryGetTiledAreaAtPosition(absoluteSpawnPosition, out TiledArea tiledArea))
+            if (TiledArea.TryGetTiledAreaAtPosition(spawnPosition, out TiledArea tiledArea))
             {
                 this.transform.SetParent(tiledArea.ContentsTransform);
-                FrigidCoroutine.Run(ProjectileLifetime(damageBonus, onTeardown, onHitDealt, onBreakDealt, onWarningDealt, tiledArea), this.gameObject);
+                FrigidCoroutine.Run(
+                    ProjectileLifetime(
+                        damageBonus, 
+                        () =>
+                        {
+                            this.transform.SetParent(null);
+                            onTeardown?.Invoke();
+                        },
+                        onHitDealt,
+                        onBreakDealt, 
+                        onWarningDealt, 
+                        tiledArea
+                        ), 
+                    this.gameObject
+                    );
             }
             else
             {
@@ -102,7 +117,7 @@ namespace FrigidBlackwaters.Game
 
         private IEnumerator<FrigidCoroutine.Delay> ProjectileLifetime(
             int damageBonus,
-            Action onTeardown,
+            Action onComplete,
             Action<HitInfo> onHitDealt,
             Action<BreakInfo> onBreakDealt,
             Action<ThreatInfo> onThreatDealt,
@@ -139,38 +154,35 @@ namespace FrigidBlackwaters.Game
             if (this.hasWindUp)
             {
                 bool windUpFinished = false;
-                this.animatorBody.PlayByName(this.windUpAnimationName, () => { windUpFinished = true; });
+                this.animatorBody.Play(this.windUpAnimationName, () => { windUpFinished = true; });
+                if (this.alignAlongLaunchDirection)
+                {
+                    this.transform.rotation = Quaternion.Euler(0, 0, this.launchDirection.ComponentAngle0To2PI() * Mathf.Rad2Deg);
+                }
                 yield return new FrigidCoroutine.DelayWhile(() => { return !windUpFinished; });
             }
 
-            void UpdateTravelVelocity(Vector2 calculatedVelocity)
-            {
-                this.rigidbody.velocity = calculatedVelocity;
-            }
-
-            this.animatorBody.PlayByName(this.travelingAnimationName);
-            this.mover.OnVelocityUpdated += UpdateTravelVelocity;
-            this.mover.AddMoves(this.moves);
+            this.animatorBody.Play(this.travelingAnimationName);
+            foreach (Move move in this.moves) this.mover.AddMove(move, 0, false);
             float elapsedTravelDuration = 0;
-            float maxTravelDuration = this.hasMaxTravelDuration ? this.maxTravelDuration.ImmutableValue : float.MaxValue;
+            float maxTravelDuration = this.hasMaxTravelDuration ? this.maxTravelDuration.MutableValue : float.MaxValue;
             while (!isBroken && elapsedTravelDuration < maxTravelDuration &&
-                   TilePositioning.TileAbsolutePositionWithinBounds(this.transform.position, tiledArea.AbsoluteCenterPosition, tiledArea.WallAreaDimensions))
+                   TilePositioning.TilePositionWithinBounds(this.transform.position, tiledArea.CenterPosition, tiledArea.WallAreaDimensions))
             {
                 if (this.alignAlongTravelDirection)
                 {
-                    this.transform.rotation = Quaternion.Euler(0, 0, this.mover.CalculatedVelocity.ComponentAngle0To360() * Mathf.Rad2Deg);
+                    this.transform.rotation = Quaternion.Euler(0, 0, this.mover.CalculatedVelocity.ComponentAngle0To2PI() * Mathf.Rad2Deg);
                 }
                 this.animatorBody.Direction = this.mover.CalculatedVelocity;
-                elapsedTravelDuration += Time.deltaTime;
+                elapsedTravelDuration += FrigidCoroutine.DeltaTime;
                 yield return null;
             }
-            this.mover.RemoveMoves(this.moves);
-            this.mover.OnVelocityUpdated -= UpdateTravelVelocity;
+            foreach (Move move in this.moves) this.mover.RemoveMove(move);
 
             if (this.hasBreak)
             {
                 bool breakFinished = false;
-                this.animatorBody.PlayByName(this.breakAnimationName, () => { breakFinished = true; });
+                this.animatorBody.Play(this.breakAnimationName, () => { breakFinished = true; });
                 yield return new FrigidCoroutine.DelayWhile(() => { return !breakFinished; });
             }
 
@@ -199,7 +211,7 @@ namespace FrigidBlackwaters.Game
                 attackProperty.OnThreatDealt -= onThreatDealt;
             }
 
-            onTeardown?.Invoke();
+            onComplete?.Invoke();
         }
     }
 }

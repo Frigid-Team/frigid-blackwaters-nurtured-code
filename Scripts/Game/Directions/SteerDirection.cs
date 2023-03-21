@@ -31,7 +31,7 @@ namespace FrigidBlackwaters.Game
                     {
                         steeredDirection = startDirections[i];
                     }
-                    float steeredAngleRad = steeredDirection.ComponentAngle0To360();
+                    float steeredAngleRad = steeredDirection.ComponentAngle0To2PI();
                     steeredAngleRad = Vector2.SignedAngle(steeredDirection, targetDirections[i]) > 0 ? (steeredAngleRad + angleStep) : (steeredAngleRad - angleStep);
                     directions[i] = new Vector2(Mathf.Cos(steeredAngleRad), Mathf.Sin(steeredAngleRad));
                 }

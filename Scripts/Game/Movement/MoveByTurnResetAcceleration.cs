@@ -6,9 +6,9 @@ namespace FrigidBlackwaters.Game
     {
         private Vector2 previousMovementDirection;
 
-        protected override void StartedMoving(Vector2 movementPosition, float speedBonus)
+        public override void StartMoving()
         {
-            base.StartedMoving(movementPosition, speedBonus);
+            base.StartMoving();
             this.previousMovementDirection = Vector2.zero;
         }
 

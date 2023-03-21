@@ -1,11 +1,19 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace FrigidBlackwaters
 {
     public class FrigidCoroutine
     {
+        private static float time;
+        private static float unscaledTime;
+        private static float deltaTime;
+        private static float unscaledDeltaTime;
+
         private IEnumerator<Delay> enumerator;
         private GameObject targetObject;
         private int index;
@@ -13,53 +21,91 @@ namespace FrigidBlackwaters
         private bool running;
         private float localTime;
         private float localTimeUnscaled;
-        private bool paused;
+        private float localTimeScale;
 
-        public FrigidCoroutine(IEnumerator<Delay> enumerator, GameObject targetObject, int index, bool paused)
+        public static float Time
+        {
+            get
+            {
+                return time;
+            }
+        }
+
+        public static float UnscaledTime
+        {
+            get
+            {
+                return unscaledTime;
+            }
+        }
+
+        public static float DeltaTime
+        {
+            get
+            {
+                return deltaTime;
+            }
+        }
+
+        public static float UnscaledDeltaTime
+        {
+            get
+            {
+                return unscaledDeltaTime;
+            }
+        }
+
+        public FrigidCoroutine(IEnumerator<Delay> enumerator, GameObject targetObject, int index, float localTimeScale)
         {
             this.enumerator = enumerator;
             this.targetObject = targetObject;
             this.index = index;
             this.updated = false;
             this.running = true;
-            this.paused = paused;
+            this.localTime = 0f;
+            this.localTimeUnscaled = 0f;
+            this.localTimeScale = localTimeScale;
         }
 
-        public bool Paused
+        public float LocalTimeScale
         {
             get
             {
-                return this.paused;
+                return this.localTimeScale;
             }
             set
             {
-                this.paused = value;
+                this.localTimeScale = value;
             }
         }
 
-        public static FrigidCoroutine Run(IEnumerator<Delay> enumerator, GameObject targetObject, bool initiallyPaused = false)
+        public static FrigidCoroutine Run(IEnumerator<Delay> enumerator, GameObject targetObject = null, float localTimeScale = 1.0f)
         {
-            return Updater.Instance.RunCoroutine(enumerator, targetObject, initiallyPaused);
+#if UNITY_EDITOR
+            if (!EditorApplication.isPlaying)
+            {
+                return null;
+            }
+#endif
+            return Updater.Instance.RunCoroutine(enumerator, targetObject, localTimeScale);
         }
 
         public static void Kill(FrigidCoroutine coroutine)
         {
-            Updater.Instance.KillCoroutine(coroutine);
-        }
-
-        private bool ShouldRun
-        {
-            get
+#if UNITY_EDITOR
+            if (!EditorApplication.isPlaying)
             {
-                return !this.paused && this.targetObject.activeInHierarchy;
+                return;
             }
+#endif
+            Updater.Instance.KillCoroutine(coroutine);
         }
 
         public abstract class Delay
         {
-            public abstract bool IsDelayed(float localTime, float localTimeUnscaled);
+            public abstract bool IsDelayed();
 
-            public virtual void Init(float localTime, float localTimeUnscaled) { }
+            public virtual void Init() { }
         }
 
         public class DelayForSeconds : Delay
@@ -72,15 +118,15 @@ namespace FrigidBlackwaters
                 this.delayDuration = delayDuration;
             }
 
-            public override bool IsDelayed(float localTime, float localTimeUnscaled)
+            public override bool IsDelayed()
             {
-                return localTime < this.finishTime;
+                return time < this.finishTime;
             }
 
-            public override void Init(float localTime, float localTimeUnscaled)
+            public override void Init()
             {
-                base.Init(localTime, localTimeUnscaled);
-                this.finishTime = localTime + this.delayDuration;
+                base.Init();
+                this.finishTime = time + this.delayDuration;
             }
         }
 
@@ -94,15 +140,15 @@ namespace FrigidBlackwaters
                 this.delayDuration = delayDuration;
             }
 
-            public override bool IsDelayed(float localTime, float localTimeUnscaled)
+            public override bool IsDelayed()
             {
-                return localTimeUnscaled < this.finishTime;
+                return unscaledTime < this.finishTime;
             }
 
-            public override void Init(float localTime, float localTimeUnscaled)
+            public override void Init()
             {
-                base.Init(localTime, localTimeUnscaled);
-                this.finishTime = localTimeUnscaled + this.delayDuration;
+                base.Init();
+                this.finishTime = unscaledTime + this.delayDuration;
             }
         }
 
@@ -115,7 +161,7 @@ namespace FrigidBlackwaters
                 this.predicate = predicate;
             }
 
-            public override bool IsDelayed(float localTime, float localTimeUnscaled)
+            public override bool IsDelayed()
             {
                 return this.predicate.Invoke();
             }
@@ -130,7 +176,7 @@ namespace FrigidBlackwaters
                 this.predicate = predicate;
             }
 
-            public override bool IsDelayed(float localTime, float localTimeUnscaled)
+            public override bool IsDelayed()
             {
                 return !this.predicate.Invoke();
             }
@@ -148,12 +194,16 @@ namespace FrigidBlackwaters
             private int nextRoutineIndex;
             private short numFramesSinceLastMaintenance;
 
-            static Updater()
+            [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+            public static void InitializeInstance()
             {
-                GameObject instanceObject = new GameObject();
-                instance = instanceObject.AddComponent<Updater>();
-                instanceObject.hideFlags = HideFlags.HideInHierarchy;
-                DontDestroyOnLoad(instanceObject);
+                if (instance == null)
+                {
+                    GameObject instanceObject = new GameObject();
+                    instance = instanceObject.AddComponent<Updater>();
+                    instanceObject.hideFlags = HideFlags.HideInHierarchy;
+                    DontDestroyOnLoad(instanceObject);
+                }
             }
 
             public static Updater Instance
@@ -164,9 +214,11 @@ namespace FrigidBlackwaters
                 }
             }
 
-            public FrigidCoroutine RunCoroutine(IEnumerator<Delay> enumerator, GameObject targetObject, bool initiallyPaused)
+            public FrigidCoroutine RunCoroutine(IEnumerator<Delay> enumerator, GameObject targetObject, float localTimeScale)
             {
                 if (enumerator == null) return null;
+
+                if (targetObject == null) targetObject = instance.gameObject;
 
                 if (this.nextRoutineIndex == this.coroutines.Length)
                 {
@@ -178,22 +230,27 @@ namespace FrigidBlackwaters
                     }
                 }
 
-                FrigidCoroutine coroutine = new FrigidCoroutine(enumerator, targetObject, this.nextRoutineIndex, initiallyPaused);
+                FrigidCoroutine coroutine = new FrigidCoroutine(enumerator, targetObject, this.nextRoutineIndex, localTimeScale);
                 this.coroutines[coroutine.index] = coroutine;
                 this.nextRoutineIndex++;
 
-                if (!coroutine.targetObject || coroutine.ShouldRun && !coroutine.enumerator.MoveNext())
+                deltaTime = UnityEngine.Time.deltaTime * coroutine.localTimeScale;
+                unscaledDeltaTime = UnityEngine.Time.unscaledDeltaTime * coroutine.localTimeScale;
+                time = coroutine.localTime;
+                unscaledTime = coroutine.localTimeUnscaled;
+
+                if (!coroutine.targetObject || coroutine.targetObject.activeInHierarchy && !coroutine.enumerator.MoveNext())
                 {
                     this.coroutines[coroutine.index] = null;
                 }
 
+                coroutine.localTime += deltaTime;
+                coroutine.localTimeUnscaled += unscaledDeltaTime;
+
                 coroutine.updated = true;
-                coroutine.running = coroutine.ShouldRun;
+                coroutine.running = coroutine.targetObject.activeInHierarchy;
 
-                coroutine.localTime += Time.deltaTime;
-                coroutine.localTimeUnscaled += Time.unscaledDeltaTime;
-
-                coroutine.enumerator.Current?.Init(coroutine.localTime, coroutine.localTimeUnscaled);
+                coroutine.enumerator.Current?.Init();
 
                 return coroutine;
             }
@@ -232,14 +289,15 @@ namespace FrigidBlackwaters
                         continue;
                     }
 
-                    if (!this.coroutines[i].updated && this.coroutines[i].running && this.coroutines[i].ShouldRun)
+                    if (!this.coroutines[i].updated && this.coroutines[i].running && this.coroutines[i].targetObject.activeInHierarchy)
                     {
-
-                        this.coroutines[i].localTime += Time.deltaTime;
-                        this.coroutines[i].localTimeUnscaled += Time.unscaledDeltaTime;
+                        deltaTime = UnityEngine.Time.deltaTime * this.coroutines[i].localTimeScale;
+                        unscaledDeltaTime = UnityEngine.Time.unscaledDeltaTime * this.coroutines[i].localTimeScale;
+                        time = this.coroutines[i].localTime;
+                        unscaledTime = this.coroutines[i].localTimeUnscaled;
 
                         if (this.coroutines[i].enumerator.Current == null || 
-                            !this.coroutines[i].enumerator.Current.IsDelayed(this.coroutines[i].localTime, this.coroutines[i].localTimeUnscaled))
+                            !this.coroutines[i].enumerator.Current.IsDelayed())
                         {
                             if (!this.coroutines[i].enumerator.MoveNext())
                             {
@@ -247,8 +305,16 @@ namespace FrigidBlackwaters
                                 continue;
                             }
 
-                            this.coroutines[i].enumerator.Current?.Init(this.coroutines[i].localTime, this.coroutines[i].localTimeUnscaled);
+                            deltaTime = UnityEngine.Time.deltaTime * this.coroutines[i].localTimeScale;
+                            unscaledDeltaTime = UnityEngine.Time.unscaledDeltaTime * this.coroutines[i].localTimeScale;
+                            time = this.coroutines[i].localTime;
+                            unscaledTime = this.coroutines[i].localTimeUnscaled;
+
+                            this.coroutines[i].enumerator.Current?.Init();
                         }
+
+                        this.coroutines[i].localTime += deltaTime;
+                        this.coroutines[i].localTimeUnscaled += unscaledDeltaTime;
                     }
                 }
 
@@ -297,7 +363,7 @@ namespace FrigidBlackwaters
                     if (this.coroutines[i] != null)
                     {
                         this.coroutines[i].updated = false;
-                        this.coroutines[i].running = this.coroutines[i].ShouldRun;
+                        this.coroutines[i].running = this.coroutines[i].targetObject.activeInHierarchy;
                     }
                 }
             }

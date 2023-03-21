@@ -15,7 +15,7 @@ namespace FrigidBlackwaters.Game
         private FloatSerializedReference fadeDuration;
 
         private FrigidCoroutine loadingScreenRoutine;
-        private CountingSemaphore isLoading;
+        private ControlCounter isLoading;
         private Action onScreenFullyShown;
 
         public static void RequestLoad(Action onReadyForLoad)
@@ -40,7 +40,7 @@ namespace FrigidBlackwaters.Game
         {
             base.Awake();
             instance = this;
-            this.isLoading = new CountingSemaphore();
+            this.isLoading = new ControlCounter();
             this.isLoading.OnFirstRequest += instance.ShowScreen;
             this.isLoading.OnLastRelease += instance.HideScreen;
             FrigidInstancing.DontDestroyInstanceOnLoad(this);

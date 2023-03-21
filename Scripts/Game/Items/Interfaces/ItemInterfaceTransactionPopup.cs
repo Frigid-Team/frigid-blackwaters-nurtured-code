@@ -15,7 +15,7 @@ namespace FrigidBlackwaters.Game
         {
             bool contentsActive = false;
             this.buyRow.Row.SetActive(false);
-            if (vendorItemStash.TryGetItemStorable(out ItemStorable buyingItemStorable))
+            if (vendorItemStash.TryGetStorable(out ItemStorable buyingItemStorable))
             {
                 int buyCost = vendorItemStash.CalculateBuyCost(buyingItemStorable);
                 if (buyCost > 0)
@@ -32,7 +32,7 @@ namespace FrigidBlackwaters.Game
             }
 
             this.sellRow.Row.SetActive(false);
-            if (customerItemStash.TryGetItemStorable(out ItemStorable sellingItemStorable))
+            if (customerItemStash.TryGetStorable(out ItemStorable sellingItemStorable))
             {
                 int sellCost = vendorItemStash.CalculateSellCost(sellingItemStorable);
                 if (sellCost > 0)

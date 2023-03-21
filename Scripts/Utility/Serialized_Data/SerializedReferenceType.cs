@@ -6,6 +6,7 @@ namespace FrigidBlackwaters.Utility
         ScriptableConstant,
         RandomFromRange,
         RandomFromSelection,
-        ScriptableVariable
+        ScriptableVariable,
+        Inherited
     }
 }

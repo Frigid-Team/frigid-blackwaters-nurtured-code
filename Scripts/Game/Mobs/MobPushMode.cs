@@ -5,6 +5,7 @@ namespace FrigidBlackwaters.Game
         IgnoreNone,
         IgnoreMobs,
         IgnoreMobsAndTerrain,
+        IgnoreMobsTerrainAndObstacles,
         IgnoreEverything,
         Count
     }

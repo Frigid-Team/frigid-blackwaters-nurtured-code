@@ -10,74 +10,86 @@ namespace FrigidBlackwaters.Game
         private static SceneVariable<Dictionary<Explosion, RecyclePool<Explosion>>> explosionPools;
 
         [SerializeField]
+        private IntSerializedReference numberSpawns;
+        [SerializeField]
+        private FloatSerializedReference durationBetweenSpawns;
+        [SerializeField]
         private Targeter baseSpawnTargeter;
 
         static ExplosionAttack()
         {
-            explosionPools = new SceneVariable<Dictionary<Explosion, RecyclePool<Explosion>>>(() => { return new Dictionary<Explosion, RecyclePool<Explosion>>(); });
+            explosionPools = new SceneVariable<Dictionary<Explosion, RecyclePool<Explosion>>>(() => new Dictionary<Explosion, RecyclePool<Explosion>>());
         }
 
         public override void Perform(float elapsedDuration)
         {
-            Vector2 baseSpawnPosition = this.baseSpawnTargeter.Calculate(this.transform.position, elapsedDuration, 0);
-
-            if (!TiledArea.TryGetTiledAreaAtPosition(baseSpawnPosition, out TiledArea tiledArea))
+            IEnumerator<FrigidCoroutine.Delay> Perform()
             {
-                return;
-            }
-
-            foreach (ExplosionSpawnParameters explosionSpawnParameters in GetExplosionSpawnParameters(baseSpawnPosition, elapsedDuration))
-            {
-                if (!TilePositioning.TileAbsolutePositionWithinBounds(explosionSpawnParameters.AbsoluteSpawnPosition, tiledArea.AbsoluteCenterPosition, tiledArea.MainAreaDimensions))
+                Vector2[] baseSpawnPositions = this.baseSpawnTargeter.Calculate(new Vector2[this.numberSpawns.ImmutableValue], elapsedDuration, 0);
+                foreach (Vector2 baseSpawnPosition in baseSpawnPositions)
                 {
-                    continue;
-                }
+                    if (!TiledArea.TryGetTiledAreaAtPosition(baseSpawnPosition, out TiledArea tiledArea))
+                    {
+                        continue;
+                    }
 
-                if (!explosionPools.Current.ContainsKey(explosionSpawnParameters.ExplosionPrefab))
-                {
-                    explosionPools.Current.Add(
-                        explosionSpawnParameters.ExplosionPrefab,
-                        new RecyclePool<Explosion>(
-                            () => FrigidInstancing.CreateInstance<Explosion>(explosionSpawnParameters.ExplosionPrefab), 
-                            (Explosion explosion) => FrigidInstancing.DestroyInstance(explosion)
-                            )
-                        );
+                    foreach (ExplosionSpawnParameters explosionSpawnParameters in GetExplosionSpawnParameters(baseSpawnPosition, elapsedDuration))
+                    {
+                        if (!TilePositioning.TilePositionWithinBounds(explosionSpawnParameters.SpawnPosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions))
+                        {
+                            continue;
+                        }
+
+                        if (!explosionPools.Current.ContainsKey(explosionSpawnParameters.ExplosionPrefab))
+                        {
+                            explosionPools.Current.Add(
+                                explosionSpawnParameters.ExplosionPrefab,
+                                new RecyclePool<Explosion>(
+                                    () => FrigidInstancing.CreateInstance<Explosion>(explosionSpawnParameters.ExplosionPrefab),
+                                    (Explosion explosion) => FrigidInstancing.DestroyInstance(explosion)
+                                    )
+                                );
+                        }
+                        RecyclePool<Explosion> explosionPool = explosionPools.Current[explosionSpawnParameters.ExplosionPrefab];
+                        Explosion spawnedExplosion = explosionPool.Retrieve();
+                        spawnedExplosion.SummonExplosion(
+                            this.DamageBonus,
+                            this.DamageAlignment,
+                            () => explosionPool.Pool(spawnedExplosion),
+                            explosionSpawnParameters.SpawnPosition,
+                            explosionSpawnParameters.SummonRotationDeg,
+                            this.OnHitDealt,
+                            this.OnBreakDealt,
+                            this.OnThreatDealt
+                            );
+                    }
+
+                    yield return new FrigidCoroutine.DelayForSeconds(this.durationBetweenSpawns.MutableValue);
                 }
-                RecyclePool<Explosion> explosionPool = explosionPools.Current[explosionSpawnParameters.ExplosionPrefab];
-                Explosion spawnedExplosion = explosionPool.Retrieve();
-                spawnedExplosion.SummonExplosion(
-                    this.DamageBonus,
-                    this.DamageAlignment, 
-                    () => explosionPool.Pool(spawnedExplosion),
-                    explosionSpawnParameters.AbsoluteSpawnPosition, 
-                    explosionSpawnParameters.SummonRotationDeg, 
-                    this.OnHitDealt,
-                    this.OnBreakDealt,
-                    this.OnThreatDealt
-                    );
             }
+            FrigidCoroutine.Run(Perform(), this.gameObject);
         }
 
         protected abstract List<ExplosionSpawnParameters> GetExplosionSpawnParameters(Vector2 baseSpawnPosition, float elapsedDuration);
 
         protected struct ExplosionSpawnParameters
         {
-            private Vector2 absoluteSpawnPosition;
+            private Vector2 spawnPosition;
             private float summonRotationDeg;
             private Explosion explosionPrefab;
 
-            public ExplosionSpawnParameters(Vector2 absoluteSpawnPosition, float summonRotationDeg, Explosion explosionPrefab)
+            public ExplosionSpawnParameters(Vector2 spawnPosition, float summonRotationDeg, Explosion explosionPrefab)
             {
-                this.absoluteSpawnPosition = absoluteSpawnPosition;
+                this.spawnPosition = spawnPosition;
                 this.summonRotationDeg = summonRotationDeg;
                 this.explosionPrefab = explosionPrefab;
             }
 
-            public Vector2 AbsoluteSpawnPosition
+            public Vector2 SpawnPosition
             {
                 get
                 {
-                    return this.absoluteSpawnPosition;
+                    return this.spawnPosition;
                 }
             }
 

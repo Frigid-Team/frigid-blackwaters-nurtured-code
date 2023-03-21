@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 
 using FrigidBlackwaters.Utility;
@@ -22,9 +23,12 @@ namespace FrigidBlackwaters.Game
 
         [SerializeField]
         private int editPropertyIndex;
-
         [SerializeField]
         private int editAnimationIndex;
+        [SerializeField]
+        private int editFrameIndex;
+        [SerializeField]
+        private int editOrientationIndex;
 
         [SerializeField]
         private Vector2 editFieldsScrollPos;
@@ -41,11 +45,6 @@ namespace FrigidBlackwaters.Game
         private int dragPropertyIndex;
         [SerializeField]
         private int dragRequestIndex;
-
-        [SerializeField]
-        private int editFrameIndex;
-        [SerializeField]
-        private int editOrientationIndex;
 
         [SerializeField]
         private int copyPropertyIndex;
@@ -110,19 +109,23 @@ namespace FrigidBlackwaters.Game
                 Debug.LogError("Could not find a " + typeof(AnimatorBodyToolConfig).Name + " asset!");
             }
 
-            StopDrag();
-            Undo.undoRedoPerformed += StopDrag;
+            this.isDraggingPreview = false;
+            this.dragPropertyIndex = -1;
+            this.dragRequestIndex = -1;
+            this.isDraggingOrientation = false;
 
             this.copyPropertyIndex = -1;
             this.copyAnimationIndex = -1;
             this.copyFrameIndex = -1;
             this.copyOrientationIndex = -1;
+
+            Undo.undoRedoPerformed += HandleUndoRedo;
         }
 
         protected override void Closed()
         {
             base.Closed();
-            Undo.undoRedoPerformed -= StopDrag;
+            Undo.undoRedoPerformed -= HandleUndoRedo;
         }
 
         protected override void Draw()
@@ -135,7 +138,7 @@ namespace FrigidBlackwaters.Game
                     return;
                 }
 
-                AnimatorBody newBody = Selection.activeGameObject.GetComponentInParent<AnimatorBody>();
+                AnimatorBody newBody = Selection.activeGameObject.GetComponent<AnimatorBody>();
                 if (this.body == null || this.body != newBody)
                 {
                     this.body = newBody;
@@ -192,12 +195,19 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        private void StopDrag()
+        private void HandleUndoRedo()
         {
             this.isDraggingPreview = false;
             this.dragPropertyIndex = -1;
             this.dragRequestIndex = -1;
             this.isDraggingOrientation = false;
+
+            if (this.body != null)
+            {
+                UpdateEditAnimationIndex(this.editAnimationIndex);
+                UpdateEditFrameIndex(this.editFrameIndex);
+                UpdateEditOrientationIndex(this.editOrientationIndex);
+            }
         }
 
         private void UpdateEditPropertyIndex(int newPropertyIndex)
@@ -324,14 +334,6 @@ namespace FrigidBlackwaters.Game
                     }
                 }
 
-                using (new EditorGUI.DisabledScope(!EditorApplication.isPlaying))
-                {
-                    if (GUILayout.Button("Play In Game", EditorStyles.toolbarButton))
-                    {
-                        this.body.Play(this.editAnimationIndex);
-                    }
-                }
-
                 using (new EditorGUI.DisabledScope(EditorApplication.isPlaying))
                 {
                     if (GUILayout.Button("Set Asset Preview", EditorStyles.toolbarButton))
@@ -371,7 +373,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.editPropertyIndex < this.body.PropertyCount)
                 {
-                    AnimatorProperty currentProperty = this.body.GetProperties()[this.editPropertyIndex];
+                    AnimatorProperty currentProperty = this.body.Properties[this.editPropertyIndex];
                     AnimatorToolPropertyDrawer propertyDrawer = CreatePropertyDrawerForProperty(currentProperty);
                     using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                     {
@@ -445,12 +447,12 @@ namespace FrigidBlackwaters.Game
                     GUIHelper.DrawLine(previewRect.size / 2 + new Vector2(this.previewOffset.x, -this.config.PreviewLength / 2), previewRect.size / 2 + new Vector2(this.previewOffset.x, this.config.PreviewLength / 2));
                 }
 
-                List<AnimatorProperty> properties = this.body.GetProperties().ToList();
+                List<AnimatorProperty> properties = this.body.Properties;
                 List<(Rect rect, Action onDrag)>[] dragRequestsPerProperty = new List<(Rect rect, Action onDrag)>[properties.Count];
 
                 if (this.editAnimationIndex != -1 && this.editFrameIndex != -1 && this.editOrientationIndex != -1)
                 {
-                    void DrawPropertiesAtLevel(List<AnimatorProperty> currentProperties)
+                    void DrawPropertiesAtLevel(Vector2 parentPreviewOffset, List<AnimatorProperty> currentProperties)
                     {
                         List<(AnimatorProperty property, AnimatorToolPropertyDrawer drawer)> drawersAndProperties = new List<(AnimatorProperty property, AnimatorToolPropertyDrawer drawer)>();
                         foreach (AnimatorProperty currentProperty in currentProperties)
@@ -479,12 +481,13 @@ namespace FrigidBlackwaters.Game
                             );
                         foreach ((AnimatorProperty property, AnimatorToolPropertyDrawer drawer) drawerAndProperty in drawersAndProperties)
                         {
+                            Vector2 localPreviewOffset = Vector2.zero;
                             if (drawerAndProperty.property.GetBinded(this.editAnimationIndex))
                             {
                                 int propertyIndex = properties.IndexOf(drawerAndProperty.property);
-                                drawerAndProperty.drawer.DrawPreview(
+                                localPreviewOffset = drawerAndProperty.drawer.DrawPreview(
                                     previewRect.size,
-                                    this.previewOffset,
+                                    parentPreviewOffset,
                                     tileWindowLength,
                                     this.editAnimationIndex,
                                     this.editFrameIndex,
@@ -494,10 +497,10 @@ namespace FrigidBlackwaters.Game
                                     );
                                 dragRequestsPerProperty[propertyIndex] = dragRequests;
                             }
-                            DrawPropertiesAtLevel(drawerAndProperty.property.ChildProperties);
+                            DrawPropertiesAtLevel(parentPreviewOffset + localPreviewOffset, drawerAndProperty.property.ChildProperties);
                         }
                     }
-                    DrawPropertiesAtLevel(new List<AnimatorProperty>() { this.body.RootProperty });
+                    DrawPropertiesAtLevel(this.previewOffset, new List<AnimatorProperty>() { this.body.RootProperty });
                 }
 
                 if (Event.current.type == EventType.MouseDown)
@@ -665,6 +668,8 @@ namespace FrigidBlackwaters.Game
 
                 using (EditorGUILayout.ScrollViewScope scrollViewScope = new EditorGUILayout.ScrollViewScope(this.orientationBarScrollPos, EditorStyles.helpBox))
                 {
+                    this.body.RotateToDirection = EditorGUILayout.Toggle("Rotate To Direction", this.body.RotateToDirection);
+
                     this.orientationBarScrollPos = scrollViewScope.scrollPosition;
                     using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
                     {
@@ -724,7 +729,7 @@ namespace FrigidBlackwaters.Game
                         {
                             using (new EditorGUI.DisabledScope(this.editOrientationIndex != orientationIndex))
                             {
-                                EditorGUILayout.Vector2Field("", this.body.GetOrientationDirection(this.editAnimationIndex, orientationIndex));
+                                this.body.SetOrientationDirection(this.editAnimationIndex, orientationIndex, EditorGUILayout.Vector2Field("", this.body.GetOrientationDirection(this.editAnimationIndex, orientationIndex)));
                             }
                         }
                     }
@@ -859,6 +864,7 @@ namespace FrigidBlackwaters.Game
                     }
 
                     List<Rect> copyPasteOutlineRects = new List<Rect>();
+                    List<AnimatorProperty> properties = this.body.Properties;
 
                     DrawCellRow(
                         0,
@@ -894,7 +900,15 @@ namespace FrigidBlackwaters.Game
                                     }
                                 }
                                 Rect copyPasteOutlineRect = new Rect(propertyCellRect);
-                                copyPasteOutlineRect.height += (this.body.PropertyCount + (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex))) * this.config.CellLength;
+                                int numExpandedProperties = 0;
+                                foreach (AnimatorProperty property in properties)
+                                {
+                                    if (InternalEditorUtility.GetIsInspectorExpanded(property))
+                                    {
+                                        numExpandedProperties++;
+                                    }
+                                }
+                                copyPasteOutlineRect.height += (this.body.PropertyCount + numExpandedProperties * (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex))) * this.config.CellLength;
                                 copyPasteOutlineRect.width += this.config.CellLength * (this.editAnimationIndex == -1 ? 0 : this.body.GetFrameCount(this.editAnimationIndex));
                                 copyPasteOutlineRects.Add(copyPasteOutlineRect);
                             }
@@ -945,7 +959,6 @@ namespace FrigidBlackwaters.Game
                         this.config.MediumColor
                         );
 
-                    List<AnimatorProperty> properties = this.body.GetProperties();
                     for (int propertyIndex = 0; propertyIndex < this.body.PropertyCount; propertyIndex++)
                     {
                         AnimatorProperty property = properties[propertyIndex];
@@ -984,7 +997,8 @@ namespace FrigidBlackwaters.Game
                                 Rect labelRect = new Rect(controlsRect);
                                 labelRect.width = this.config.PropertyNameWidth;
                                 labelRect.height = this.config.CellLength / 2;
-                                using (new GUIHelper.ColorScope(GUIStyling.Darken(propertyDrawer.AccentColor)))
+                                InternalEditorUtility.SetIsInspectorExpanded(property, GUI.Toggle(labelRect, InternalEditorUtility.GetIsInspectorExpanded(property), "", GUIStyling.EmptyStyle));
+                                using (new GUIHelper.ColorScope(GUIStyling.Darken(propertyDrawer.AccentColor, InternalEditorUtility.GetIsInspectorExpanded(property) ? 1 : 2)))
                                 {
                                     GUIHelper.DrawSolidBox(labelRect);
                                 }
@@ -1054,7 +1068,7 @@ namespace FrigidBlackwaters.Game
                                     }
                                     Rect copyPasteOutlineRect = new Rect(propertyCellRect);
                                     copyPasteOutlineRect.width += this.config.CellLength * (this.editAnimationIndex == -1 ? 0 : this.body.GetFrameCount(this.editAnimationIndex));
-                                    copyPasteOutlineRect.height += this.config.CellLength * (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex));
+                                    copyPasteOutlineRect.height += this.config.CellLength * (this.editAnimationIndex == -1 || !InternalEditorUtility.GetIsInspectorExpanded(property) ? 0 : this.body.GetOrientationCount(this.editAnimationIndex));
                                     copyPasteOutlineRects.Add(copyPasteOutlineRect);
                                 }
                             },
@@ -1093,7 +1107,7 @@ namespace FrigidBlackwaters.Game
                                         }
                                     }
                                     Rect copyPasteOutlineRect = new Rect(frameCellRect);
-                                    copyPasteOutlineRect.height += this.config.CellLength * (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex));
+                                    copyPasteOutlineRect.height += this.config.CellLength * (this.editAnimationIndex == -1 || !InternalEditorUtility.GetIsInspectorExpanded(property) ? 0 : this.body.GetOrientationCount(this.editAnimationIndex));
                                     copyPasteOutlineRects.Add(copyPasteOutlineRect);
                                 }
 
@@ -1113,7 +1127,7 @@ namespace FrigidBlackwaters.Game
                             GetSelectColor(false)
                             );
 
-                        if (this.editAnimationIndex != -1)
+                        if (this.editAnimationIndex != -1 && InternalEditorUtility.GetIsInspectorExpanded(property))
                         {
                             for (int orientationIndex = 0; orientationIndex < this.body.GetOrientationCount(this.editAnimationIndex); orientationIndex++)
                             {

@@ -63,15 +63,16 @@ namespace FrigidBlackwaters.Game
                     );
                 if (audioProperty.GetPlayThisFrame(animationIndex, frameIndex))
                 {
+                    audioProperty.SetWaitForEndOfClip(animationIndex, frameIndex, EditorGUILayout.Toggle("Wait For End Of Clip", audioProperty.GetWaitForEndOfClip(animationIndex, frameIndex)));
                     audioProperty.SetAudioClipByReference(
                         animationIndex,
                         frameIndex,
                         Core.GUILayoutHelper.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip", audioProperty.GetAudioClipByReference(animationIndex, frameIndex))
                         );
-                    audioProperty.SetOnlyPlayOnFirstLoop(
+                    audioProperty.SetOnlyPlayOnFirstCycle(
                         animationIndex,
                         frameIndex,
-                        EditorGUILayout.Toggle("Only Play On First Loop", audioProperty.GetOnlyPlayOnFirstLoop(animationIndex, frameIndex))
+                        EditorGUILayout.Toggle("Only Play On First Cycle", audioProperty.GetOnlyPlayOnFirstCycle(animationIndex, frameIndex))
                         );
                 }
             }

@@ -5,9 +5,6 @@ namespace FrigidBlackwaters.Game
 {
     public class TerrainContentPopulator : FrigidMonoBehaviour
     {
-        [SerializeField]
-        private TerrainContentAssetGroup terrainContentAssetGroup;
-
         public void PopulateTerrainContent(TiledAreaBlueprint tiledAreaBlueprint, Transform contentsTransform, NavigationGrid navigationGrid)
         {
             for (int y = 0; y < tiledAreaBlueprint.MainAreaDimensions.y; y++)
@@ -18,25 +15,22 @@ namespace FrigidBlackwaters.Game
                     for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
                     {
                         TerrainContentHeight height = (TerrainContentHeight)i;
-                        Vector2Int positionIndices = new Vector2Int(x, y);
-                        string id = tiledAreaBlueprint.GetTerrainContentIDAtTile(positionIndices, height);
-                        Vector2 orientationDirection = tiledAreaBlueprint.GetTerrainContentOrientationDirectionAtTile(positionIndices, height);
-                        if (this.terrainContentAssetGroup.TryGetTerrainContentAsset(height, tiledAreaBlueprint.GetTerrainAtTile(new Vector2Int(x, y)), id, out TerrainContentAsset terrainContentAsset))
+                        Vector2Int tileIndices = new Vector2Int(x, y);
+                        TerrainContentAsset terrainContentAsset = tiledAreaBlueprint.GetTerrainContentAssetAt(height, tileIndices);
+
+                        if (terrainContentAsset.IsNone) continue;
+
+                        Vector2 orientationDirection = tiledAreaBlueprint.GetTerrainContentOrientationDirectionAt(tileIndices, height);
+                        TerrainContent chosenTerrainContentPrefab = terrainContentAsset.TerrainContentPrefabs[Random.Range(0, terrainContentAsset.TerrainContentPrefabs.Count)];
+                        Vector2 spawnTilePosition = TilePositioning.RectPositionFromIndices(new Vector2Int(x, y), contentsTransform.position, tiledAreaBlueprint.MainAreaDimensions, chosenTerrainContentPrefab.Dimensions);
+                        TerrainContent spawnedTerrainContent = FrigidInstancing.CreateInstance<TerrainContent>(
+                            chosenTerrainContentPrefab,
+                            spawnTilePosition + Vector2.up * (numSpawnedOnRowAtHeight[i] % 2 * GameConstants.SMALLEST_WORLD_SIZE),
+                            contentsTransform
+                            );
+                        List<Vector2Int> populatedTileIndices = new List<Vector2Int>();
+                        if (TilePositioning.VisitTileIndicesInTileRect(new Vector2Int(x, y), chosenTerrainContentPrefab.Dimensions, tiledAreaBlueprint.MainAreaDimensions, (Vector2Int tileIndices) => populatedTileIndices.Add(tileIndices)))
                         {
-                            TerrainContent chosenTerrainContentPrefab = terrainContentAsset.TerrainContentPrefabs[Random.Range(0, terrainContentAsset.TerrainContentPrefabs.Count)];
-                            Vector2 spawnTileAbsolutePosition = TilePositioning.RectAbsolutePositionFromIndices(new Vector2Int(x, y), contentsTransform.position, tiledAreaBlueprint.MainAreaDimensions, chosenTerrainContentPrefab.Dimensions);
-                            TerrainContent spawnedTerrainContent = FrigidInstancing.CreateInstance<TerrainContent>(
-                                chosenTerrainContentPrefab,
-                                spawnTileAbsolutePosition + Vector2.up * (numSpawnedOnRowAtHeight[i] % 2 * GameConstants.SMALLEST_WORLD_SIZE),
-                                contentsTransform
-                                );
-                            List<Vector2Int> populatedTileIndices = new List<Vector2Int>();
-                            TilePositioning.VisitTileIndicesInRect(
-                                new Vector2Int(x, y),
-                                chosenTerrainContentPrefab.Dimensions,
-                                tiledAreaBlueprint.MainAreaDimensions,
-                                (Vector2Int tileIndices) => populatedTileIndices.Add(tileIndices)
-                                );
                             spawnedTerrainContent.Populated(orientationDirection, navigationGrid, populatedTileIndices);
                             numSpawnedOnRowAtHeight[i]++;
                         }

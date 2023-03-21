@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,10 +9,13 @@ namespace FrigidBlackwaters.Game
     public abstract class AnimatorProperty : FrigidMonoBehaviour
     {
         private const string NEW_PROPERTY_NAME = "New Property";
-
+ 
         [SerializeField]
         [ReadOnly]
         private AnimatorBody body;
+        [SerializeField]
+        [ReadOnly]
+        private List<AnimatorProperty> childProperties;
         [SerializeField]
         [HideInInspector]
         private List<bool> binds;
@@ -21,7 +25,7 @@ namespace FrigidBlackwaters.Game
             get
             {
                 int childHeight = 0;
-                foreach (AnimatorProperty childProperty in this.ChildProperties)
+                foreach (AnimatorProperty childProperty in this.childProperties)
                 {
                     childHeight = Mathf.Max(childProperty.ChildHeight + 1, childHeight);
                 }
@@ -34,7 +38,7 @@ namespace FrigidBlackwaters.Game
             get
             {
                 int childPropertyCount = 0;
-                foreach (AnimatorProperty childProperty in this.ChildProperties)
+                foreach (AnimatorProperty childProperty in this.childProperties)
                 {
                     childPropertyCount++;
                     childPropertyCount += childProperty.ChildPropertyCount;
@@ -43,7 +47,13 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public abstract List<AnimatorProperty> ChildProperties { get; }
+        public List<AnimatorProperty> ChildProperties 
+        {
+            get
+            {
+                return this.childProperties;
+            }
+        }
 
         public string PropertyName
         {
@@ -55,7 +65,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.gameObject.name != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEditMode.RecordPotentialChanges(this.gameObject);
                     this.gameObject.name = value;
                 }
             }
@@ -70,6 +80,39 @@ namespace FrigidBlackwaters.Game
             return newProperty;
         }
 
+        public int GetNumberChildProperties()
+        {
+            return this.childProperties.Count;
+        }
+
+        public AnimatorProperty GetChildPropertyAt(int index)
+        {
+            return this.childProperties[index];
+        }
+
+        public void AddChildPropertyAt(int index, Type propertyType)
+        {
+            GameObject propertyObject = FrigidEditMode.CreateGameObject(this.transform);
+            AnimatorProperty childProperty = (AnimatorProperty)FrigidEditMode.AddComponent(propertyObject, propertyType);
+            propertyObject.name = NEW_PROPERTY_NAME;
+            childProperty.body = this.Body;
+            childProperty.Created();
+            FrigidEditMode.RecordPotentialChanges(this);
+            this.childProperties.Insert(index, childProperty);
+            this.Body.RegisterPropertyCreation(childProperty);
+            childProperty.transform.SetSiblingIndex(this.ChildProperties.IndexOf(childProperty));
+        }
+
+        public void RemoveChildPropertyAt(int index)
+        {
+            FrigidEditMode.RecordPotentialChanges(this);
+            AnimatorProperty childProperty = this.childProperties[index];
+            this.Body.RegisterPropertyDestruction(childProperty);
+            this.childProperties.RemoveAt(index);
+            childProperty.Destroyed();
+            FrigidEditMode.DestroyGameObject(childProperty.gameObject);
+        }
+
         public bool GetBinded(int animationIndex)
         {
             return this.binds[animationIndex];
@@ -81,12 +124,14 @@ namespace FrigidBlackwaters.Game
             {
                 FrigidEditMode.RecordPotentialChanges(this);
                 this.binds[animationIndex] = binded;
+                this.Body.PropertyBindChanged(animationIndex);
             }
         }
 
         public virtual void Created()
         {
             FrigidEditMode.RecordPotentialChanges(this);
+            this.childProperties = new List<AnimatorProperty>();
             this.binds = new List<bool>();
             for (int animationIndex = 0; animationIndex < this.body.GetAnimationCount(); animationIndex++)
             {
@@ -180,106 +225,114 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public void PreAnimationSetup(int animationIndex, bool propertyEnabled)
+        public void SetActive(bool propertyEnabled)
         {
-            this.gameObject.SetActive(propertyEnabled);
+            if (this.gameObject.activeSelf != propertyEnabled)
+            {
+                this.gameObject.SetActive(propertyEnabled);
+            }
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                childProperty.PreAnimationSetup(animationIndex, propertyEnabled && childProperty.GetBinded(animationIndex));
+                childProperty.SetActive(propertyEnabled && childProperty.GetBinded(this.Body.CurrAnimationIndex));
             }
         }
 
-        public virtual void Paused()
+        public virtual void AnimationEnter()
         {
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                childProperty.Paused();
-            }
-        }
-
-        public virtual void UnPaused() 
-        {
-            foreach (AnimatorProperty childProperty in this.ChildProperties)
-            {
-                childProperty.UnPaused();
-            }
-        }
-
-        public virtual void AnimationEnter(int animationIndex, float elapsedDuration)
-        {
-            foreach (AnimatorProperty childProperty in this.ChildProperties)
-            {
-                if (childProperty.GetBinded(animationIndex))
+                if (childProperty.GetBinded(this.Body.CurrAnimationIndex))
                 {
-                    childProperty.AnimationEnter(animationIndex, elapsedDuration);
+                    childProperty.AnimationEnter();
                 }
             }
         }
 
-        public virtual void AnimationExit(int animationIndex)
+        public virtual void AnimationExit()
         {
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                if (childProperty.GetBinded(animationIndex))
+                if (childProperty.GetBinded(this.Body.CurrAnimationIndex))
                 {
-                    childProperty.AnimationExit(animationIndex);
+                    childProperty.AnimationExit();
                 }
             }
         }
 
-        public virtual void SetFrameEnter(int animationIndex, int frameIndex, float elapsedDuration, int loopsElapsed)
+        public virtual void FrameEnter()
         {
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                if (childProperty.GetBinded(animationIndex))
+                if (childProperty.GetBinded(this.Body.CurrAnimationIndex))
                 {
-                    childProperty.SetFrameEnter(animationIndex, frameIndex, elapsedDuration, loopsElapsed);
+                    childProperty.FrameEnter();
                 }
             }
         }
 
-        public virtual void SetFrameExit(int animationIndex, int frameIndex)
+        public virtual void FrameExit()
         {
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                if (childProperty.GetBinded(animationIndex))
+                if (childProperty.GetBinded(this.Body.CurrAnimationIndex))
                 {
-                    childProperty.SetFrameExit(animationIndex, frameIndex);
+                    childProperty.FrameExit();
                 }
             }
         }
 
-        public virtual void OrientFrameEnter(int animationIndex, int frameIndex, int orientationIndex, float elapsedDuration)
+        public virtual void OrientationEnter()
         {
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                if (childProperty.GetBinded(animationIndex))
+                if (childProperty.GetBinded(this.Body.CurrAnimationIndex))
                 {
-                    childProperty.OrientFrameEnter(animationIndex, frameIndex, orientationIndex, elapsedDuration);
+                    childProperty.OrientationEnter();
                 }
             }
         }
 
-        public virtual void OrientFrameExit(int animationIndex, int frameIndex, int orientationIndex)
+        public virtual void OrientationExit()
         {
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                if (childProperty.GetBinded(animationIndex))
+                if (childProperty.GetBinded(this.Body.CurrAnimationIndex))
                 {
-                    childProperty.OrientFrameExit(animationIndex, frameIndex, orientationIndex);
+                    childProperty.OrientationExit();
                 }
             }
         }
 
-        public bool IsCompletedAtEndOfAnimation(int animationIndex, float elapsedDuration)
+        public bool IsCompletedAtEndOfAnimation()
         {
             bool canComplete = true;
             foreach (AnimatorProperty childProperty in this.ChildProperties)
             {
-                canComplete &= childProperty.IsCompletedAtEndOfAnimation(animationIndex, elapsedDuration);
+                canComplete &= !childProperty.GetBinded(this.Body.CurrAnimationIndex) || childProperty.IsCompletedAtEndOfAnimation();
             }
-            canComplete &= CanCompleteAtEndOfAnimation(animationIndex, elapsedDuration);
+            canComplete &= CanCompleteAtEndOfAnimation();
             return canComplete;
+        }
+
+        public Bounds? GetAreaOccupied()
+        {
+            Bounds? areaOccupied = CalculateAreaOccupied();
+            foreach (AnimatorProperty childProperty in this.ChildProperties)
+            {
+                Bounds? childAreaOccupied = childProperty.GetAreaOccupied();
+                if (childAreaOccupied.HasValue) 
+                {
+                    if (!areaOccupied.HasValue)
+                    {
+                        areaOccupied = childAreaOccupied;
+                    }
+                    else
+                    {
+                        areaOccupied.Value.Encapsulate(childAreaOccupied.Value);
+                    }
+                }
+            }
+            return areaOccupied;
         }
 
         protected AnimatorBody Body
@@ -290,25 +343,14 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected virtual bool CanCompleteAtEndOfAnimation(int animationIndex, float elapsedDuration)
+        protected virtual bool CanCompleteAtEndOfAnimation()
         {
             return true;
         }
-        
-        protected P CreateSubProperty<P>() where P : AnimatorProperty
-        {
-            GameObject propertyObject = FrigidEditMode.CreateGameObject(this.transform);
-            P newProperty = FrigidEditMode.AddComponent<P>(propertyObject);
-            propertyObject.name = NEW_PROPERTY_NAME;
-            newProperty.body = this.body;
-            newProperty.Created();
-            return newProperty;
-        }
 
-        protected void DestroySubProperty(AnimatorProperty property)
+        protected virtual Bounds? CalculateAreaOccupied()
         {
-            property.Destroyed();
-            FrigidEditMode.DestroyGameObject(property.gameObject);
+            return null;
         }
     }
 }

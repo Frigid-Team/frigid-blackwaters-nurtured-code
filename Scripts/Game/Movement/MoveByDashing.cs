@@ -13,6 +13,7 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference speed;
 
+        private float dashSpeed;
         private float speedMultiplier;
         private Vector2 dashDirection;
 
@@ -24,30 +25,35 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected override void StartedMoving(Vector2 movementPosition, float speedBonus)
+        public override void StartMoving()
         {
-            base.StartedMoving(movementPosition, speedBonus);
-            this.speedMultiplier = Mathf.Max(this.speed.ImmutableValue + speedBonus, 0) / Calculus.Integral(this.speedCurve.ImmutableValue.Evaluate, 0, 1, 10);
-            this.dashDirection = Vector2.zero;
+            this.dashSpeed = Mathf.Max(this.speed.ImmutableValue + this.Mover.SpeedBonus, 0);
+            this.speedMultiplier = this.dashSpeed / Calculus.Integral(this.speedCurve.ImmutableValue.Evaluate, 0, 1, 10);
+            base.StartMoving();
         }
 
-        protected override float GetDuration(Vector2 movementPosition, float speedBonus)
+        protected override float CustomDuration
         {
-            float dashSpeed = Mathf.Max(this.speed.ImmutableValue + speedBonus, 0);
-            return dashSpeed != 0 ? GetMovementDistance(dashSpeed) / dashSpeed : float.MaxValue;
+            get
+            {
+                return this.dashSpeed != 0 ? GetMovementDistance(this.dashSpeed) / this.dashSpeed : float.PositiveInfinity;
+            }
         }
 
-        protected override void DurationStarted(float elapsedDuration)
+        protected override Vector2 VelocityDuringDuration
         {
-            base.DurationStarted(elapsedDuration);
-            this.dashDirection = this.dashWindupDirection.Calculate(this.dashDirection, elapsedDuration, 0);
+            get
+            {
+                return this.dashDirection * this.speedCurve.ImmutableValue.Evaluate(Mathf.Clamp01((this.MovingDuration - this.DelayDuration) / this.CustomDuration)) * this.speedMultiplier;
+            }
+        }
+
+        protected override void DurationStarted()
+        {
+            base.DurationStarted();
+            this.dashDirection = this.dashWindupDirection.Calculate(this.dashDirection, this.MovingDuration, 0);
         }
 
         protected abstract float GetMovementDistance(float dashSpeed);
-
-        protected override Vector2 GetVelocityDuringDuration(float normalizedProgress)
-        {
-            return this.dashDirection * this.speedCurve.ImmutableValue.Evaluate(Mathf.Clamp01(normalizedProgress)) * this.speedMultiplier;
-        }
     }
 }

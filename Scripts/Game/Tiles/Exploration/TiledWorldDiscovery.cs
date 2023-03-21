@@ -13,12 +13,18 @@ namespace FrigidBlackwaters.Game
         private static Action<TiledWorldDiscovery> onTiledWorldDiscoveryRevealed;
         private static Action<TiledWorldDiscovery> onTiledWorldDiscoveryHidden;
 
-        // Inspector_TODO: Discovery type hiding attributes
         [SerializeField]
         private DiscoveryType discoveryType;
         [SerializeField]
         [ShowIfInt("discoveryType", 0, true)]
         private Mob mob;
+        [SerializeField]
+        [ShowIfInt("discoveryType", 0, true)]
+        private bool showForMobClassification;
+        [SerializeField]
+        [ShowIfInt("discoveryType", 0, true)]
+        [ShowIfBool("showForMobClassification", true)]
+        private MobClassification mobClassification;
         [SerializeField]
         [ShowIfInt("discoveryType", 1, true)]
         private TerrainContent terrainContent;
@@ -27,8 +33,7 @@ namespace FrigidBlackwaters.Game
 
         static TiledWorldDiscovery()
         {
-            tiledWorldDiscoveriesPerTiledAreas = new SceneVariable<Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>>(() => { return new Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>(); });
-            TiledWorldExplorer.OnExploredNewTiledArea += (TiledArea exploredTiledArea) => { tiledWorldDiscoveriesPerTiledAreas.Current.Add(exploredTiledArea, new HashSet<TiledWorldDiscovery>()); };
+            tiledWorldDiscoveriesPerTiledAreas = new SceneVariable<Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>>(() => new Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>());
         }
 
         public static Action<TiledWorldDiscovery> OnTiledWorldDiscoveryRevealed
@@ -71,75 +76,85 @@ namespace FrigidBlackwaters.Game
         protected override void Awake()
         {
             base.Awake();
-            TiledWorldExplorer.OnExploredNewTiledArea += EvaluateDiscovery;
             if (this.discoveryType == DiscoveryType.Mob)
             {
-                this.mob.OnTiledAreaChanged += EvaluateDiscovery;
-                this.mob.Active.OnSet += EvaluateDiscovery;
-                this.mob.Active.OnUnset += EvaluateDiscovery;
+                this.mob.OnTiledAreaChanged += UpdateDiscoveryOnMobTiledAreaChange;
+                if (this.showForMobClassification) this.mob.OnClassificationChanged += UpdateDiscoveryOnMobClassificationChange;
             }
         }
 
         protected override void OnDestroy()
         {
             base.OnDestroy();
-            TiledWorldExplorer.OnExploredNewTiledArea -= EvaluateDiscovery;
             if (this.discoveryType == DiscoveryType.Mob)
             {
-                this.mob.OnTiledAreaChanged -= EvaluateDiscovery;
-                this.mob.Active.OnSet -= EvaluateDiscovery;
-                this.mob.Active.OnUnset -= EvaluateDiscovery;
+                this.mob.OnTiledAreaChanged -= UpdateDiscoveryOnMobTiledAreaChange;
+                if (this.showForMobClassification) this.mob.OnClassificationChanged -= UpdateDiscoveryOnMobClassificationChange;
             }
         }
 
-        private void EvaluateDiscovery(bool hasOldTiledArea, TiledArea oldTiledArea, bool hasNewTiledArea, TiledArea newTiledArea)
+        protected override void Start()
         {
-            if (hasOldTiledArea) HideDiscovery(oldTiledArea);
-            EvaluateDiscovery();
-        }
-
-        private void EvaluateDiscovery(TiledArea previousTiledArea, TiledArea currentTiledArea)
-        {
-            EvaluateDiscovery();
-        }
-
-        private void EvaluateDiscovery(TiledArea exploredTiledArea)
-        {
-            EvaluateDiscovery();
-        }
-
-        private void EvaluateDiscovery()
-        {
+            base.Start();
             switch (this.discoveryType)
             {
                 case DiscoveryType.Mob:
-                    if (this.mob.Active) RevealDiscovery(this.mob.TiledArea);
-                    else HideDiscovery(this.mob.TiledArea);
+                    if (!this.showForMobClassification || this.mobClassification == this.mob.Classification)
+                    {
+                        AddDiscovery(this.mob.TiledArea);
+                    }
                     break;
                 case DiscoveryType.TerrainContent:
-                    if (TiledArea.TryGetTiledAreaAtPosition(this.terrainContent.transform.position, out TiledArea tileContentTiledArea))
+                    if (TiledArea.TryGetTiledAreaAtPosition(this.terrainContent.transform.position, out TiledArea tiledArea))
                     {
-                        RevealDiscovery(tileContentTiledArea);
+                        AddDiscovery(tiledArea);
                     }
                     break;
             }
         }
 
-        private void RevealDiscovery(TiledArea tiledArea)
+        private void UpdateDiscoveryOnMobClassificationChange()
         {
-            if (tiledWorldDiscoveriesPerTiledAreas.Current.ContainsKey(tiledArea) &&
-                tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Add(this))
+            if (this.mobClassification == this.mob.Classification)
+            {
+                AddDiscovery(this.mob.TiledArea);
+            }
+            else
+            {
+                RemoveDiscovery(this.mob.TiledArea);
+            }
+        }
+
+        private void UpdateDiscoveryOnMobTiledAreaChange(TiledArea previousTiledArea, TiledArea currentTiledArea)
+        {
+            if (!this.showForMobClassification || this.mobClassification == this.mob.Classification)
+            {
+                RemoveDiscovery(previousTiledArea);
+                AddDiscovery(currentTiledArea);
+            }
+        }
+
+        private void AddDiscovery(TiledArea tiledArea)
+        {
+            if (!tiledWorldDiscoveriesPerTiledAreas.Current.ContainsKey(tiledArea))
+            {
+                tiledWorldDiscoveriesPerTiledAreas.Current.Add(tiledArea, new HashSet<TiledWorldDiscovery>());
+            }
+            if (tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Add(this))
             {
                 onTiledWorldDiscoveryRevealed?.Invoke(this);
             }
         }
 
-        private void HideDiscovery(TiledArea tiledArea)
+        private void RemoveDiscovery(TiledArea tiledArea)
         {
-            if (tiledWorldDiscoveriesPerTiledAreas.Current.ContainsKey(tiledArea) &&
-                tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Remove(this))
+            if (tiledWorldDiscoveriesPerTiledAreas.Current.ContainsKey(tiledArea) && tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Remove(this))
             {
                 onTiledWorldDiscoveryHidden?.Invoke(this);
+                if (tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Count == 0)
+                {
+                    tiledWorldDiscoveriesPerTiledAreas.Current.Remove(tiledArea);
+                }
             }
         }
 

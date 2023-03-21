@@ -6,13 +6,14 @@ namespace FrigidBlackwaters
         {
             public const string WINDOW = "Window/";
             public const string JOBS = "Jobs/";
-
-            public const string CONTEXT = "CONTEXT/";
+            public const string EDIT_MODE = "Edit Mode/";
         }
 
         public static class ProjectFolder
         {
             public const string ASSETS = "Assets/";
+
+            public const string PREFABS = "Prefabs/";
 
             public const string SCRIPTABLE_OBJECTS = "Scriptable_Objects/";
 

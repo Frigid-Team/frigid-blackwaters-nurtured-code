@@ -15,9 +15,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private string windDownAnimationName;
 
-        public void DoSignal(Vector2 absolutePosition, float delayDuration, Action onWindupFinished, Action onComplete)
+        public void DoSignal(Vector2 position, float delayDuration, Action onWindupFinished, Action onComplete)
         {
-            this.transform.position = absolutePosition;
+            this.transform.position = position;
             FrigidCoroutine.Run(Signal(delayDuration, onWindupFinished, onComplete), this.gameObject);
         }
 
@@ -32,13 +32,13 @@ namespace FrigidBlackwaters.Game
 
             this.animatorBody.Active = true;
             bool windUpFinished = false;
-            this.animatorBody.PlayByName(this.windUpAnimationName, () => { windUpFinished = true; });
+            this.animatorBody.Play(this.windUpAnimationName, () => { windUpFinished = true; });
             yield return new FrigidCoroutine.DelayUntil(() => { return windUpFinished; });
 
             onWindupFinished.Invoke();
 
             bool windDownFinished = false;
-            this.animatorBody.PlayByName(this.windDownAnimationName, () => { windDownFinished = true; });
+            this.animatorBody.Play(this.windDownAnimationName, () => { windDownFinished = true; });
             yield return new FrigidCoroutine.DelayUntil(() => { return windDownFinished; });
 
             this.animatorBody.Active = false;

@@ -9,6 +9,14 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference dashDistance;
 
+        public float DashDistance
+        {
+            get
+            {
+                return this.dashDistance.ImmutableValue;
+            }
+        }
+
         protected override float GetMovementDistance(float dashSpeed)
         {
             return this.dashDistance.ImmutableValue;

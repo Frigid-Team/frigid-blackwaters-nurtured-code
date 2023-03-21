@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Game
         protected override void Init()
         {
             base.Init();
-            this.numFloorsCreated = new SceneVariable<int>(() => { return 0; });
+            this.numFloorsCreated = new SceneVariable<int>(() => 0);
         }
 
         protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledAreaEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
