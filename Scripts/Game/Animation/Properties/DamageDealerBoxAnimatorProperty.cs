@@ -20,7 +20,7 @@ namespace FrigidBlackwaters.Game
         private AudioClipSerializedReference audioClipOnDealt;
         [SerializeField]
         [HideInInspector]
-        private List<MaterialTweenCoroutineTemplateSerializedReference> materialTweensOnDealt;
+        private List<MaterialTweenOptionSetSerializedReference> materialTweensOnDealt;
 
         public DamageAlignment DamageAlignment
         {
@@ -80,7 +80,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.playAudioOnDealt != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.playAudioOnDealt = value;
                 }
             }
@@ -96,7 +96,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.audioClipOnDealt != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.audioClipOnDealt = value;
                 }
             }
@@ -109,36 +109,37 @@ namespace FrigidBlackwaters.Game
 
         public void AddMaterialTweenOnDealtAt(int index)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            this.materialTweensOnDealt.Insert(index, new MaterialTweenCoroutineTemplateSerializedReference());
+            FrigidEdit.RecordChanges(this);
+            this.materialTweensOnDealt.Insert(index, new MaterialTweenOptionSetSerializedReference());
         }
 
         public void RemoveMaterialTweenOnDealtAt(int index)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.materialTweensOnDealt.RemoveAt(index);
         }
 
-        public MaterialTweenCoroutineTemplateSerializedReference GetMaterialTweenOnDealtByReferenceAt(int index)
+        public MaterialTweenOptionSetSerializedReference GetMaterialTweenOnDealtByReferenceAt(int index)
         {
             return this.materialTweensOnDealt[index];
         }
 
-        public void SetMaterialTweenOnDealtByReferenceAt(int index, MaterialTweenCoroutineTemplateSerializedReference materialEffectOnDealt)
+        public void SetMaterialTweenOnDealtByReferenceAt(int index, MaterialTweenOptionSetSerializedReference materialEffectOnDealt)
         {
             if (this.materialTweensOnDealt[index] != materialEffectOnDealt)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.materialTweensOnDealt[index] = materialEffectOnDealt;
             }
         }
 
         public override void Created()
         {
-            this.damageDealerBox = FrigidEditMode.AddComponent<DB>(this.gameObject);
+            FrigidEdit.RecordChanges(this);
+            this.damageDealerBox = FrigidEdit.AddComponent<DB>(this.gameObject);
             this.playAudioOnDealt = false;
             this.audioClipOnDealt = new AudioClipSerializedReference();
-            this.materialTweensOnDealt = new List<MaterialTweenCoroutineTemplateSerializedReference>();
+            this.materialTweensOnDealt = new List<MaterialTweenOptionSetSerializedReference>();
             base.Created();
         }
 
@@ -150,16 +151,16 @@ namespace FrigidBlackwaters.Game
                 {
                     if (!info.IsNonTrivial) return;
 
-                    foreach (SpriteAnimatorProperty spriteProperty in this.Body.GetCurrentProperties<SpriteAnimatorProperty>())
+                    foreach (SpriteAnimatorProperty spriteProperty in this.Body.GetReferencedProperties<SpriteAnimatorProperty>())
                     {
-                        for (int effectIndex = 0; effectIndex < GetNumberMaterialTweensOnDealt(); effectIndex++)
+                        for (int effectIndex = 0; effectIndex < this.GetNumberMaterialTweensOnDealt(); effectIndex++)
                         {
-                            spriteProperty.OneShotMaterialTween(GetMaterialTweenOnDealtByReferenceAt(effectIndex).ImmutableValue);
+                            spriteProperty.OneShotMaterialTween(this.GetMaterialTweenOnDealtByReferenceAt(effectIndex).ImmutableValue);
                         }
                     }
 
                     if (!this.PlayAudioOnDealt) return;
-                    foreach (AudioAnimatorProperty audioProperty in this.Body.GetCurrentProperties<AudioAnimatorProperty>())
+                    foreach (AudioAnimatorProperty audioProperty in this.Body.GetReferencedProperties<AudioAnimatorProperty>())
                     {
                         if (audioProperty.Loop) continue;
                         audioProperty.PlayOneShot(this.audioClipOnDealt.MutableValue);

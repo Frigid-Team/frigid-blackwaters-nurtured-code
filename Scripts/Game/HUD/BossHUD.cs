@@ -9,7 +9,9 @@ namespace FrigidBlackwaters.Game
     public class BossHUD : FrigidMonoBehaviour
     {
         [SerializeField]
-        private BarHUD healthBarHUDOriginal;
+        private BarHUD childHealthBarHUD;
+        [SerializeField]
+        private List<HealthBarAlignmentSetting> healthBarAlignmentSettings;
 
         private Dictionary<BossMob, (BarHUD barHUD, Action<int, int> onRemainingHealthChanged, Action<int, int> onMaxHealthChanged)> displayedBosses;
         private RecyclePool<BarHUD> barHUDPool;
@@ -18,29 +20,29 @@ namespace FrigidBlackwaters.Game
         {
             base.Awake();
             this.displayedBosses = new Dictionary<BossMob, (BarHUD barHUD, Action<int, int> onRemainingHealthChanged, Action<int, int> onMaxHealthChanged)>();
-            this.barHUDPool = new RecyclePool<BarHUD>(() => FrigidInstancing.CreateInstance<BarHUD>(this.healthBarHUDOriginal, this.transform, false), (BarHUD instance) => FrigidInstancing.DestroyInstance(instance));
-            this.barHUDPool.Pool(this.healthBarHUDOriginal);
+            this.barHUDPool = new RecyclePool<BarHUD>(() => CreateInstance<BarHUD>(this.childHealthBarHUD, this.transform, false), (BarHUD instance) => DestroyInstance(instance));
+            this.barHUDPool.Pool(this.childHealthBarHUD);
         }
 
         protected override void OnEnable()
         {
             base.OnEnable();
-            BossMob.OnCurrentBossAdded += AddHealthBar;
-            BossMob.OnCurrentBossRemoved += RemoveHealthBar;
+            BossMob.OnCurrentBossAdded += this.AddHealthBar;
+            BossMob.OnCurrentBossRemoved += this.RemoveHealthBar;
             foreach (BossMob bossMob in BossMob.CurrentBosses)
             {
-                AddHealthBar(bossMob);
+                this.AddHealthBar(bossMob);
             }
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            BossMob.OnCurrentBossAdded -= AddHealthBar;
-            BossMob.OnCurrentBossRemoved -= RemoveHealthBar;
+            BossMob.OnCurrentBossAdded -= this.AddHealthBar;
+            BossMob.OnCurrentBossRemoved -= this.RemoveHealthBar;
             foreach (BossMob bossMob in BossMob.CurrentBosses)
             {
-                RemoveHealthBar(bossMob);
+                this.RemoveHealthBar(bossMob);
             }
         }
 
@@ -48,8 +50,22 @@ namespace FrigidBlackwaters.Game
         {
             BarHUD newBarHUD = this.barHUDPool.Retrieve();
             this.displayedBosses.Add(boss, (newBarHUD, (int prevRemainingHealth, int currRemainingHealth) => newBarHUD.SetCurrent(currRemainingHealth), (int prevMaxHealth, int currMaxHealth) => newBarHUD.SetMaximum(currMaxHealth)));
+
+            newBarHUD.MainBarColor = Color.clear;
+            newBarHUD.BufferBarColor = Color.clear;
+            foreach (HealthBarAlignmentSetting healthBarAlignmentSetting in this.healthBarAlignmentSettings)
+            {
+                if (healthBarAlignmentSetting.DamageAlignment == boss.Alignment)
+                {
+                    newBarHUD.MainBarColor = healthBarAlignmentSetting.MainBarColor;
+                    newBarHUD.BufferBarColor = healthBarAlignmentSetting.BufferBarColor;
+                    break;
+                }
+            }
+
             boss.OnRemainingHealthChanged += this.displayedBosses[boss].onRemainingHealthChanged;
             boss.OnMaxHealthChanged += this.displayedBosses[boss].onMaxHealthChanged;
+
             newBarHUD.Transition(boss.RemainingHealth, boss.MaxHealth, 0f);
         }
 
@@ -57,6 +73,7 @@ namespace FrigidBlackwaters.Game
         {
             boss.OnRemainingHealthChanged -= this.displayedBosses[boss].onRemainingHealthChanged;
             boss.OnMaxHealthChanged -= this.displayedBosses[boss].onMaxHealthChanged;
+
             this.barHUDPool.Pool(this.displayedBosses[boss].barHUD);
             this.displayedBosses.Remove(boss);
         }
@@ -64,5 +81,40 @@ namespace FrigidBlackwaters.Game
 #if UNITY_EDITOR
         protected override bool OwnsGameObject() { return true; }
 #endif
+
+        [Serializable]
+        private struct HealthBarAlignmentSetting
+        {
+            [SerializeField]
+            private DamageAlignment damageAlignment;
+            [SerializeField]
+            private ColorSerializedReference mainBarColor;
+            [SerializeField]
+            private ColorSerializedReference bufferBarColor;
+
+            public DamageAlignment DamageAlignment
+            {
+                get
+                {
+                    return this.damageAlignment;
+                }
+            }
+
+            public Color MainBarColor
+            {
+                get
+                {
+                    return this.mainBarColor.ImmutableValue;
+                }
+            }
+
+            public Color BufferBarColor
+            {
+                get
+                {
+                    return this.bufferBarColor.ImmutableValue;
+                }
+            }
+        }
     }
 }

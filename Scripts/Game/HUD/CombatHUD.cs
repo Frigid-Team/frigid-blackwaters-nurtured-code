@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
-
 using UnityEngine.UI;
+
+using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
@@ -9,6 +11,8 @@ namespace FrigidBlackwaters.Game
     {
         [SerializeField]
         private BarHUD healthBarHUD;
+        [SerializeField]
+        private List<HealthBarAlignmentSetting> healthBarAlignmentSettings;
         [SerializeField]
         private BarHUD dashBarHUD;
         [SerializeField]
@@ -28,17 +32,17 @@ namespace FrigidBlackwaters.Game
         protected override void OnEnable()
         {
             base.OnEnable();
-            PlayerMob.OnExists += Startup;
-            PlayerMob.OnUnexists += Teardown;
-            Startup();
+            PlayerMob.OnExists += this.Startup;
+            PlayerMob.OnUnexists += this.Teardown;
+            this.Startup();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            PlayerMob.OnExists -= Startup;
-            PlayerMob.OnUnexists -= Teardown;
-            Teardown();
+            PlayerMob.OnExists -= this.Startup;
+            PlayerMob.OnUnexists -= this.Teardown;
+            this.Teardown();
         }
 
 #if UNITY_EDITOR
@@ -49,15 +53,27 @@ namespace FrigidBlackwaters.Game
         {
             if (PlayerMob.TryGet(out PlayerMob player)) 
             {
-                player.OnMaxHealthChanged += UpdateHealthMaximumOnHUD;
-                player.OnRemainingHealthChanged += UpdateHealthRemainingOnHUD;
-                player.OnDashTimerChange += UpdateDashTimerOnHUD;
-                player.OnEquipChange += UpdateEquippedPieceOnHUD;
+                player.OnMaxHealthChanged += this.UpdateHealthMaximumOnHUD;
+                player.OnRemainingHealthChanged += this.UpdateHealthRemainingOnHUD;
+                player.OnDashResourceChange += this.UpdateDashResourceOnHUD;
+                player.OnEquipChange += this.UpdateEquippedEquipmentOnHUD;
 
-                UpdateHealthMaximumOnHUD(0, player.MaxHealth);
-                UpdateHealthRemainingOnHUD(0, player.RemainingHealth);
-                UpdateDashTimerOnHUD(null, player.GetDashTimer());
-                UpdateEquippedPieceOnHUD(false, null, player.TryGetEquippedPiece(out MobEquipmentPiece equippedPiece), equippedPiece);
+                this.healthBarHUD.MainBarColor = Color.clear;
+                this.healthBarHUD.BufferBarColor = Color.clear;
+                foreach (HealthBarAlignmentSetting healthBarAlignmentSetting in this.healthBarAlignmentSettings)
+                {
+                    if (healthBarAlignmentSetting.DamageAlignment == player.Alignment)
+                    {
+                        this.healthBarHUD.MainBarColor = healthBarAlignmentSetting.MainBarColor;
+                        this.healthBarHUD.BufferBarColor = healthBarAlignmentSetting.BufferBarColor;
+                        break;
+                    }
+                }
+
+                this.UpdateHealthMaximumOnHUD(0, player.MaxHealth);
+                this.UpdateHealthRemainingOnHUD(0, player.RemainingHealth);
+                this.UpdateDashResourceOnHUD(null, player.GetDashResource());
+                this.UpdateEquippedEquipmentOnHUD(false, null, player.TryGetEquippedEquipment(out MobEquipment equippedEquipment), equippedEquipment);
             }
         }
 
@@ -65,10 +81,10 @@ namespace FrigidBlackwaters.Game
         {
             if (PlayerMob.TryGet(out PlayerMob player))
             {
-                player.OnMaxHealthChanged -= UpdateHealthMaximumOnHUD;
-                player.OnRemainingHealthChanged -= UpdateHealthRemainingOnHUD;
-                player.OnDashTimerChange -= UpdateDashTimerOnHUD;
-                player.OnEquipChange -= UpdateEquippedPieceOnHUD;
+                player.OnMaxHealthChanged -= this.UpdateHealthMaximumOnHUD;
+                player.OnRemainingHealthChanged -= this.UpdateHealthRemainingOnHUD;
+                player.OnDashResourceChange -= this.UpdateDashResourceOnHUD;
+                player.OnEquipChange -= this.UpdateEquippedEquipmentOnHUD;
             }
             FrigidCoroutine.Kill(this.equipmentHUDRoutine);
             FrigidCoroutine.Kill(this.dashHUDRoutine);
@@ -84,35 +100,70 @@ namespace FrigidBlackwaters.Game
             this.healthBarHUD.SetCurrent(currentRemainingHealth);
         }
 
-        private void UpdateEquippedPieceOnHUD(bool hasPrevious, MobEquipmentPiece previousEquippedPiece, bool hasCurrent, MobEquipmentPiece currentEquippedPiece)
+        private void UpdateEquippedEquipmentOnHUD(bool hasPrevious, MobEquipment previousEquippedEquipment, bool hasCurrent, MobEquipment currentEquippedEquipment)
         {
             FrigidCoroutine.Kill(this.equipmentHUDRoutine);
-            this.equipmentBarHUD.Transition(Mathf.FloorToInt(currentEquippedPiece.Cooldown.Progress * 100), 100);
+            this.equipmentBarHUD.Transition(Mathf.FloorToInt(hasCurrent ? currentEquippedEquipment.ActiveAbilityResource.Progress * 100 : 0), 100);
             IEnumerator<FrigidCoroutine.Delay> ShowEquipmentOnHUD()
             {
                 while (true)
                 {
-                    this.equipmentBarHUD.SetCurrent(Mathf.FloorToInt(currentEquippedPiece.Cooldown.Progress * 100));
-                    this.equipmentQuantityText.text = currentEquippedPiece.Cooldown.Quantity.ToString();
+                    this.equipmentBarHUD.SetCurrent(Mathf.FloorToInt(hasCurrent ? currentEquippedEquipment.ActiveAbilityResource.Progress * 100 : 0));
+                    this.equipmentQuantityText.text = hasCurrent ? (currentEquippedEquipment.ActiveAbilityResource.Quantity >= 0 ? currentEquippedEquipment.ActiveAbilityResource.Quantity.ToString() : "-") : string.Empty;
                     yield return null;
                 }
             }
             this.equipmentHUDRoutine = FrigidCoroutine.Run(ShowEquipmentOnHUD());
         }
 
-        private void UpdateDashTimerOnHUD(Timer previousDashTimer, Timer currentDashTimer)
+        private void UpdateDashResourceOnHUD(AbilityResource previousDashResource, AbilityResource currentDashResource)
         {
             FrigidCoroutine.Kill(this.dashHUDRoutine);
-            this.dashBarHUD.Transition(Mathf.FloorToInt(currentDashTimer.Progress * 100), 100);
+            this.dashBarHUD.Transition(Mathf.FloorToInt(currentDashResource.Progress * 100), 100);
             IEnumerator<FrigidCoroutine.Delay> ShowDashProgressOnHUD()
             {
                 while (true)
                 {
-                    this.dashBarHUD.SetCurrent(Mathf.FloorToInt(currentDashTimer.Progress * 100));
+                    this.dashBarHUD.SetCurrent(Mathf.FloorToInt(currentDashResource.Progress * 100));
                     yield return null;
                 }
             }
             this.dashHUDRoutine = FrigidCoroutine.Run(ShowDashProgressOnHUD());
+        }
+
+        [Serializable]
+        private struct HealthBarAlignmentSetting
+        {
+            [SerializeField]
+            private DamageAlignment damageAlignment;
+            [SerializeField]
+            private ColorSerializedReference mainBarColor;
+            [SerializeField]
+            private ColorSerializedReference bufferBarColor;
+
+            public DamageAlignment DamageAlignment
+            {
+                get
+                {
+                    return this.damageAlignment;
+                }
+            }
+
+            public Color MainBarColor
+            {
+                get
+                {
+                    return this.mainBarColor.ImmutableValue;
+                }
+            }
+
+            public Color BufferBarColor
+            {
+                get
+                {
+                    return this.bufferBarColor.ImmutableValue;
+                }
+            }
         }
     }
 }

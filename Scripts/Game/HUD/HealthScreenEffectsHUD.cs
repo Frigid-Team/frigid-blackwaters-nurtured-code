@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 using FrigidBlackwaters.Core;
 
@@ -7,9 +8,11 @@ namespace FrigidBlackwaters.Game
     public class HealthScreenEffectsHUD : FrigidMonoBehaviour
     {
         [SerializeField]
-        private CanvasGroup damageCanvasGroup;
+        private Image borderImage;
         [SerializeField]
-        private CanvasGroup healCanvasGroup;
+        private ColorSerializedReference healColor;
+        [SerializeField]
+        private ColorSerializedReference damageColor;
         [SerializeField]
         private FloatSerializedReference fadeDuration;
 
@@ -18,31 +21,31 @@ namespace FrigidBlackwaters.Game
         protected override void Awake()
         {
             base.Awake();
-            this.damageCanvasGroup.alpha = 0;
-            this.healCanvasGroup.alpha = 0;
+            this.borderImage.color = Color.clear;
         }
 
         protected override void OnEnable()
         {
             base.OnEnable();
-            PlayerMob.OnExists += Startup;
-            PlayerMob.OnUnexists += Teardown;
-            Startup();
+            PlayerMob.OnExists += this.Startup;
+            PlayerMob.OnUnexists += this.Teardown;
+            this.Startup();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            PlayerMob.OnExists -= Startup;
-            PlayerMob.OnUnexists -= Teardown;
-            Teardown();
+            PlayerMob.OnExists -= this.Startup;
+            PlayerMob.OnUnexists -= this.Teardown;
+            this.Teardown();
         }
 
         private void Startup()
         {
             if (PlayerMob.TryGet(out PlayerMob player))
             {
-                player.OnRemainingHealthChanged += ShowHealthEffects;
+                player.OnHealed += this.ShowHeal;
+                player.OnDamaged += this.ShowDamage;
             }
         }
 
@@ -50,23 +53,27 @@ namespace FrigidBlackwaters.Game
         {
             if (PlayerMob.TryGet(out PlayerMob player))
             {
-                player.OnRemainingHealthChanged -= ShowHealthEffects;
+                player.OnHealed -= this.ShowHeal;
+                player.OnDamaged -= this.ShowDamage;
             }
         }
 
-        private void ShowHealthEffects(int prevRemainingHealth, int currRemainingHealth)
+        private void ShowHeal(int heal)
         {
+            if (heal == 0) return;
+
+            Color healColor = this.healColor.MutableValue;
             FrigidCoroutine.Kill(this.currentFadeRoutine);
-            this.healCanvasGroup.alpha = 0;
-            this.damageCanvasGroup.alpha = 0;
-            if (currRemainingHealth < prevRemainingHealth)
-            {
-                this.currentFadeRoutine = FrigidCoroutine.Run(TweenCoroutine.Value(this.fadeDuration.MutableValue, 1, 0, useRealTime: true, onValueUpdated: (float alpha) => this.damageCanvasGroup.alpha = alpha));
-            }
-            else
-            {
-                this.currentFadeRoutine = FrigidCoroutine.Run(TweenCoroutine.Value(this.fadeDuration.MutableValue, 1, 0, useRealTime: true, onValueUpdated: (float alpha) => this.healCanvasGroup.alpha = alpha));
-            }
+            this.currentFadeRoutine = FrigidCoroutine.Run(Tween.Value(this.fadeDuration.MutableValue, 1, 0, useRealTime: true, onValueUpdated: (float alpha) => this.borderImage.color = new Color(healColor.r, healColor.g, healColor.b, alpha)));
+        }
+
+        private void ShowDamage(int damage)
+        {
+            if (damage == 0) return;
+
+            Color damageColor = this.damageColor.MutableValue;
+            FrigidCoroutine.Kill(this.currentFadeRoutine);
+            this.currentFadeRoutine = FrigidCoroutine.Run(Tween.Value(this.fadeDuration.MutableValue, 1, 0, useRealTime: true, onValueUpdated: (float alpha) => this.borderImage.color = new Color(damageColor.r, damageColor.g, damageColor.b, alpha)));
         }
     }
 }

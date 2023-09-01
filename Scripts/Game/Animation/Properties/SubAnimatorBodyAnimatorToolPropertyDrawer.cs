@@ -33,6 +33,11 @@ namespace FrigidBlackwaters.Game
                 availableAnimationNames[subAnimationIndex] = subAnimatorBodyProperty.SubBody.GetAnimationName(subAnimationIndex);
             }
             subAnimatorBodyProperty.SetSubAnimationIndex(animationIndex, EditorGUILayout.Popup("Sub Animation", subAnimatorBodyProperty.GetSubAnimationIndex(animationIndex), availableAnimationNames));
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField("Ignore Loop & Duration");
+                subAnimatorBodyProperty.SetIgnoreSubAnimationLoopAndDuration(animationIndex, EditorGUILayout.Toggle(subAnimatorBodyProperty.GetIgnoreSubAnimationLoopAndDuration(animationIndex)));
+            }
             base.DrawAnimationEditFields(animationIndex);
         }
     }

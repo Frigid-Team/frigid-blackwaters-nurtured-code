@@ -7,21 +7,21 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private MobTeleportState mobTeleportState;
 
-        public override Vector2[] Calculate(Vector2[] currentPositions, float elapsedDuration, float elapsedDurationDelta)
+        protected override Vector2[] CustomRetrieve(Vector2[] currentPositions, float elapsedDuration, float elapsedDurationDelta)
         {
-            Vector2[] positions = new Vector2[currentPositions.Length];
             if (this.mobTeleportState.TryGetTeleportPosition(out Vector2 teleportPosition)) 
             {
+                Vector2[] positions = new Vector2[currentPositions.Length];
                 for (int i = 0; i < positions.Length; i++)
                 {
                     positions[i] = teleportPosition;
                 }
+                return positions;
             }
             else
             {
-                currentPositions.CopyTo(positions, 0);
+                return currentPositions;
             }
-            return positions;
         }
     }
 }

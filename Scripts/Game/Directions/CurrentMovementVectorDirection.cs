@@ -6,7 +6,7 @@ namespace FrigidBlackwaters.Game
 {
     public class CurrentMovementVectorDirection : Direction
     {
-        public override Vector2[] Calculate(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
+        protected override Vector2[] CustomRetrieve(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
         {
             Vector2[] directions = new Vector2[currDirections.Length];
             for (int i = 0; i < directions.Length; i++) directions[i] = CharacterInput.CurrentMovementVector.normalized;

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 namespace FrigidBlackwaters.Game
 {
@@ -7,14 +8,22 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private bool validateOnFalse;
 
-        public bool ValidateOnFalse
+        public bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
         {
-            get
-            {
-                return this.validateOnFalse;
-            }
+            bool customEvaluation = this.CustomEvaluate(elapsedDuration, elapsedDurationDelta);
+            return customEvaluation && !this.validateOnFalse || !customEvaluation && this.validateOnFalse;
         }
 
-        public abstract bool Evaluate(float elapsedDuration, float elapsedDurationDelta);
+        public int Tally(float elapsedDuration, float elapsedDurationDelta)
+        {
+            return this.CustomTally(elapsedDuration, elapsedDurationDelta);
+        }
+
+        protected abstract bool CustomEvaluate(float elapsedDuration, float elapsedDurationDelta);
+
+        protected virtual int CustomTally(float elapsedDuration, float elapsedDurationDelta)
+        {
+            return Convert.ToInt32(this.Evaluate(elapsedDuration, elapsedDurationDelta));
+        }
     }
 }

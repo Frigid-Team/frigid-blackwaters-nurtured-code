@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 namespace FrigidBlackwaters.Utility
 {
@@ -7,7 +8,17 @@ namespace FrigidBlackwaters.Utility
         [SerializeField]
         private T initialValue;
 
+        private Action onValueChanged;
+
         private T value;
+
+        public T InitialValue
+        {
+            get
+            {
+                return this.initialValue;
+            }
+        }
 
         public T Value
         {
@@ -17,13 +28,29 @@ namespace FrigidBlackwaters.Utility
             }
             set
             {
-                this.value = value;
+                if (!this.value.Equals(value))
+                {
+                    this.value = value;
+                    this.onValueChanged?.Invoke();
+                }
             }
         }
 
-        protected override void Init()
+        public Action OnValueChanged
         {
-            base.Init();
+            get
+            {
+                return this.onValueChanged;
+            }
+            set
+            {
+                this.onValueChanged = value;
+            }
+        }
+
+        protected override void OnBegin()
+        {
+            base.OnBegin();
             this.value = this.initialValue;
         }
     }

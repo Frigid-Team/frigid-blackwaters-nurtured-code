@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private SpriteRenderer mainIconRenderer;
         [SerializeField]
-        private List<ClassificationIcon> classificationIcons;
+        private List<IconSetting> iconSettings;
         [SerializeField]
         private List<SpriteRenderer> braceRenderers;
         [SerializeField]
@@ -28,11 +28,10 @@ namespace FrigidBlackwaters.Game
         private Vector2[] braceAnimationOriginPositions;
 
         private SpriteRenderer[] allSpriteRenderers;
-        private Dictionary<MobClassification, Sprite> classificationIconMap;
 
-        private FrigidCoroutine followRoutine;
+        private FrigidCoroutine showRoutine;
         private bool currShowAttempt;
-        private FrigidCoroutine idleRoutine;
+        private FrigidCoroutine idleAnimationRoutine;
         private FrigidCoroutine fadeRoutine;
 
         public void Spawn(Mob owner, MobDockState dockState)
@@ -45,7 +44,7 @@ namespace FrigidBlackwaters.Game
                 (TiledArea previousTiledArea, TiledArea currentTiledArea) =>
                 {
                     this.transform.SetParent(this.owner.TiledArea.ContentsTransform);
-                    Fade(0, 0);
+                    this.Fade(0, 0);
                     this.currShowAttempt = false;
                 };
 
@@ -63,86 +62,86 @@ namespace FrigidBlackwaters.Game
                 this.braceAnimationOriginPositions[i] = braceRenderer.transform.localPosition;
             }
 
-            this.classificationIconMap = new Dictionary<MobClassification, Sprite>();
-            foreach (ClassificationIcon classificationIcon in this.classificationIcons)
-            {
-                this.classificationIconMap.TryAdd(classificationIcon.Classification, classificationIcon.Icon);
-            }
+            this.owner.OnShowDisplaysChanged += this.ShowOrHideDisplay;
+            this.ShowOrHideDisplay();
 
-            this.owner.OnShowDisplaysChanged += ShowOrHideDisplay;
-            ShowOrHideDisplay();
-            this.owner.OnActiveChanged += () => { this.gameObject.SetActive(this.owner.Active); };
+            this.owner.OnStatusTagAdded += (MobStatusTag addedStatusTag) => this.UpdateIcon();
+            this.owner.OnStatusTagRemoved += (MobStatusTag removedStatusTag) => this.UpdateIcon();
+            this.UpdateIcon();
+
+            this.dockState.OnDockStarted += this.OnDockStarted;
+            this.dockState.OnDockEnded += this.OnDockEnded;
+
+            this.owner.OnActiveChanged += () => this.gameObject.SetActive(this.owner.Active);
             this.gameObject.SetActive(this.owner.Active);
         }
 
         private void ShowOrHideDisplay()
         {
-            if (this.owner.ShowDisplays) Show();
-            else Hide();
+            if (this.owner.ShowDisplays) this.Show();
+            else this.Hide();
         }
 
         private void Show()
         {
-            this.followRoutine = FrigidCoroutine.Run(FollowDockPosition(), this.gameObject);
-            this.idleRoutine = FrigidCoroutine.Run(TweenIdleBraces(), this.gameObject);
+            this.showRoutine = FrigidCoroutine.Run(this.ShowAtDockPosition(), this.gameObject);
+            this.idleAnimationRoutine = FrigidCoroutine.Run(this.AnimateIdleBraces(), this.gameObject);
         }
 
         private void Hide()
         {
-            FrigidCoroutine.Kill(this.followRoutine);
-            FrigidCoroutine.Kill(this.idleRoutine);
-
-            if (this.dockState.TryGetPositionOfNextDockState(out Vector2 dockPosition, out MobState nextDockState))
-            {
-                this.transform.position = dockPosition;
-                if (this.classificationIconMap.TryGetValue(nextDockState.Classification, out Sprite icon))
-                {
-                    this.mainIconRenderer.sprite = icon;
-                }
-                for (int i = 0; i < this.braceRenderers.Count; i++)
-                {
-                    SpriteRenderer braceRenderer = this.braceRenderers[i];
-                    FrigidCoroutine.Run(
-                        TweenCoroutine.Value(
-                            this.braceAnimationDuration / 2,
-                            this.braceAnimationOriginPositions[i],
-                            this.braceAnimationToPositions[i] + (this.braceAnimationToPositions[i] - this.braceAnimationOriginPositions[i]) * 0.5f,
-                            onValueUpdated: (Vector2 localPosition) => { braceRenderer.transform.localPosition = localPosition; }
-                            ),
-                        this.gameObject
-                        );
-                }
-                Fade(1, 0);
-            }
-            Fade(0, this.fadeDuration);
+            FrigidCoroutine.Kill(this.showRoutine);
+            FrigidCoroutine.Kill(this.idleAnimationRoutine);
+            this.Fade(0, this.fadeDuration);
         }
 
-        private IEnumerator<FrigidCoroutine.Delay> FollowDockPosition()
+        private void OnDockStarted()
         {
-            Fade(0, 0);
+            FrigidCoroutine.Kill(this.idleAnimationRoutine);
+            this.mainIconRenderer.enabled = false;
+            for (int i = 0; i < this.braceRenderers.Count; i++)
+            {
+                SpriteRenderer braceRenderer = this.braceRenderers[i];
+                FrigidCoroutine.Run(
+                    Tween.Value(
+                        this.braceAnimationDuration / 2,
+                        this.braceAnimationOriginPositions[i],
+                        this.braceAnimationToPositions[i] + (this.braceAnimationToPositions[i] - this.braceAnimationOriginPositions[i]) * 0.5f,
+                        onValueUpdated: (Vector2 localPosition) => { braceRenderer.transform.localPosition = localPosition; }
+                        ),
+                    this.gameObject
+                    );
+            }
+        }
+
+        private void OnDockEnded()
+        {
+            this.mainIconRenderer.enabled = true;
+            this.idleAnimationRoutine = FrigidCoroutine.Run(this.AnimateIdleBraces(), this.gameObject);
+        }
+
+        private IEnumerator<FrigidCoroutine.Delay> ShowAtDockPosition()
+        {
             this.currShowAttempt = false;
+            this.Fade(0, 0);
             while (true)
             {
-                bool showAttempt = this.dockState.TryGetPositionOfNextDockState(out Vector2 dockPosition, out MobState nextDockState);
+                bool showAttempt = this.dockState.TryGetDockingPosition(out Vector2 dockPosition);
                 if (showAttempt)
                 {
                     this.transform.position = dockPosition;
-                    if (this.classificationIconMap.TryGetValue(nextDockState.Classification, out Sprite icon))
-                    {
-                        this.mainIconRenderer.sprite = icon;
-                    }
                 }
                 if (this.currShowAttempt != showAttempt)
                 {
                     this.currShowAttempt = showAttempt;
-                    if (showAttempt) Fade(1, this.fadeDuration);
-                    else Fade(0, this.fadeDuration);
+                    if (showAttempt) this.Fade(1, this.fadeDuration);
+                    else this.Fade(0, this.fadeDuration);
                 }
                 yield return null;
             }
         }
 
-        private IEnumerator<FrigidCoroutine.Delay> TweenIdleBraces()
+        private IEnumerator<FrigidCoroutine.Delay> AnimateIdleBraces()
         {
             for (int i = 0; i < this.braceRenderers.Count; i++)
             {
@@ -184,7 +183,7 @@ namespace FrigidBlackwaters.Game
             float[] origAlphas = new float[this.allSpriteRenderers.Length];
             for (int i = 0; i < this.allSpriteRenderers.Length; i++) origAlphas[i] = this.allSpriteRenderers[i].color.a;
             this.fadeRoutine = FrigidCoroutine.Run(
-                TweenCoroutine.Value(
+                Tween.Value(
                     duration,
                     0, 
                     duration,
@@ -203,28 +202,39 @@ namespace FrigidBlackwaters.Game
                 );
         }
 
+        private void UpdateIcon()
+        {
+            foreach (IconSetting iconSetting in this.iconSettings)
+            {
+                if (this.owner.HasStatusTag(iconSetting.StatusTag))
+                {
+                    this.mainIconRenderer.sprite = iconSetting.IconSprite;
+                    break;
+                }
+            }
+        }
 
         [Serializable]
-        public struct ClassificationIcon
+        private struct IconSetting
         {
             [SerializeField]
-            private MobClassification classification;
+            private MobStatusTag statusTag;
             [SerializeField]
-            private Sprite icon;
+            private Sprite iconSprite;
 
-            public MobClassification Classification
+            public MobStatusTag StatusTag
             {
                 get
                 {
-                    return this.classification;
+                    return this.statusTag;
                 }
             }
 
-            public Sprite Icon
+            public Sprite IconSprite
             {
                 get
                 {
-                    return this.icon;
+                    return this.iconSprite;
                 }
             }
         }

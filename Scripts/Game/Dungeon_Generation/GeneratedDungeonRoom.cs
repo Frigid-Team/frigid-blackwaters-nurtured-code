@@ -5,24 +5,24 @@ namespace FrigidBlackwaters.Game
 {
     public class GeneratedDungeonRoom
     {
-        private Vector2Int positionIndices;
+        private Vector2Int indexPosition;
         private Dictionary<Vector2Int, GeneratedDungeonRoom> adjacentRooms;
         private RoomLayoutType roomLayoutType;
         private RoomContentType roomContentType;
 
-        public GeneratedDungeonRoom(Vector2Int positionIndices)
+        public GeneratedDungeonRoom(Vector2Int indexPosition)
         {
-            this.positionIndices = positionIndices;
+            this.indexPosition = indexPosition;
             this.adjacentRooms = new Dictionary<Vector2Int, GeneratedDungeonRoom>();
             this.roomLayoutType = RoomLayoutType.None;
             this.roomContentType = RoomContentType.None;
         }
 
-        public Vector2Int PositionIndices
+        public Vector2Int IndexPosition
         {
             get
             {
-                return this.positionIndices;
+                return this.indexPosition;
             }
         }
 
@@ -60,13 +60,13 @@ namespace FrigidBlackwaters.Game
 
         public void AddAdjacentRoom(GeneratedDungeonRoom adjacentRoom)
         {
-            if (this.adjacentRooms.ContainsKey(adjacentRoom.PositionIndices))
+            if (this.adjacentRooms.ContainsKey(adjacentRoom.IndexPosition))
             {
-                Debug.LogWarning("Room already in position " + adjacentRoom.PositionIndices);
+                Debug.LogWarning("Room already in position " + adjacentRoom.IndexPosition);
             }
             else
             {
-                this.adjacentRooms.Add(adjacentRoom.PositionIndices, adjacentRoom);
+                this.adjacentRooms.Add(adjacentRoom.IndexPosition, adjacentRoom);
             }
         }
     }

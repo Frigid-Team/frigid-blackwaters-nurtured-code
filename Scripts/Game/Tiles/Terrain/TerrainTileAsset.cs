@@ -37,9 +37,9 @@ namespace FrigidBlackwaters.Game
             return this.crossoverMap.TryGetValue(crossoverTerrainTileAsset, out terrainCrossoverTilePrefab);
         }
 
-        protected override void Init()
+        protected override void Initialize()
         {
-            base.Init();
+            base.Initialize();
             this.crossoverMap = new Dictionary<TerrainTileAsset, TerrainCrossoverTile>();
             foreach (TerrainCrossover terrainCrossover in this.terrainCrossovers)
             {
@@ -47,7 +47,7 @@ namespace FrigidBlackwaters.Game
                 {
                     if (this.crossoverMap.ContainsKey(crossoverTerrainTileAsset))
                     {
-                        Debug.LogWarning("TerrainTileAsset " + this.name + " has a duplicate crossover blueprint id: " + crossoverTerrainTileAsset + ".");
+                        Debug.LogWarning("TerrainTileAsset " + this.name + " has a duplicate crossover TerrainTileAsset: " + crossoverTerrainTileAsset.name + ".");
                         continue;
                     }
                     this.crossoverMap.Add(crossoverTerrainTileAsset, terrainCrossover.TerrainCrossoverTilePrefab);

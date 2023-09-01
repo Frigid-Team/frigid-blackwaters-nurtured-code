@@ -49,19 +49,11 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public sealed override bool Dead
+        public sealed override MobStatus Status
         {
             get
             {
-                return true;
-            }
-        }
-
-        public sealed override bool Waiting
-        {
-            get
-            {
-                return false;
+                return MobStatus.Dead;
             }
         }
 
@@ -75,7 +67,7 @@ namespace FrigidBlackwaters.Game
 
             foreach (DeathAnimationsOnTerrain deathAnimationsOnTerrain in this.deathAnimationsOnTerrains)
             {
-                TileTerrain currentTerrain = this.Owner.TiledArea.NavigationGrid.TerrainAtTile(this.Owner.PositionIndices);
+                TileTerrain currentTerrain = this.Owner.TiledArea.NavigationGrid[this.Owner.IndexPosition].Terrain;
                 if (deathAnimationsOnTerrain.Terrains.Contains(currentTerrain))
                 {
                     this.OwnerAnimatorBody.Play(deathAnimationsOnTerrain.DeathAnimationName, () => this.OwnerAnimatorBody.Play(deathAnimationsOnTerrain.CorpseAnimationName));

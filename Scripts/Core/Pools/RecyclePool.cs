@@ -58,7 +58,7 @@ namespace FrigidBlackwaters.Core
             List<T> instances = new List<T>();
             for (int i = 0; i < amount; i++)
             {
-                instances.Add(Retrieve());
+                instances.Add(this.Retrieve());
             }
             return instances;
         }
@@ -76,7 +76,7 @@ namespace FrigidBlackwaters.Core
         {
             foreach (T instance in instancesToPool)
             {
-                Pool(instance);
+                this.Pool(instance);
             }
         }
 
@@ -84,13 +84,13 @@ namespace FrigidBlackwaters.Core
         {
             while (unPooledInstances.Count > neededQuantity)
             {
-                Pool(unPooledInstances[unPooledInstances.Count - 1]);
+                this.Pool(unPooledInstances[unPooledInstances.Count - 1]);
                 unPooledInstances.RemoveAt(unPooledInstances.Count - 1);
             }
 
             while (unPooledInstances.Count < neededQuantity)
             {
-                unPooledInstances.Add(Retrieve());
+                unPooledInstances.Add(this.Retrieve());
             }
         }
     }

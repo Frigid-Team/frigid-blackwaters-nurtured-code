@@ -36,7 +36,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.dashSpeed != 0 ? GetMovementDistance(this.dashSpeed) / this.dashSpeed : float.PositiveInfinity;
+                return this.dashSpeed != 0 ? this.GetMovementDistance(this.dashSpeed) / this.dashSpeed : float.PositiveInfinity;
             }
         }
 
@@ -51,7 +51,7 @@ namespace FrigidBlackwaters.Game
         protected override void DurationStarted()
         {
             base.DurationStarted();
-            this.dashDirection = this.dashWindupDirection.Calculate(this.dashDirection, this.MovingDuration, 0);
+            this.dashDirection = this.dashWindupDirection.Retrieve(this.dashDirection, this.MovingDuration, 0);
         }
 
         protected abstract float GetMovementDistance(float dashSpeed);

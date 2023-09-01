@@ -7,35 +7,91 @@ namespace FrigidBlackwaters.Game
     public class ItemNode : FrigidMonoBehaviour
     {
         [SerializeField]
+        private bool inEffect;
+        [SerializeField]
+        private List<AbilityResource> activeAbilityResources;
+        [Space]
+        [SerializeField]
         private List<MobBehaviour> behaviours;
         [SerializeField]
-        private List<ChildBranch> baseChildBranches;
+        private List<ChildBranch> childBranches;
 
-        private Item parent;
+        private Item owner;
 
         private float enterDuration;
         private float enterDurationDelta;
-        private HashSet<ChildBranch> currentChildBranches;
+        private HashSet<ChildBranch> activeChildBranches;
+        private HashSet<ItemNode> currentNodes;
+        private Action<ItemNode> onCurrentNodeAdded;
+        private Action<ItemNode> onCurrentNodeRemoved;
+
+        public bool InEffect
+        {
+            get
+            {
+                return this.inEffect;
+            }
+        }
+
+        public List<AbilityResource> ActiveAbilityResources
+        {
+            get
+            {
+                return this.activeAbilityResources;
+            }
+        }
+
+        public HashSet<ItemNode> CurrentNodes
+        {
+            get
+            {
+                return this.currentNodes;
+            }
+        }
+
+        public Action<ItemNode> OnCurrentNodeAdded
+        {
+            get
+            {
+                return this.onCurrentNodeAdded;
+            }
+            set
+            {
+                this.onCurrentNodeAdded = value;
+            }
+        }
+
+        public Action<ItemNode> OnCurrentNodeRemoved
+        {
+            get
+            {
+                return this.onCurrentNodeRemoved;
+            }
+            set
+            {
+                this.onCurrentNodeRemoved = value;
+            }
+        }
 
         public HashSet<ItemNode> ReferencedNodes
         {
             get
             {
                 HashSet<ItemNode> referencedItemNodes = new HashSet<ItemNode>();
-                foreach (ChildBranch baseChildBranch in this.baseChildBranches) referencedItemNodes.Add(baseChildBranch.BranchNode);
-                foreach (ChildBranch additionalChildBranch in this.AdditionalChildBranches) referencedItemNodes.Add(additionalChildBranch.BranchNode);
+                foreach (ChildBranch childBranch in this.childBranches) referencedItemNodes.Add(childBranch.BranchNode);
                 return referencedItemNodes;
             }
         }
 
-        public void Link(Item parent)
+        public void Link(Item owner)
         {
-            this.parent = parent;
+            this.owner = owner;
         }
 
         public virtual void Init()
         {
-            this.currentChildBranches = new HashSet<ChildBranch>();
+            this.activeChildBranches = new HashSet<ChildBranch>();
+            this.currentNodes = new HashSet<ItemNode>() { this };
         }
 
         public virtual void Enter()
@@ -43,38 +99,29 @@ namespace FrigidBlackwaters.Game
             this.enterDuration = 0;
             this.enterDurationDelta = 0;
 
-            this.currentChildBranches.Clear();
-            foreach (ChildBranch childBranch in this.AllChildBranches)
+            foreach (ChildBranch activeChildBranch in this.activeChildBranches)
             {
-                if (childBranch.CanBranch(this))
-                {
-                    this.currentChildBranches.Add(childBranch);
-                    childBranch.BranchNode.Enter();
-                    childBranch.BranchEntered(this);
-                    if (childBranch.StopEvaluatingFollowingBranches)
-                    {
-                        break;
-                    }
-                }
+                activeChildBranch.BranchNode.Enter();
             }
 
             foreach (MobBehaviour mobBehaviour in this.behaviours)
             {
-                this.parent.AddBehaviourToMob(mobBehaviour);
+                this.owner.AddBehaviourToMob(mobBehaviour);
             }
+
+            this.UpdateCurrentChildBranches();
         }
 
         public virtual void Exit()
         {
-            foreach (ChildBranch currentChildBranch in this.currentChildBranches)
+            foreach (ChildBranch activeChildBranch in this.activeChildBranches)
             {
-                currentChildBranch.BranchExited(this);
-                currentChildBranch.BranchNode.Exit();
+                activeChildBranch.BranchNode.Exit();
             }
 
             foreach (MobBehaviour mobBehaviour in this.behaviours)
             {
-                this.parent.RemoveBehaviourFromMob(mobBehaviour);
+                this.owner.RemoveBehaviourFromMob(mobBehaviour);
             }
         }
 
@@ -83,19 +130,19 @@ namespace FrigidBlackwaters.Game
             this.enterDurationDelta = Time.deltaTime;
             this.enterDuration += this.enterDurationDelta;
 
-            UpdateCurrentChildBranches();
+            this.UpdateCurrentChildBranches();
 
-            foreach (ChildBranch currentChildBranch in this.currentChildBranches)
+            foreach (ChildBranch activeChildBranch in this.activeChildBranches)
             {
-                currentChildBranch.BranchNode.Refresh();
+                activeChildBranch.BranchNode.Refresh();
             }
         }
 
-        protected virtual List<ChildBranch> AdditionalChildBranches
+        protected Item Owner
         {
-            get 
+            get
             {
-                return new List<ChildBranch>();
+                return this.owner;
             }
         }
 
@@ -115,67 +162,76 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected void UpdateCurrentChildBranches()
+        private void UpdateCurrentChildBranches()
         {
-            foreach (ChildBranch childBranch in this.AllChildBranches)
+            bool stopEvaluating = false;
+            foreach (ChildBranch childBranch in this.childBranches)
             {
-                if (this.currentChildBranches.Contains(childBranch))
+                if (this.activeChildBranches.Contains(childBranch))
                 {
-                    if (!childBranch.CanBranch(this))
+                    if (stopEvaluating || !childBranch.CanBranch(this))
                     {
-                        this.currentChildBranches.Remove(childBranch);
-                        childBranch.BranchExited(this);
+                        this.activeChildBranches.Remove(childBranch);
                         childBranch.BranchNode.Exit();
+                        childBranch.BranchExited();
+                        childBranch.BranchNode.onCurrentNodeAdded -= this.AddCurrentNode;
+                        childBranch.BranchNode.onCurrentNodeRemoved -= this.RemoveCurrentNode;
+                        foreach (ItemNode currentNode in childBranch.BranchNode.CurrentNodes)
+                        {
+                            this.RemoveCurrentNode(currentNode);
+                        }
                     }
-                    else if (childBranch.StopEvaluatingFollowingBranches)
+                    else
                     {
-                        break;
+                        stopEvaluating |= childBranch.StopEvaluatingFollowingBranches;
                     }
                 }
                 else
                 {
-                    if (childBranch.CanBranch(this))
+                    if (!stopEvaluating && childBranch.CanBranch(this))
                     {
-                        this.currentChildBranches.Add(childBranch);
-                        childBranch.BranchNode.Enter();
-                        childBranch.BranchEntered(this);
-                        if (childBranch.StopEvaluatingFollowingBranches)
+                        this.activeChildBranches.Add(childBranch);
+                        childBranch.BranchNode.onCurrentNodeAdded += this.AddCurrentNode;
+                        childBranch.BranchNode.onCurrentNodeRemoved += this.RemoveCurrentNode;
+                        foreach (ItemNode currentNode in childBranch.BranchNode.CurrentNodes)
                         {
-                            break;
+                            this.AddCurrentNode(currentNode);
                         }
+                        childBranch.BranchEntered();
+                        childBranch.BranchNode.Enter();
+                        stopEvaluating |= childBranch.StopEvaluatingFollowingBranches;
                     }
                 }
             }
         }
 
-        private List<ChildBranch> AllChildBranches
+        private void AddCurrentNode(ItemNode currentNode)
         {
-            get
+            if (this.currentNodes.Add(currentNode))
             {
-                List<ChildBranch> allChildBranches = new List<ChildBranch>();
-                allChildBranches.AddRange(this.AdditionalChildBranches);
-                allChildBranches.AddRange(this.baseChildBranches);
-                return allChildBranches;
+                this.onCurrentNodeAdded?.Invoke(currentNode);
+            }
+        }
+
+        private void RemoveCurrentNode(ItemNode currentNode)
+        {
+            if (this.currentNodes.Remove(currentNode))
+            {
+                this.onCurrentNodeRemoved?.Invoke(currentNode);
             }
         }
 
         [Serializable]
-        protected class ChildBranch
+        private class ChildBranch
         {
+            [SerializeField]
+            private ItemNode branchNode;
             [SerializeField]
             private bool stopEvaluatingFollowingBranches;
             [SerializeField]
-            private ConditionalClause branchConditions;
+            private List<AbilityResource> inUseAbilityResources;
             [SerializeField]
-            private ItemNode branchNode;
-
-            public bool StopEvaluatingFollowingBranches
-            {
-                get
-                {
-                    return this.stopEvaluatingFollowingBranches;
-                }
-            }
+            private Conditional branchCondition;
 
             public ItemNode BranchNode
             {
@@ -185,13 +241,33 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            public virtual void BranchEntered(ItemNode node) { }
+            public bool StopEvaluatingFollowingBranches
+            {
+                get
+                {
+                    return this.stopEvaluatingFollowingBranches;
+                }
+            }
 
-            public virtual void BranchExited(ItemNode node) { }
+            public void BranchEntered() 
+            { 
+                foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources)
+                {
+                    inUseAbilityResource.InUse.Request();
+                }
+            }
+
+            public void BranchExited() 
+            {
+                foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources)
+                {
+                    inUseAbilityResource.InUse.Release();
+                }
+            }
 
             public virtual bool CanBranch(ItemNode node)
             {
-                return this.branchConditions.Evaluate(node.EnterDuration, node.EnterDurationDelta);
+                return this.branchCondition.Evaluate(node.EnterDuration, node.EnterDurationDelta);
             }
         }
     }

@@ -1,5 +1,10 @@
 using System.Collections.Generic;
+using System.Linq;
+using System;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 using FrigidBlackwaters.Utility;
 
@@ -9,41 +14,104 @@ namespace FrigidBlackwaters.Game
     public class TiledAreaBlueprint : FrigidScriptableObject
     {
         [SerializeField]
+        [ReadOnly]
+        private TiledArea areaPrefab;
+        [SerializeField]
+        [ReadOnly]
+        private TiledEntranceAsset[] wallEntranceAssets;
+        [SerializeField]
+        [ReadOnly]
+        private int[] wallEntranceTileIndexes;
+        [SerializeField]
+        [ReadOnly]
+        private int[] wallEntranceWidths;
+        [SerializeField]
+        [ReadOnly]
         private Vector2Int mainAreaDimensions;
         [SerializeField]
+        [ReadOnly]
+        private bool hasVisibleWalls;
+        [SerializeField]
+        [ReadOnly]
         private List<TerrainTileAsset> terrainTileAssets;
         [SerializeField]
-        private WallTileAsset wallTileAsset;
+        [ReadOnly]
+        private Nested2DList<WallTileAsset> wallTileAssets;
         [SerializeField]
+        [ReadOnly]
         private Nested2DList<TerrainContentAsset> terrainContentAssets;
         [SerializeField]
+        [ReadOnly]
         private Nested2DList<Vector2> terrainContentOrientationDirections;
         [SerializeField]
+        [ReadOnly]
         private Nested2DList<WallContentAsset> wallContentAssets;
         [SerializeField]
+        [ReadOnly]
         private Nested2DList<Vector2> wallContentOrientationDirections;
         [SerializeField]
-        private TileTerrain[] entranceTerrains;
+        [ReadOnly]
+        private List<TiledAreaMobSpawnerSerializedReference> mobSpawners;
         [SerializeField]
-        private List<TiledAreaMobGenerationPreset> mobGenerationPresets;
+        [ReadOnly]
+        private Nested2DList<TiledAreaMobSpawnPoint> mobSpawnPoints;
 
-        public void Setup(Vector2Int mainAreaDimensions)
+#if UNITY_EDITOR
+        public static TiledAreaBlueprint CreateEmpty(string assetPath, TiledArea areaPrefab, Vector2Int mainAreaDimensions, TerrainTileAsset terrainTileAsset, WallTileAsset wallTileAsset)
         {
-            this.mainAreaDimensions = mainAreaDimensions;
-            this.terrainTileAssets = new List<TerrainTileAsset>(new TerrainTileAsset[mainAreaDimensions.x * mainAreaDimensions.y]);
-            this.wallTileAsset = null;
-            this.terrainContentAssets = new Nested2DList<TerrainContentAsset>();
+            if (terrainTileAsset == null || wallTileAsset == null)
+            {
+                throw new Exception("Tried to create empty TiledAreaBlueprint with null assets.");
+            }
+
+            if (mainAreaDimensions.x <= 0 || mainAreaDimensions.y <= 0)
+            {
+                throw new Exception("Tried to create empty TiledAreaBlueprint with invalid dimensions.");
+            }
+
+            TiledAreaBlueprint emptyBlueprint = CreateInstance<TiledAreaBlueprint>();
+            emptyBlueprint.areaPrefab = areaPrefab;
+            emptyBlueprint.wallEntranceWidths = Enumerable.Repeat<int>(-1, 4).ToArray();
+            emptyBlueprint.wallEntranceTileIndexes = Enumerable.Repeat<int>(-1, 4).ToArray();
+            emptyBlueprint.wallEntranceAssets = Enumerable.Repeat<TiledEntranceAsset>(null, 4).ToArray();
+            emptyBlueprint.mainAreaDimensions = mainAreaDimensions;
+            emptyBlueprint.hasVisibleWalls = true;
+            emptyBlueprint.terrainTileAssets = new List<TerrainTileAsset>(Enumerable.Repeat<TerrainTileAsset>(terrainTileAsset, mainAreaDimensions.x * mainAreaDimensions.y).ToArray());
+            emptyBlueprint.wallTileAssets = new Nested2DList<WallTileAsset>();
+            emptyBlueprint.wallTileAssets.Add(new Nested1DList<WallTileAsset>(Enumerable.Repeat<WallTileAsset>(wallTileAsset, mainAreaDimensions.y)));
+            emptyBlueprint.wallTileAssets.Add(new Nested1DList<WallTileAsset>(Enumerable.Repeat<WallTileAsset>(wallTileAsset, mainAreaDimensions.x)));
+            emptyBlueprint.wallTileAssets.Add(new Nested1DList<WallTileAsset>(Enumerable.Repeat<WallTileAsset>(wallTileAsset, mainAreaDimensions.y)));
+            emptyBlueprint.wallTileAssets.Add(new Nested1DList<WallTileAsset>(Enumerable.Repeat<WallTileAsset>(wallTileAsset, mainAreaDimensions.x)));
+            emptyBlueprint.terrainContentAssets = new Nested2DList<TerrainContentAsset>();
+            emptyBlueprint.terrainContentOrientationDirections = new Nested2DList<Vector2>();
             for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
             {
-                this.terrainContentAssets.Add(new Nested1DList<TerrainContentAsset>(new TerrainContentAsset[mainAreaDimensions.x * mainAreaDimensions.y]));
+                emptyBlueprint.terrainContentAssets.Add(new Nested1DList<TerrainContentAsset>(Enumerable.Repeat<TerrainContentAsset>(null, mainAreaDimensions.x * mainAreaDimensions.y).ToArray()));
+                emptyBlueprint.terrainContentOrientationDirections.Add(new Nested1DList<Vector2>(Enumerable.Repeat(Vector2.zero, mainAreaDimensions.x * mainAreaDimensions.y).ToArray()));
             }
-            this.wallContentAssets = new Nested2DList<WallContentAsset>();
-            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.y]));
-            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.x]));
-            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.y]));
-            this.wallContentAssets.Add(new Nested1DList<WallContentAsset>(new WallContentAsset[this.mainAreaDimensions.x]));
-            this.entranceTerrains = new TileTerrain[4];
-            this.mobGenerationPresets = new List<TiledAreaMobGenerationPreset>();
+            emptyBlueprint.wallContentAssets = new Nested2DList<WallContentAsset>();
+            emptyBlueprint.wallContentAssets.Add(new Nested1DList<WallContentAsset>(Enumerable.Repeat<WallContentAsset>(null, mainAreaDimensions.y).ToArray()));
+            emptyBlueprint.wallContentAssets.Add(new Nested1DList<WallContentAsset>(Enumerable.Repeat<WallContentAsset>(null, mainAreaDimensions.x).ToArray()));
+            emptyBlueprint.wallContentAssets.Add(new Nested1DList<WallContentAsset>(Enumerable.Repeat<WallContentAsset>(null, mainAreaDimensions.y).ToArray()));
+            emptyBlueprint.wallContentAssets.Add(new Nested1DList<WallContentAsset>(Enumerable.Repeat<WallContentAsset>(null, mainAreaDimensions.x).ToArray()));
+            emptyBlueprint.wallContentOrientationDirections = new Nested2DList<Vector2>();
+            emptyBlueprint.wallContentOrientationDirections.Add(new Nested1DList<Vector2>(Enumerable.Repeat(Vector2.zero, mainAreaDimensions.y).ToArray()));
+            emptyBlueprint.wallContentOrientationDirections.Add(new Nested1DList<Vector2>(Enumerable.Repeat(Vector2.zero, mainAreaDimensions.x).ToArray()));
+            emptyBlueprint.wallContentOrientationDirections.Add(new Nested1DList<Vector2>(Enumerable.Repeat(Vector2.zero, mainAreaDimensions.y).ToArray()));
+            emptyBlueprint.wallContentOrientationDirections.Add(new Nested1DList<Vector2>(Enumerable.Repeat(Vector2.zero, mainAreaDimensions.x).ToArray()));
+            emptyBlueprint.mobSpawners = new List<TiledAreaMobSpawnerSerializedReference>();
+            emptyBlueprint.mobSpawnPoints = new Nested2DList<TiledAreaMobSpawnPoint>();
+            AssetDatabase.CreateAsset(emptyBlueprint, assetPath);
+            return emptyBlueprint;
+        }
+#endif
+
+        public TiledArea AreaPrefab
+        {
+            get
+            {
+                return this.areaPrefab;
+            }
         }
 
         public Vector2Int MainAreaDimensions
@@ -58,94 +126,550 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return new Vector2Int(this.mainAreaDimensions.x + WallsPopulator.MAX_WALL_DEPTH * 2, this.mainAreaDimensions.y + WallsPopulator.MAX_WALL_DEPTH * 2);
+                return new Vector2Int(this.mainAreaDimensions.x + TiledArea.MAX_WALL_DEPTH * 2, this.mainAreaDimensions.y + TiledArea.MAX_WALL_DEPTH * 2);
             }
         }
 
-        public TileTerrain[] EntranceTerrains
+        public bool HasVisibleWalls
         {
             get
             {
-                return this.entranceTerrains;
+                return this.hasVisibleWalls;
             }
-        }
-
-        public List<TiledAreaMobGenerationPreset> MobGenerationPresets
-        {
-            get
+            set
             {
-                return this.mobGenerationPresets;
+                if (this.hasVisibleWalls != value)
+                {
+                    FrigidEdit.RecordChanges(this);
+                    this.hasVisibleWalls = value;
+                }
             }
         }
 
-        public TerrainTileAsset GetTerrainTileAssetAt(Vector2Int tileIndices)
+        public void Expand(Vector2Int wallIndexDirection)
         {
-            return this.terrainTileAssets[tileIndices.y * this.mainAreaDimensions.x + tileIndices.x];
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            Vector2Int newMainAreaDimensions = this.mainAreaDimensions + new Vector2Int(Mathf.Abs(wallIndexDirection.x), Mathf.Abs(wallIndexDirection.y));
+            if (newMainAreaDimensions.x < 1 || newMainAreaDimensions.y < 1 ||
+                newMainAreaDimensions.x < Mathf.Max(this.wallEntranceWidths[1], this.wallEntranceWidths[3]) || newMainAreaDimensions.y < Mathf.Max(this.wallEntranceWidths[0], this.wallEntranceWidths[2]))
+            {
+                return;
+            }
+
+            FrigidEdit.RecordChanges(this);
+            if (wallIndexDirection == Vector2Int.right)
+            {
+                for (int y = this.mainAreaDimensions.y -1; y >= 0; y--)
+                {
+                    int rightMostIndex = y * this.mainAreaDimensions.x + this.mainAreaDimensions.x - 1;
+                    this.terrainTileAssets.Insert(rightMostIndex + 1, this.terrainTileAssets[rightMostIndex]);
+                    for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                    {
+                        this.terrainContentAssets[i].Insert(rightMostIndex + 1, null);
+                        this.terrainContentOrientationDirections[i].Insert(rightMostIndex + 1, Vector2.zero);
+                    }
+                }
+                this.wallTileAssets[1].Insert(this.mainAreaDimensions.x, this.wallTileAssets[1][this.mainAreaDimensions.x - 1]);
+                this.wallTileAssets[3].Insert(0, this.wallTileAssets[3][0]);
+                this.wallContentAssets[1].Insert(this.mainAreaDimensions.x, null);
+                this.wallContentAssets[3].Insert(0, null);
+                this.wallContentOrientationDirections[1].Insert(this.mainAreaDimensions.x, Vector2.zero);
+                this.wallContentOrientationDirections[3].Insert(0, Vector2.zero);
+                this.wallEntranceTileIndexes[3]++;
+                this.wallEntranceTileIndexes[1] = Mathf.Clamp(this.wallEntranceTileIndexes[1], this.wallEntranceWidths[1] - 1, newMainAreaDimensions.x - 1);
+                this.wallEntranceTileIndexes[3] = Mathf.Clamp(this.wallEntranceTileIndexes[3], this.wallEntranceWidths[3] - 1, newMainAreaDimensions.x - 1);
+            }
+            else if (wallIndexDirection == Vector2Int.up)
+            {
+                this.terrainTileAssets.InsertRange(0, this.terrainTileAssets.GetRange(0, this.mainAreaDimensions.x));
+                for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                {
+                    this.terrainContentAssets[i].InsertRange(0, Enumerable.Repeat<TerrainContentAsset>(null, this.mainAreaDimensions.x));
+                    this.terrainContentOrientationDirections[i].InsertRange(0, Enumerable.Repeat<Vector2>(Vector2.zero, this.mainAreaDimensions.x));
+                }
+                this.wallTileAssets[0].Insert(0, this.wallTileAssets[0][0]);
+                this.wallTileAssets[2].Insert(this.mainAreaDimensions.y, this.wallTileAssets[2][this.mainAreaDimensions.y - 1]);
+                this.wallContentAssets[0].Insert(0, null);
+                this.wallContentAssets[2].Insert(this.mainAreaDimensions.y, null);
+                this.wallContentOrientationDirections[0].Insert(0, Vector2.zero);
+                this.wallContentOrientationDirections[2].Insert(this.mainAreaDimensions.y, Vector2.zero);
+                this.wallEntranceTileIndexes[0]++;
+                this.wallEntranceTileIndexes[0] = Mathf.Clamp(this.wallEntranceTileIndexes[0], this.wallEntranceWidths[0] - 1, newMainAreaDimensions.y - 1);
+                this.wallEntranceTileIndexes[2] = Mathf.Clamp(this.wallEntranceTileIndexes[2], this.wallEntranceWidths[2] - 1, newMainAreaDimensions.y - 1);
+            }
+            else if (wallIndexDirection == Vector2Int.left)
+            {
+                for (int y = this.mainAreaDimensions.y - 1; y >= 0; y--)
+                {
+                    int leftMostIndex = y * this.mainAreaDimensions.x;
+                    this.terrainTileAssets.Insert(leftMostIndex, this.terrainTileAssets[leftMostIndex]);
+                    for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                    {
+                        this.terrainContentAssets[i].Insert(leftMostIndex, null);
+                        this.terrainContentOrientationDirections[i].Insert(leftMostIndex, Vector2.zero);
+                    }
+                }
+                this.wallTileAssets[1].Insert(0, this.wallTileAssets[1][0]);
+                this.wallTileAssets[3].Insert(this.mainAreaDimensions.x, this.wallTileAssets[3][this.mainAreaDimensions.x - 1]);
+                this.wallContentAssets[1].Insert(0, null);
+                this.wallContentAssets[3].Insert(this.mainAreaDimensions.x, null);
+                this.wallContentOrientationDirections[1].Insert(0, Vector2.zero);
+                this.wallContentOrientationDirections[3].Insert(this.mainAreaDimensions.x, Vector2.zero);
+                this.wallEntranceTileIndexes[1]++;
+                this.wallEntranceTileIndexes[1] = Mathf.Clamp(this.wallEntranceTileIndexes[1], this.wallEntranceWidths[1] - 1, newMainAreaDimensions.x - 1);
+                this.wallEntranceTileIndexes[3] = Mathf.Clamp(this.wallEntranceTileIndexes[3], this.wallEntranceWidths[3] - 1, newMainAreaDimensions.x - 1);
+            }
+            else
+            {
+                this.terrainTileAssets.InsertRange(this.mainAreaDimensions.y * this.mainAreaDimensions.x, this.terrainTileAssets.GetRange((this.mainAreaDimensions.y - 1) * this.mainAreaDimensions.x, this.mainAreaDimensions.x));
+                for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                {
+                    this.terrainContentAssets[i].InsertRange(this.mainAreaDimensions.y * this.mainAreaDimensions.x, Enumerable.Repeat<TerrainContentAsset>(null, this.mainAreaDimensions.x));
+                    this.terrainContentOrientationDirections[i].InsertRange(this.mainAreaDimensions.y * this.mainAreaDimensions.x, Enumerable.Repeat<Vector2>(Vector2.zero, this.mainAreaDimensions.x));
+                }
+                this.wallTileAssets[0].Insert(this.mainAreaDimensions.y, this.wallTileAssets[0][this.mainAreaDimensions.y - 1]);
+                this.wallTileAssets[2].Insert(0, this.wallTileAssets[2][0]);
+                this.wallContentAssets[0].Insert(this.mainAreaDimensions.y, null);
+                this.wallContentAssets[2].Insert(0, null);
+                this.wallContentOrientationDirections[0].Insert(this.mainAreaDimensions.y, Vector2.zero);
+                this.wallContentOrientationDirections[2].Insert(0, Vector2.zero);
+                this.wallEntranceTileIndexes[2]++;
+                this.wallEntranceTileIndexes[0] = Mathf.Clamp(this.wallEntranceTileIndexes[0], this.wallEntranceWidths[0] - 1, newMainAreaDimensions.y - 1);
+                this.wallEntranceTileIndexes[2] = Mathf.Clamp(this.wallEntranceTileIndexes[2], this.wallEntranceWidths[2] - 1, newMainAreaDimensions.y - 1);
+            }
+            this.mainAreaDimensions = newMainAreaDimensions;
         }
 
-        public void SetTerrainTileAssetAt(Vector2Int tileIndices, TerrainTileAsset terrainTileAsset)
+        public void Shrink(Vector2Int wallIndexDirection)
         {
-            this.terrainTileAssets[tileIndices.y * this.mainAreaDimensions.x + tileIndices.x] = terrainTileAsset;
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            Vector2Int newMainAreaDimensions = this.mainAreaDimensions - new Vector2Int(Mathf.Abs(wallIndexDirection.x), Mathf.Abs(wallIndexDirection.y));
+            if (newMainAreaDimensions.x < 1 || newMainAreaDimensions.y < 1 || 
+                newMainAreaDimensions.x < Mathf.Max(this.wallEntranceWidths[1], this.wallEntranceWidths[3]) || newMainAreaDimensions.y < Mathf.Max(this.wallEntranceWidths[0], this.wallEntranceWidths[2]))
+            {
+                return;
+            }
+
+            FrigidEdit.RecordChanges(this);
+            if (wallIndexDirection == Vector2Int.right)
+            {
+                for (int y = this.mainAreaDimensions.y - 1; y >= 0; y--)
+                {
+                    int rightMostIndex = y * this.mainAreaDimensions.x + this.mainAreaDimensions.x - 1;
+                    this.terrainTileAssets.RemoveAt(rightMostIndex);
+                    for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                    {
+                        this.terrainContentAssets[i].RemoveAt(rightMostIndex);
+                        this.terrainContentOrientationDirections[i].RemoveAt(rightMostIndex);
+                    }
+                }
+                this.wallTileAssets[1].RemoveAt(this.mainAreaDimensions.x - 1);
+                this.wallTileAssets[3].RemoveAt(0);
+                this.wallContentAssets[1].RemoveAt(this.mainAreaDimensions.x - 1);
+                this.wallContentAssets[3].RemoveAt(0);
+                this.wallContentOrientationDirections[1].RemoveAt(this.mainAreaDimensions.x - 1);
+                this.wallContentOrientationDirections[3].RemoveAt(0);
+                this.wallEntranceTileIndexes[3]--;
+                this.wallEntranceTileIndexes[1] = Mathf.Clamp(this.wallEntranceTileIndexes[1], this.wallEntranceWidths[1] - 1, newMainAreaDimensions.x - 1);
+                this.wallEntranceTileIndexes[3] = Mathf.Clamp(this.wallEntranceTileIndexes[3], this.wallEntranceWidths[3] - 1, newMainAreaDimensions.x - 1);
+            }
+            else if (wallIndexDirection == Vector2Int.up)
+            {
+                this.terrainTileAssets.RemoveRange(0, this.mainAreaDimensions.x);
+                for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                {
+                    this.terrainContentAssets[i].RemoveRange(0, this.mainAreaDimensions.x);
+                    this.terrainContentOrientationDirections[i].RemoveRange(0, this.mainAreaDimensions.x);
+                }
+                this.wallTileAssets[0].RemoveAt(0);
+                this.wallTileAssets[2].RemoveAt(this.mainAreaDimensions.y - 1);
+                this.wallContentAssets[0].RemoveAt(0);
+                this.wallContentAssets[2].RemoveAt(this.mainAreaDimensions.y - 1);
+                this.wallContentOrientationDirections[0].RemoveAt(0);
+                this.wallContentOrientationDirections[2].RemoveAt(this.mainAreaDimensions.y - 1);
+                this.wallEntranceTileIndexes[0]--;
+                this.wallEntranceTileIndexes[0] = Mathf.Clamp(this.wallEntranceTileIndexes[0], this.wallEntranceWidths[0] - 1, newMainAreaDimensions.y - 1);
+                this.wallEntranceTileIndexes[2] = Mathf.Clamp(this.wallEntranceTileIndexes[2], this.wallEntranceWidths[2] - 1, newMainAreaDimensions.y - 1);
+            }
+            else if (wallIndexDirection == Vector2Int.left)
+            {
+                for (int y = this.mainAreaDimensions.y - 1; y >= 0; y--)
+                {
+                    int leftMostIndex = y * this.mainAreaDimensions.x;
+                    this.terrainTileAssets.RemoveAt(leftMostIndex);
+                    for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                    {
+                        this.terrainContentAssets[i].RemoveAt(leftMostIndex);
+                        this.terrainContentOrientationDirections[i].RemoveAt(leftMostIndex);
+                    }
+                }
+                this.wallTileAssets[1].RemoveAt(0);
+                this.wallTileAssets[3].RemoveAt(this.mainAreaDimensions.x - 1);
+                this.wallContentAssets[1].RemoveAt(0);
+                this.wallContentAssets[3].RemoveAt(this.mainAreaDimensions.x - 1);
+                this.wallContentOrientationDirections[1].RemoveAt(0);
+                this.wallContentOrientationDirections[3].RemoveAt(this.mainAreaDimensions.x - 1);
+                this.wallEntranceTileIndexes[1]--;
+                this.wallEntranceTileIndexes[1] = Mathf.Clamp(this.wallEntranceTileIndexes[1], this.wallEntranceWidths[1] - 1, newMainAreaDimensions.x - 1);
+                this.wallEntranceTileIndexes[3] = Mathf.Clamp(this.wallEntranceTileIndexes[3], this.wallEntranceWidths[3] - 1, newMainAreaDimensions.x - 1);
+            }
+            else
+            {
+                this.terrainTileAssets.RemoveRange((this.mainAreaDimensions.y - 1) * this.mainAreaDimensions.x, this.mainAreaDimensions.x);
+                for (int i = 0; i < (int)TerrainContentHeight.Count; i++)
+                {
+                    this.terrainContentAssets[i].RemoveRange((this.mainAreaDimensions.y - 1) * this.mainAreaDimensions.x, this.mainAreaDimensions.x);
+                    this.terrainContentOrientationDirections[i].RemoveRange((this.mainAreaDimensions.y - 1) * this.mainAreaDimensions.x, this.mainAreaDimensions.x);
+                }
+                this.wallTileAssets[0].RemoveAt(this.mainAreaDimensions.y - 1);
+                this.wallTileAssets[2].RemoveAt(0);
+                this.wallContentAssets[0].RemoveAt(this.mainAreaDimensions.y - 1);
+                this.wallContentAssets[2].RemoveAt(0);
+                this.wallContentOrientationDirections[0].RemoveAt(this.mainAreaDimensions.y - 1);
+                this.wallContentOrientationDirections[2].RemoveAt(0);
+                this.wallEntranceTileIndexes[2]--;
+                this.wallEntranceTileIndexes[0] = Mathf.Clamp(this.wallEntranceTileIndexes[0], this.wallEntranceWidths[0] - 1, newMainAreaDimensions.y - 1);
+                this.wallEntranceTileIndexes[2] = Mathf.Clamp(this.wallEntranceTileIndexes[2], this.wallEntranceWidths[2] - 1, newMainAreaDimensions.y - 1);
+            }
+            this.mainAreaDimensions = newMainAreaDimensions;
         }
 
-        public TerrainContentAsset GetTerrainContentAssetAt(TerrainContentHeight height, Vector2Int tileIndices)
+        public bool TryGetWallEntranceAssetAndIndexAndWidth(Vector2Int wallIndexDirection, out TiledEntranceAsset entranceAsset, out int tileIndex, out int width)
         {
-            return this.terrainContentAssets[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x];
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            int wallIndex = WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection);
+            entranceAsset = this.wallEntranceAssets[wallIndex];
+            tileIndex = this.wallEntranceTileIndexes[wallIndex];
+            width = this.wallEntranceWidths[wallIndex];
+            return entranceAsset != null;
         }
 
-        public void SetTerrainContentAssetAt(TerrainContentHeight height, Vector2Int tileIndices, TerrainContentAsset terrainContentAsset)
+        public void SetWallEntranceAssetAndIndexAndWidth(Vector2Int wallIndexDirection, TiledEntranceAsset entranceAsset, int tileIndex, int width)
         {
-            this.terrainContentAssets[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x] = terrainContentAsset;
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            if (entranceAsset == null)
+            {
+                throw new ArgumentNullException("TiledEntranceAsset cannot be null");
+            }
+
+            if (width < entranceAsset.MinWidth || width > entranceAsset.MaxWidth || !WallTiling.EdgeExtentIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions, width))
+            {
+                throw new ArgumentException("Index out of bounds or cannot fit.");
+            }
+
+            int wallIndex = WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection);
+            if (entranceAsset != this.wallEntranceAssets[wallIndex] || tileIndex != this.wallEntranceTileIndexes[wallIndex] || width != this.wallEntranceWidths[wallIndex])
+            {
+                FrigidEdit.RecordChanges(this);
+                this.wallEntranceAssets[wallIndex] = entranceAsset;
+                this.wallEntranceTileIndexes[wallIndex] = tileIndex;
+                this.wallEntranceWidths[wallIndex] = width;
+            }
         }
 
-        public Vector2 GetTerrainContentOrientationDirectionAt(Vector2Int tileIndices, TerrainContentHeight height)
+        public void ClearWallEntranceAsset(Vector2Int wallIndexDirection)
         {
-            return this.terrainContentOrientationDirections[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x];
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            int wallIndex = WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection);
+            if (this.wallEntranceAssets[wallIndex] != null)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.wallEntranceAssets[wallIndex] = null;
+                this.wallEntranceWidths[wallIndex] = -1;
+                this.wallEntranceTileIndexes[wallIndex] = -1;
+            }
         }
 
-        public void SetTerrainContentOrientationDirectionAt(Vector2Int tileIndices, TerrainContentHeight height, Vector2 orientationDirection)
+        public TerrainTileAsset GetTerrainTileAssetAt(Vector2Int tileIndexPosition)
         {
-            this.terrainContentOrientationDirections[(int)height][tileIndices.y * this.mainAreaDimensions.x + tileIndices.x] = orientationDirection;
+            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index position out of bounds.");
+            }
+
+            return this.terrainTileAssets[tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x];
         }
 
-        public WallTileAsset GetWallTileAsset()
+        public void SetTerrainTileAssetAt(Vector2Int tileIndexPosition, TerrainTileAsset terrainTileAsset)
         {
-            return this.wallTileAsset;
+            if (terrainTileAsset == null)
+            {
+                throw new ArgumentNullException("TerrainTileAsset cannot be null.");
+            }
+
+            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index position out of bounds.");
+            }
+
+            if (this.terrainTileAssets[tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != terrainTileAsset)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.terrainTileAssets[tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] = terrainTileAsset;
+            }
         }
 
-        public void SetWallTileAsset(WallTileAsset wallTileAsset)
+        public bool TryGetTerrainContentAssetAndOrientationAt(TerrainContentHeight height, Vector2Int tileIndexPosition, out TerrainContentAsset terrainContentAsset, out Vector2 orientationDirection)
         {
-            this.wallTileAsset = wallTileAsset;
+            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index position out of bounds.");
+            }
+
+            terrainContentAsset = this.terrainContentAssets[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x];
+            orientationDirection = this.terrainContentOrientationDirections[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x];
+            return terrainContentAsset != null;
         }
 
-        public WallContentAsset GetWallContentAssetAt(Vector2Int wallDirection, int tileIndex)
+        public void SetTerrainContentAssetAndOrientationAt(Vector2Int tileIndexPosition, TerrainContentAsset terrainContentAsset, Vector2 orientationDirection)
         {
-            return this.wallContentAssets[TilePositioning.WallArrayIndex(wallDirection)][tileIndex];
+            if (terrainContentAsset == null)
+            {
+                throw new ArgumentNullException("TerrainContentAsset cannot be null.");
+            }
+
+            if (!AreaTiling.RectIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions, terrainContentAsset.GetDimensions(orientationDirection)))
+            {
+                throw new ArgumentException("Index position out of bounds or cannot fit.");
+            }
+
+            if ((this.terrainContentAssets[(int)terrainContentAsset.Height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != terrainContentAsset ||
+                this.terrainContentOrientationDirections[(int)terrainContentAsset.Height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != orientationDirection) &&
+                tileIndexPosition.x >= terrainContentAsset.GetDimensions(orientationDirection).x - 1 && tileIndexPosition.y >= terrainContentAsset.GetDimensions(orientationDirection).y - 1)
+            {
+                for (int x = 0; x < this.MainAreaDimensions.x; x++)
+                {
+                    for (int y = 0; y < this.mainAreaDimensions.y; y++)
+                    {
+                        Vector2Int otherTileIndexPosition = new Vector2Int(x, y);
+                        if (otherTileIndexPosition == tileIndexPosition) continue;
+
+                        if (this.TryGetTerrainContentAssetAndOrientationAt(terrainContentAsset.Height, otherTileIndexPosition, out TerrainContentAsset otherTerrainContentAsset, out Vector2 otherOrientationDirection) && 
+                            AreaTiling.AreRectIndexPositionsOverlapping(tileIndexPosition, terrainContentAsset.GetDimensions(orientationDirection), otherTileIndexPosition, otherTerrainContentAsset.GetDimensions(otherOrientationDirection)))
+                        {
+                            this.ClearTerrainContentAssetAt(terrainContentAsset.Height, otherTileIndexPosition);
+                        }
+                    }
+                }
+
+                FrigidEdit.RecordChanges(this);
+                this.terrainContentAssets[(int)terrainContentAsset.Height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] = terrainContentAsset;
+                this.terrainContentOrientationDirections[(int)terrainContentAsset.Height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] = orientationDirection;
+            }
         }
 
-        public void SetWallContentAssetAt(Vector2Int wallDirection, int tileIndex, WallContentAsset wallContentAsset)
+        public void ClearTerrainContentAssetAt(TerrainContentHeight height, Vector2Int tileIndexPosition)
         {
-            this.wallContentAssets[TilePositioning.WallArrayIndex(wallDirection)][tileIndex] = wallContentAsset;
+            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index position out of bounds.");
+            }
+
+            if (this.terrainContentAssets[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != null ||
+                this.terrainContentOrientationDirections[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != Vector2.zero)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.terrainContentAssets[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] = null;
+                this.terrainContentOrientationDirections[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] = Vector2.zero;
+            }
         }
 
-        public Vector2 GetWallContentOrientationDirectionAt(Vector2Int wallDirection, int tileIndex)
+        public WallTileAsset GetWallTileAssetAt(Vector2Int wallIndexDirection, int tileIndex)
         {
-            return this.wallContentOrientationDirections[TilePositioning.WallArrayIndex(wallDirection)][tileIndex];
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index out of bounds.");
+            }
+
+            return this.wallTileAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex];
         }
 
-        public void SetWallContentOrientationDirectionAt(Vector2Int wallDirection, int tileIndex, Vector2 orientationDirection)
+        public void SetWallTileAssetAt(Vector2Int wallIndexDirection, int tileIndex, WallTileAsset wallTileAsset)
         {
-            this.wallContentOrientationDirections[TilePositioning.WallArrayIndex(wallDirection)][tileIndex] = orientationDirection;
+            if (wallTileAsset == null)
+            {
+                throw new ArgumentNullException("WallTileAsset cannot be null.");
+            }
+
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index out of bounds.");
+            }
+
+            if (this.wallTileAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != wallTileAsset)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.wallTileAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] = wallTileAsset;
+            }
         }
 
-        public TileTerrain GetEntranceTerrain(Vector2Int wallDirection)
+        public bool TryGetWallContentAssetAndOrientationAt(Vector2Int wallIndexDirection, int tileIndex, out WallContentAsset wallContentAsset, out Vector2 orientationDirection)
         {
-            return this.entranceTerrains[TilePositioning.WallArrayIndex(wallDirection)];
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index out of bounds.");
+            }
+
+            wallContentAsset = this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex];
+            orientationDirection = this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex];
+            return wallContentAsset != null;
         }
 
-        public void SetEntranceTerrain(TileTerrain terrain, Vector2Int wallDirection)
+        public void SetWallContentAssetAndOrientationAt(Vector2Int wallIndexDirection, int tileIndex, WallContentAsset wallContentAsset, Vector2 orientationDirection)
         {
-            this.entranceTerrains[TilePositioning.WallArrayIndex(wallDirection)] = terrain;
+            if (wallContentAsset == null)
+            {
+                throw new ArgumentNullException("WallContentAsset cannot be null.");
+            }
+
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            if (!WallTiling.EdgeExtentIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions, wallContentAsset.GetWidth(orientationDirection)))
+            {
+                throw new ArgumentException("Index out of bounds or cannot fit.");
+            }
+
+            if (this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != wallContentAsset ||
+                this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != orientationDirection)
+            {
+                for (int otherTileIndex = 0; otherTileIndex < WallTiling.GetEdgeLength(wallIndexDirection, this.MainAreaDimensions); otherTileIndex++)
+                {
+                    if (otherTileIndex == tileIndex) continue;
+
+                    if (this.TryGetWallContentAssetAndOrientationAt(wallIndexDirection, otherTileIndex, out WallContentAsset otherWallContentAsset, out Vector2 otherOrientationDirection) &&
+                        WallTiling.AreEdgeExtentIndexesOverlapping(tileIndex, wallContentAsset.GetWidth(orientationDirection), otherTileIndex, otherWallContentAsset.GetWidth(otherOrientationDirection)))
+                    {
+                        this.ClearWallContentAssetAt(wallIndexDirection, otherTileIndex);
+                    }
+                }
+
+                FrigidEdit.RecordChanges(this);
+                this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] = wallContentAsset;
+                this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] = orientationDirection;
+            }
+        }
+
+        public void ClearWallContentAssetAt(Vector2Int wallIndexDirection, int tileIndex)
+        {
+            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
+            {
+                throw new ArgumentException("Invalid wall direction.");
+            }
+
+            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
+            {
+                throw new ArgumentException("Index out of bounds.");
+            }
+
+            if (this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != null ||
+                this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != Vector2.zero)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] = null;
+                this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] = Vector2.zero;
+            }
+        }
+
+        public int GetNumberMobSpawners()
+        {
+            return this.mobSpawners.Count;
+        }
+
+        public TiledAreaMobSpawnerSerializedReference GetMobSpawnerByReference(int spawnerIndex)
+        {
+            return this.mobSpawners[spawnerIndex];
+        }
+
+        public void SetMobSpawnerByReference(int spawnerIndex, TiledAreaMobSpawnerSerializedReference mobSpawner)
+        {
+            if (this.mobSpawners[spawnerIndex] != mobSpawner)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.mobSpawners[spawnerIndex] = mobSpawner;
+            }
+        }
+
+        public void AddMobSpawner(int spawnerIndex)
+        {
+            FrigidEdit.RecordChanges(this);
+            this.mobSpawners.Insert(spawnerIndex, new TiledAreaMobSpawnerSerializedReference());
+            this.mobSpawnPoints.Insert(spawnerIndex, new Nested1DList<TiledAreaMobSpawnPoint>());
+        }
+
+        public void RemoveMobSpawner(int spawnerIndex)
+        {
+            FrigidEdit.RecordChanges(this);
+            this.mobSpawners.RemoveAt(spawnerIndex);
+            this.mobSpawnPoints.RemoveAt(spawnerIndex);
+        }
+
+        public int GetNumberMobSpawnPoints(int spawnerIndex)
+        {
+            return this.mobSpawnPoints[spawnerIndex].Count;
+        }
+
+        public TiledAreaMobSpawnPoint GetMobSpawnPoint(int spawnerIndex, int spawnPointIndex)
+        {
+            return this.mobSpawnPoints[spawnerIndex][spawnPointIndex];
+        }
+
+        public void SetMobSpawnPoint(int spawnerIndex, int spawnPointIndex, TiledAreaMobSpawnPoint mobSpawnPoint)
+        {
+            if (this.mobSpawnPoints[spawnerIndex][spawnPointIndex] != mobSpawnPoint)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.mobSpawnPoints[spawnerIndex][spawnPointIndex] = mobSpawnPoint;
+            }
+        }
+
+        public void AddMobSpawnPoint(int spawnerIndex, int spawnPointIndex)
+        {
+            FrigidEdit.RecordChanges(this);
+            this.mobSpawnPoints[spawnerIndex].Insert(spawnPointIndex, new TiledAreaMobSpawnPoint(Vector2.zero));
+        }
+
+        public void RemoveMobSpawnPoint(int spawnerIndex, int spawnPointIndex)
+        {
+            FrigidEdit.RecordChanges(this);
+            this.mobSpawnPoints[spawnerIndex].RemoveAt(spawnPointIndex);
         }
     }
 }

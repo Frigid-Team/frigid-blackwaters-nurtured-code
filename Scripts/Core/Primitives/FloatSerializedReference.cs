@@ -60,12 +60,12 @@ namespace FrigidBlackwaters.Core
 
         protected override float GetRandomFromRangeImmutableValue()
         {
-            return this.lowerValue + ((float)new System.Random(GetHashCode()).NextDouble()) * (this.upperValue - this.lowerValue);
+            return this.lowerValue + ((float)new System.Random(this.GetHashCode()).NextDouble()) * (this.upperValue - this.lowerValue);
         }
 
         protected override float GetRandomFromRangeMutableValue()
         {
-            return this.lowerValue + ((float)new System.Random().NextDouble()) * (this.upperValue - this.lowerValue);
+            return this.lowerValue + UnityEngine.Random.Range(this.lowerValue, this.upperValue);
         }
 
         protected override bool RangeEquals(SerializedReference<float> other)

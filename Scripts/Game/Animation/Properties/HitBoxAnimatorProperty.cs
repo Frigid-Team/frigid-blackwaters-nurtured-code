@@ -31,14 +31,14 @@ namespace FrigidBlackwaters.Game
         {
             if (this.damageBonuses[animationIndex][frameIndex] != damageBonus)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.damageBonuses[animationIndex][frameIndex] = damageBonus;
             }
         }
 
         public override void Created()
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.damageBonuses = new Nested2DList<int>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
             {
@@ -54,7 +54,7 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationAddedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.damageBonuses.Insert(animationIndex, new Nested1DList<int>());
             for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
             {
@@ -65,21 +65,21 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationRemovedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.damageBonuses.RemoveAt(animationIndex);
             base.AnimationRemovedAt(animationIndex);
         }
 
         public override void FrameAddedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.damageBonuses[animationIndex].Insert(frameIndex, 0);
             base.FrameAddedAt(animationIndex, frameIndex);
         }
 
         public override void FrameRemovedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.damageBonuses[animationIndex].RemoveAt(frameIndex);
             base.FrameRemovedAt(animationIndex, frameIndex);
         }
@@ -89,20 +89,26 @@ namespace FrigidBlackwaters.Game
             HitBoxAnimatorProperty otherHitBoxProperty = otherProperty as HitBoxAnimatorProperty;
             if (otherHitBoxProperty)
             {
-                otherHitBoxProperty.SetDamageBonus(toAnimationIndex, toFrameIndex, GetDamageBonus(fromAnimationIndex, fromFrameIndex));
+                otherHitBoxProperty.SetDamageBonus(toAnimationIndex, toFrameIndex, this.GetDamageBonus(fromAnimationIndex, fromFrameIndex));
             }
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
 
         public override void FrameEnter()
         {
-            this.DamageDealerBox.DamageBonus += GetDamageBonus(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            if (!this.Body.Previewing)
+            {
+                this.DamageDealerBox.DamageBonus += this.GetDamageBonus(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            }
             base.FrameEnter();
         }
 
         public override void FrameExit()
         {
-            this.DamageDealerBox.DamageBonus -= GetDamageBonus(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            if (!this.Body.Previewing)
+            {
+                this.DamageDealerBox.DamageBonus -= this.GetDamageBonus(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex);
+            }
             base.FrameExit();
         }
     }

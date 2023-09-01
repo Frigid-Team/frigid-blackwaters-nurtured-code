@@ -35,7 +35,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.playAudioWhenModified != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.playAudioWhenModified = value;
                 }
             }
@@ -51,7 +51,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.audioClipWhenModified != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.audioClipWhenModified = value;
                 }
             }
@@ -64,9 +64,9 @@ namespace FrigidBlackwaters.Game
 
         public void SetHitModifierType(Type hitModifierType)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            FrigidEditMode.RemoveComponent(this.hitModifier);
-            this.hitModifier = (HitModifier)FrigidEditMode.AddComponent(this.gameObject, hitModifierType);
+            FrigidEdit.RecordChanges(this);
+            FrigidEdit.RemoveComponent(this.hitModifier);
+            this.hitModifier = (HitModifier)FrigidEdit.AddComponent(this.gameObject, hitModifierType);
         }
 
         public int GetNumberHurtBoxProperties()
@@ -83,20 +83,20 @@ namespace FrigidBlackwaters.Game
         {
             if (this.hurtBoxProperties[index] != hurtBoxProperty)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.hurtBoxProperties[index] = hurtBoxProperty;
             }
         }
 
         public void AddHurtBoxProperty(int index)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.hurtBoxProperties.Insert(index, null);
         }
 
         public void RemoveHurtBoxProperty(int index)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.hurtBoxProperties.RemoveAt(index);
         }
 
@@ -109,15 +109,15 @@ namespace FrigidBlackwaters.Game
         {
             if (this.addedThisFrames[animationIndex][frameIndex] != addedThisFrame)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.addedThisFrames[animationIndex][frameIndex] = addedThisFrame;
             }
         }
 
         public override void Created()
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            this.hitModifier = FrigidEditMode.AddComponent<ContinuousHitModifier>(this.gameObject);
+            FrigidEdit.RecordChanges(this);
+            this.hitModifier = FrigidEdit.AddComponent<ContinuousHitModifier>(this.gameObject);
             this.hurtBoxProperties = new List<HurtBoxAnimatorProperty>();
             this.addedThisFrames = new Nested2DList<bool>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
@@ -133,7 +133,7 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationAddedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.addedThisFrames.Insert(animationIndex, new Nested1DList<bool>());
             for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
             {
@@ -144,21 +144,21 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationRemovedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.addedThisFrames.RemoveAt(animationIndex);
             base.AnimationRemovedAt(animationIndex);
         }
 
         public override void FrameAddedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.addedThisFrames[animationIndex].Insert(frameIndex, false);
             base.FrameAddedAt(animationIndex, frameIndex);
         }
 
         public override void FrameRemovedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.addedThisFrames[animationIndex].RemoveAt(frameIndex);
             base.FrameRemovedAt(animationIndex, frameIndex);
         }
@@ -168,52 +168,58 @@ namespace FrigidBlackwaters.Game
             HitModifierAnimatorProperty otherHitModifierProperty = otherProperty as HitModifierAnimatorProperty;
             if (otherHitModifierProperty)
             {
-                otherHitModifierProperty.SetAddedThisFrame(toAnimationIndex, toFrameIndex, GetAddedThisFrame(fromAnimationIndex, fromFrameIndex));
+                otherHitModifierProperty.SetAddedThisFrame(toAnimationIndex, toFrameIndex, this.GetAddedThisFrame(fromAnimationIndex, fromFrameIndex));
             }
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
 
         public override void Initialize()
         {
-            base.Initialize();
             if (!this.PlayAudioWhenModified) return;
-            for (int hurtBoxIndex = 0; hurtBoxIndex < GetNumberHurtBoxProperties(); hurtBoxIndex++)
+            for (int hurtBoxIndex = 0; hurtBoxIndex < this.GetNumberHurtBoxProperties(); hurtBoxIndex++)
             {
-                GetHurtBoxProperty(hurtBoxIndex).OnReceived += 
+                this.GetHurtBoxProperty(hurtBoxIndex).OnReceived += 
                     (HitInfo hitInfo) =>
                     {
-                        if (!hitInfo.TryGetHitModifier(out HitModifier hitModifier) || hitModifier != this.hitModifier) return;
-                        foreach (AudioAnimatorProperty audioProperty in this.Body.GetCurrentProperties<AudioAnimatorProperty>())
+                        if (!hitInfo.AppliedHitModifiers.Contains(this.hitModifier)) return;
+                        foreach (AudioAnimatorProperty audioProperty in this.Body.GetReferencedProperties<AudioAnimatorProperty>())
                         {
                             if (audioProperty.Loop) continue;
                             audioProperty.PlayOneShot(this.audioClipWhenModified.MutableValue);
                         }
                     };
             }
+            base.Initialize();
         }
 
         public override void FrameEnter()
         {
-            base.FrameEnter();
-            if (GetAddedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
+            if (!this.Body.Previewing)
             {
-                for (int hurtBoxIndex = 0; hurtBoxIndex < GetNumberHurtBoxProperties(); hurtBoxIndex++)
+                if (this.GetAddedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
                 {
-                    GetHurtBoxProperty(hurtBoxIndex).AddHitModifier(this.hitModifier);
+                    for (int hurtBoxIndex = 0; hurtBoxIndex < this.GetNumberHurtBoxProperties(); hurtBoxIndex++)
+                    {
+                        this.GetHurtBoxProperty(hurtBoxIndex).AddHitModifier(this.hitModifier);
+                    }
                 }
             }
+            base.FrameEnter();
         }
 
         public override void FrameExit()
         {
-            base.FrameExit();
-            if (GetAddedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
+            if (!this.Body.Previewing)
             {
-                for (int hurtBoxIndex = 0; hurtBoxIndex < GetNumberHurtBoxProperties(); hurtBoxIndex++)
+                if (this.GetAddedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
                 {
-                    GetHurtBoxProperty(hurtBoxIndex).RemoveHitModifier(this.hitModifier);
+                    for (int hurtBoxIndex = 0; hurtBoxIndex < this.GetNumberHurtBoxProperties(); hurtBoxIndex++)
+                    {
+                        this.GetHurtBoxProperty(hurtBoxIndex).RemoveHitModifier(this.hitModifier);
+                    }
                 }
             }
+            base.FrameExit();
         }
     }
 }

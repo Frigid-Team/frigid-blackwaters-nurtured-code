@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
@@ -35,11 +37,16 @@ namespace FrigidBlackwaters.Game
                 GUILayout.Label(sfxProperty.GetSFXType().Name, EditorStyles.boldLabel);
                 if (GUILayout.Button("Set SFX Type"))
                 {
-                    TypeSelectionPopup typeSelectionPopup = new TypeSelectionPopup(
-                        TypeUtility.GetCompleteTypesDerivedFrom(typeof(Attack)),
-                        (Type selectedType) => sfxProperty.SetSFXType(selectedType)
+                    List<Type> sfxTypes = TypeUtility.GetCompleteTypesDerivedFrom(typeof(SFX));
+                    SearchPopup typeSelectionPopup = new SearchPopup(
+                        sfxTypes.Select((Type type) => type.Name).ToArray(),
+                        (int typeIndex) => sfxProperty.SetSFXType(sfxTypes[typeIndex])
                         );
-                    FrigidPopupWindow.Show(GUILayoutUtility.GetLastRect(), typeSelectionPopup);
+                    FrigidPopup.Show(GUILayoutUtility.GetLastRect(), typeSelectionPopup);
+                }
+                if (GUILayout.Button("Edit SFX"))
+                {
+                    FrigidPopup.Show(GUILayoutUtility.GetLastRect(), new InspectorPopup(sfxProperty.gameObject).DoNotDraw(sfxProperty).DoNotDraw(sfxProperty.transform).DoNotMoveOrDelete(sfxProperty.GetComponent<SFX>()));
                 }
             }
             base.DrawGeneralEditFields();
@@ -57,7 +64,7 @@ namespace FrigidBlackwaters.Game
             SFXAnimatorProperty sfxProperty = (SFXAnimatorProperty)this.Property;
             if (sfxProperty.GetPlayedThisFrame(animationIndex, frameIndex))
             {
-                using (new GUIHelper.ColorScope(this.AccentColor))
+                using (new UtilityGUI.ColorScope(this.AccentColor))
                 {
                     GUI.DrawTexture(new Rect(Vector2.zero, cellSize), this.Config.CellPreviewDiamondTexture);
                 }

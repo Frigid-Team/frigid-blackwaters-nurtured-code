@@ -7,7 +7,6 @@ namespace FrigidBlackwaters.Game
     {
         private Vector2Int dimensions;
         private ItemContainer container;
-        private ItemStorage storage;
         private ContainerItemStash[][] stashes;
 
         public Vector2Int Dimensions
@@ -30,26 +29,25 @@ namespace FrigidBlackwaters.Game
         {
             this.dimensions = container.Dimensions;
             this.container = container;
-            this.storage = storage;
             this.stashes = new ContainerItemStash[this.container.Dimensions.x][];
             for (int x = 0; x < this.stashes.Length; x++)
             {
                 this.stashes[x] = new ContainerItemStash[this.container.Dimensions.y];
                 for (int y = 0; y < this.stashes[x].Length; y++)
                 {
-                    this.stashes[x][y] = new ContainerItemStash(this.container, this.storage);
+                    this.stashes[x][y] = new ContainerItemStash(this.container, storage);
                 }
             }
         }
         
-        public bool TryGetStash(Vector2Int indices, out ContainerItemStash stash)
+        public bool TryGetStash(Vector2Int indexPosition, out ContainerItemStash stash)
         {
-            if (indices.x >= dimensions.x || indices.x < 0 || indices.y >= dimensions.y || indices.y < 0)
+            if (indexPosition.x >= this.dimensions.x || indexPosition.x < 0 || indexPosition.y >= this.dimensions.y || indexPosition.y < 0)
             {
                 stash = null;
                 return false;
             }
-            stash = this.stashes[indices.x][indices.y];
+            stash = this.stashes[indexPosition.x][indexPosition.y];
             return true;
         }
 
@@ -70,13 +68,15 @@ namespace FrigidBlackwaters.Game
                     }
                 }
 
-                if (availableStashes.Count > 0)
+                List<Item> items = lootRoll.Storable.CreateItems(lootRoll.Quantity);
+                while(availableStashes.Count > 0 && items.Count > 0)
                 {
-                    ContainerItemStash pickedContainerStash = availableStashes[Random.Range(0, availableStashes.Count)];
-                    List<Item> items = lootRoll.Storable.CreateItems(lootRoll.Quantity);
-                    this.storage.AddStoredItems(items);
-                    pickedContainerStash.AddItems(items, lootRoll.Storable);
+                    int pickedStashIndex = Random.Range(0, availableStashes.Count);
+                    ContainerItemStash pickedContainerStash = availableStashes[pickedStashIndex];
+                    items.RemoveRange(0, pickedContainerStash.PushItems(lootRoll.Storable, items));
+                    availableStashes.RemoveAt(pickedStashIndex);
                 }
+                ItemStorable.DiscardItems(items);
             }
         }
     }

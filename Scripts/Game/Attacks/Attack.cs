@@ -73,6 +73,6 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public abstract void Perform(float elapsedDuration);
+        public abstract void Perform(float elapsedDuration, Action onComplete = null);
     }
 }

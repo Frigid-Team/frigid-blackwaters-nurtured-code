@@ -48,13 +48,13 @@ namespace FrigidBlackwaters.Game
             this.transform.position = CharacterInput.AimWorldPosition;
 
             float cursorFill = 1f;
-            if (PlayerMob.TryGet(out PlayerMob player) && player.TryGetEquippedPiece(out MobEquipmentPiece equippedPiece))
+            if (PlayerMob.TryGet(out PlayerMob player) && player.TryGetEquippedEquipment(out MobEquipment equippedEquipment))
             {
-                if (equippedPiece.IsFiring)
+                if (equippedEquipment.IsFiring)
                 {
                     this.lastTimePulsed = Time.time;
                 }
-                cursorFill = equippedPiece.Cooldown.Progress;
+                cursorFill = equippedEquipment.ActiveAbilityResource.Progress;
             }
             this.fillSpriteRenderer.sprite = this.fillSprites[Mathf.FloorToInt((this.fillSprites.Count - 1) * cursorFill)];
             this.pointSpriteRenderer.sprite = this.pulseSprites[Mathf.FloorToInt((this.pulseSprites.Count - 1) * Mathf.Clamp01((Time.time - this.lastTimePulsed) / this.pulseDuration))];

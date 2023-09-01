@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEditor;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 using FrigidBlackwaters.Utility;
@@ -19,7 +20,7 @@ namespace FrigidBlackwaters.Game
 
         public AnimatorToolPropertyDrawer Copy(AnimatorProperty property, AnimatorBody body, AnimatorBodyToolConfig config)
         {
-            AnimatorToolPropertyDrawer copiedPropertyEditorDrawer = (AnimatorToolPropertyDrawer)MemberwiseClone();
+            AnimatorToolPropertyDrawer copiedPropertyEditorDrawer = (AnimatorToolPropertyDrawer)this.MemberwiseClone();
             copiedPropertyEditorDrawer.property = property;
             copiedPropertyEditorDrawer.body = body;
             copiedPropertyEditorDrawer.config = config;
@@ -43,21 +44,20 @@ namespace FrigidBlackwaters.Game
 
         public virtual void DrawGeneralEditFields() 
         {
-            EditorGUILayout.LabelField("Child Properties", GUIStyling.WordWrapAndCenter(EditorStyles.boldLabel));
-            GUILayoutHelper.DrawIndexedList(
-                this.property.GetNumberChildProperties(),
+            UtilityGUILayout.IndexedList(
+                "Child Properties",
+                this.Property.GetNumberChildProperties(),
                 (int index) => 
                 {
-                    FrigidPopupWindow.Show(
-                        GUILayoutUtility.GetLastRect(), 
-                        new TypeSelectionPopup(
-                            TypeUtility.GetCompleteTypesDerivedFrom(typeof(AnimatorProperty)), 
-                            (Type selectedType) => this.property.AddChildPropertyAt(index, selectedType)
-                            )
+                    List<Type> propertyTypes = TypeUtility.GetCompleteTypesDerivedFrom(typeof(AnimatorProperty));
+                    SearchPopup typeSelectionPopup = new SearchPopup(
+                        propertyTypes.Select((Type type) => type.Name).ToArray(),
+                        (int typeIndex) => this.Property.AddChildPropertyAt(index, propertyTypes[typeIndex])
                         );
+                    FrigidPopup.Show(GUILayoutUtility.GetLastRect(), typeSelectionPopup);
                 },
-                this.property.RemoveChildPropertyAt,
-                (int index) => EditorGUILayout.LabelField(this.property.GetChildPropertyAt(index).PropertyName)
+                this.Property.RemoveChildPropertyAt,
+                (int index) => EditorGUILayout.LabelField(this.Property.GetChildPropertyAt(index).PropertyName)
                 );
         }
 
@@ -65,35 +65,31 @@ namespace FrigidBlackwaters.Game
 
         public virtual void DrawFrameEditFields(int animationIndex, int frameIndex) { }
 
-        public virtual void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex) { }
-
-        public virtual Vector2 DrawPreview(
-            Vector2 previewSize,
-            Vector2 previewOffset,
-            float worldToWindowScalingFactor,
-            int animationIndex,
-            int frameIndex,
-            int orientationIndex,
-            bool propertySelected,
-            out List<(Rect rect, Action onDrag)> dragRequests
-            ) 
+        public virtual void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex) 
         {
-            dragRequests = new List<(Rect rect, Action onDrag)>();
-            return Vector2.zero;
+            this.Property.SetLocalPosition(animationIndex, frameIndex, orientationIndex, EditorGUILayout.Vector2Field("Local Position", this.Property.GetLocalPosition(animationIndex, frameIndex, orientationIndex)));
+            this.Property.SetLocalRotation(animationIndex, frameIndex, orientationIndex, EditorGUILayout.Slider("Local Rotation", this.Property.GetLocalRotation(animationIndex, frameIndex, orientationIndex), 0, 360));
         }
 
-        public virtual void DrawFrameCellPreview(
-            Vector2 cellSize,
-            int animationIndex,
-            int frameIndex
-            ) { }
+        public virtual void DrawPreview(Vector2 previewSize, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected) 
+        {
+            if (propertySelected)
+            {
+                Vector2 center = previewSize / 2;
+                using (new UtilityGUI.ColorScope(Color.magenta))
+                {
+                    UtilityGUI.DrawLine(center, center + Vector2.down * this.Config.HandleGrabLength);
+                }
+                using (new UtilityGUI.ColorScope(Color.cyan))
+                {
+                    UtilityGUI.DrawLine(center, center + Vector2.right * this.Config.HandleGrabLength);
+                }
+            }
+        }
 
-        public virtual void DrawOrientationCellPreview(
-            Vector2 cellSize,
-            int animationIndex,
-            int frameIndex,
-            int orientationIndex
-            ) { }
+        public virtual void DrawFrameCellPreview(Vector2 cellSize, int animationIndex, int frameIndex) { }
+
+        public virtual void DrawOrientationCellPreview(Vector2 cellSize, int animationIndex, int frameIndex, int orientationIndex) { }
 
         protected AnimatorProperty Property
         {

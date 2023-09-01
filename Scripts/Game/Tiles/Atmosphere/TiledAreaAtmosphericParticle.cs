@@ -27,7 +27,7 @@ namespace FrigidBlackwaters.Game
         public void RunParticle(Vector3 startPosition, Action onComplete)
         {
             this.transform.localPosition = startPosition;
-            FrigidCoroutine.Run(ParticleLifetime(onComplete), this.gameObject);
+            FrigidCoroutine.Run(this.ParticleLifetime(onComplete), this.gameObject);
         }
 
         protected override void Awake()

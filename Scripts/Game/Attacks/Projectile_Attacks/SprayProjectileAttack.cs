@@ -10,33 +10,48 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Projectile projectilePrefab;
         [SerializeField]
+        private Targeter originTargeter;
+        [SerializeField]
+        private IntSerializedReference numberSprays;
+        [Space]
+        [SerializeField]
         private IntSerializedReference numberProjectiles;
         [SerializeField]
-        private FloatSerializedReference angleBetweenProjectilesDegrees;
+        private FloatSerializedReference angleBetween;
         [SerializeField]
         private FloatSerializedReference distanceFromSpawnPosition;
+        [SerializeField]
+        private FloatSerializedReference durationBetween;
+        [SerializeField]
+        private bool revolveClockwise;
         [SerializeField]
         private Direction summonDirection;
         [SerializeField]
         private Direction launchDirection;
 
-        protected override List<ProjectileSpawnParameters> GetProjectileSpawnParameters(Vector2 baseSpawnPosition, float elapsedDuration)
+        protected override List<ProjectileSpawnParameters> GetProjectileSpawnParameters(TiledArea tiledArea, float elapsedDuration)
         {
             List<ProjectileSpawnParameters> spawnParameters = new List<ProjectileSpawnParameters>();
 
-            int currNumberProjectiles = this.numberProjectiles.MutableValue;
-            float currAngleBetweenProjectilesDegrees = this.angleBetweenProjectilesDegrees.MutableValue;
-
-            float baseAngleDeg = this.launchDirection.Calculate(Vector2.zero, elapsedDuration, 0).ComponentAngle0To2PI() * Mathf.Rad2Deg + (currNumberProjectiles % 2 == 0 ? currAngleBetweenProjectilesDegrees/ 2 : 0);
-            for (int i = 0; i < currNumberProjectiles; i++)
+            int currNumberSprays = this.numberSprays.MutableValue;
+            Vector2[] originPositions = this.originTargeter.Retrieve(new Vector2[currNumberSprays], elapsedDuration, 0);
+            foreach (Vector2 originPosition in originPositions)
             {
-                float projectileAngleDeg = baseAngleDeg - currNumberProjectiles / 2 * currAngleBetweenProjectilesDegrees + i * currAngleBetweenProjectilesDegrees;
-                float projectileAngleRad = projectileAngleDeg * Mathf.Deg2Rad;
-                Vector2 projectileSpawnDirection = new Vector2(Mathf.Cos(projectileAngleRad), Mathf.Sin(projectileAngleRad));
-                float summonAngleRad = this.summonDirection.Calculate(Vector2.zero, elapsedDuration, 0).ComponentAngle0To2PI();
-                Vector2 projectileSpawnPosition = baseSpawnPosition + new Vector2(Mathf.Cos(summonAngleRad), Mathf.Sin(summonAngleRad)) * this.distanceFromSpawnPosition.ImmutableValue;
+                int currNumberProjectiles = this.numberProjectiles.MutableValue;
+                float currAngleBetweenProjectilesDegrees = this.angleBetween.MutableValue;
 
-                spawnParameters.Add(new ProjectileSpawnParameters(1f / currNumberProjectiles, projectileSpawnPosition, projectileSpawnDirection, this.projectilePrefab));
+                float baseAngleDeg = this.launchDirection.Retrieve(Vector2.zero, elapsedDuration, 0).ComponentAngle0To360() + (currNumberProjectiles % 2 == 0 ? currAngleBetweenProjectilesDegrees / 2 : 0);
+                float delayDuration = 0;
+                for (int i = 0; i < currNumberProjectiles; i++)
+                {
+                    float projectileAngleDeg = baseAngleDeg + (this.revolveClockwise ? (currNumberProjectiles / 2 * currAngleBetweenProjectilesDegrees - i * currAngleBetweenProjectilesDegrees) : (-currNumberProjectiles / 2 * currAngleBetweenProjectilesDegrees + i * currAngleBetweenProjectilesDegrees));
+                    float projectileAngleRad = projectileAngleDeg * Mathf.Deg2Rad;
+                    Vector2 projectileSpawnDirection = new Vector2(Mathf.Cos(projectileAngleRad), Mathf.Sin(projectileAngleRad));
+                    float summonAngleRad = this.summonDirection.Retrieve(Vector2.zero, elapsedDuration, 0).ComponentAngle0To360() * Mathf.Deg2Rad;
+                    Vector2 projectileSpawnPosition = originPosition + new Vector2(Mathf.Cos(summonAngleRad), Mathf.Sin(summonAngleRad)) * this.distanceFromSpawnPosition.ImmutableValue;
+                    spawnParameters.Add(new ProjectileSpawnParameters(projectileSpawnPosition, projectileSpawnDirection, delayDuration, this.projectilePrefab));
+                    delayDuration += this.durationBetween.MutableValue;
+                }
             }
 
             return spawnParameters;

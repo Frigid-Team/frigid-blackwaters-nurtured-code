@@ -28,7 +28,7 @@ namespace FrigidBlackwaters.Game
                 orbiter.transform.SetParent(animatorBody.transform);
                 orbiter.Play();
             }
-            this.orbitRoutine = FrigidCoroutine.Run(Orbit(animatorBody), this.gameObject);
+            this.orbitRoutine = FrigidCoroutine.Run(this.Orbit(animatorBody), this.gameObject);
         }
 
         protected override void Stopped()
@@ -59,10 +59,12 @@ namespace FrigidBlackwaters.Game
 
         private IEnumerator<FrigidCoroutine.Delay> Orbit(AnimatorBody animatorBody)
         {
+            if (this.orbiterSprites.Count == 0) yield break;
+
             float offsetAngleRad = 0;
             while (true)
             {
-                Bounds areaOccupied = animatorBody.TotalAreaOccupied;
+                Bounds areaOccupied = animatorBody.AreaOccupied;
                 float orbitRadius = areaOccupied.extents.magnitude / 2;
                 offsetAngleRad = (offsetAngleRad + this.orbitSpeed.ImmutableValue / orbitRadius * FrigidCoroutine.DeltaTime) % (Mathf.PI * 2);
                 Vector2 localOffset = areaOccupied.center - animatorBody.transform.position;
@@ -71,6 +73,7 @@ namespace FrigidBlackwaters.Game
                 for (int i = 0; i < this.orbiters.Count; i++)
                 {
                     ParticleSystem orbiter = this.orbiters[i];
+                    if (!orbiter.isPlaying) orbiter.Play();
                     float orbiterAngle = (offsetAngleRad + i * (Mathf.PI * 2) / this.orbiters.Count) % (Mathf.PI * 2);
                     int spriteIndex = Mathf.RoundToInt(orbiterAngle / (Mathf.PI * 2) * this.orbiterSprites.Count) % this.orbiterSprites.Count;
                     Sprite sprite = this.orbiterSprites[spriteIndex];

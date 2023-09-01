@@ -13,7 +13,7 @@ namespace FrigidBlackwaters
         WaterTerrain,
         LandMoveables,
         WaterMoveables,
-        Obstacles,
+        Obstructions,
         WaterMob,
         LandMob,
         FloatingMob,
@@ -33,7 +33,7 @@ namespace FrigidBlackwaters
         Unused28,
         Unused29,
         Unused30,
-        Unused31,
+        Snapshot,
         Count
     }
 }

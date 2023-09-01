@@ -9,18 +9,16 @@ namespace FrigidBlackwaters.Game
     public class TimelineDirection : Direction
     {
         [SerializeField]
-        private bool useRecentNonZeroDirection;
-        [SerializeField]
         private List<TimeStamp> timeStamps;
 
-        public override Vector2[] Calculate(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
+        protected override Vector2[] CustomRetrieve(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
         {
             float cumulativeDuration = 0;
             foreach (TimeStamp timeStamp in this.timeStamps)
             {
-                if (elapsedDuration < cumulativeDuration + timeStamp.ActiveDuration)
+                if (elapsedDuration <= cumulativeDuration + timeStamp.ActiveDuration)
                 {
-                    return timeStamp.Direction.Calculate(currDirections, elapsedDuration, elapsedDurationDelta);
+                    return timeStamp.Direction.Retrieve(currDirections, elapsedDuration, elapsedDurationDelta);
                 }
                 cumulativeDuration += timeStamp.ActiveDuration;
             }

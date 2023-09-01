@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    public class CalculatedVelocityMagnitudeConditional : MagnitudeConditional
+    public class CalculatedVelocityMagnitudeConditional : FloatComparisonConditional
     {
         [SerializeField]
         private Mover mover;

@@ -1,24 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-using FrigidBlackwaters.Core;
-
 namespace FrigidBlackwaters.Game
 {
     public class HurtBox : DamageReceiverBox<HurtBox, HitBox, HitInfo>
     {
-        private static SceneVariable<Dictionary<HitPopup, RecyclePool<HitPopup>>> hitPopupPools;
-
-        [SerializeField]
-        private HitPopup hitPopupPrefab;
-
         private int damageMitigation;
         private List<HitModifier> hitModifiers;
-
-        static HurtBox()
-        {
-            hitPopupPools = new SceneVariable<Dictionary<HitPopup, RecyclePool<HitPopup>>>(() => new Dictionary<HitPopup, RecyclePool<HitPopup>>());
-        }
 
         public int DamageMitigation
         {
@@ -44,28 +32,15 @@ namespace FrigidBlackwaters.Game
 
         protected override HitInfo ProcessDamage(HitBox hitBox, Vector2 position, Vector2 direction, Collider2D collision)
         {
-            HitInfo hitInfo = new HitInfo(
-                hitBox.BaseDamage,
-                hitBox.DamageBonus,
-                this.damageMitigation,
+            return new HitInfo(
+                hitBox.BaseDamageByReference.MutableValue,
+                Mathf.FloorToInt(hitBox.DamageBonus * hitBox.BonusToDamageMultiplierByReference.MutableValue),
+                Mathf.FloorToInt(this.damageMitigation * hitBox.MitigationToDamageMultiplierByReference.MutableValue),
                 position,
                 direction,
                 this.hitModifiers,
                 collision
                 );
-            if (!hitPopupPools.Current.ContainsKey(this.hitPopupPrefab))
-            {
-                hitPopupPools.Current.Add(
-                    this.hitPopupPrefab,
-                    new RecyclePool<HitPopup>(
-                        () => FrigidInstancing.CreateInstance(this.hitPopupPrefab),
-                        (HitPopup hitPopup) => FrigidInstancing.DestroyInstance(hitPopup)
-                        )
-                    );
-            }
-            HitPopup spawnedHitPopup = hitPopupPools.Current[this.hitPopupPrefab].Retrieve();
-            spawnedHitPopup.ShowHit(hitInfo, () => hitPopupPools.Current[this.hitPopupPrefab].Pool(spawnedHitPopup));
-            return hitInfo;
         }
 
         protected override void Awake()

@@ -40,7 +40,8 @@ namespace FrigidBlackwaters.Core
             base.Awake();
             if (instance != null)
             {
-                Debug.LogError("More than one main camera in scene");
+                Debug.LogError("More than one MainCamera in the scene!");
+                return;
             }
             instance = this;
         }

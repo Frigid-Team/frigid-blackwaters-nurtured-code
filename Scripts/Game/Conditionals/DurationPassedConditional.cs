@@ -1,6 +1,6 @@
 namespace FrigidBlackwaters.Game
 {
-    public class DurationPassedConditional : MagnitudeConditional
+    public class DurationPassedConditional : FloatComparisonConditional
     {
         protected override float GetComparisonValue(float elapsedDuration, float elapsedDurationDelta)
         {

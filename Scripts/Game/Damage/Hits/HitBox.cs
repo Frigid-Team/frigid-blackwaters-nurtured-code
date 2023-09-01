@@ -8,14 +8,34 @@ namespace FrigidBlackwaters.Game
     {
         [SerializeField]
         private IntSerializedReference baseDamage;
+        [SerializeField]
+        private FloatSerializedReference bonusToDamageMultiplier;
+        [SerializeField]
+        private FloatSerializedReference mitigationToDamageMultiplier;
 
         private int damageBonus;
 
-        public int BaseDamage
+        public IntSerializedReference BaseDamageByReference
         {
             get
             {
-                return this.baseDamage.ImmutableValue;
+                return this.baseDamage;
+            }
+        }
+
+        public FloatSerializedReference BonusToDamageMultiplierByReference
+        {
+            get
+            {
+                return this.bonusToDamageMultiplier;
+            }
+        }
+
+        public FloatSerializedReference MitigationToDamageMultiplierByReference
+        {
+            get
+            {
+                return this.mitigationToDamageMultiplier;
             }
         }
 

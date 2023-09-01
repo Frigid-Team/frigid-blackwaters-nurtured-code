@@ -11,7 +11,12 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private string cornerAnimationName;
 
-        public void Populated(bool isEdge)
+        public void Preview(bool isEdge)
+        {
+            this.animatorBody.Preview(isEdge ? this.edgeAnimationName : this.cornerAnimationName, 0, Vector2.zero);
+        }
+
+        public void Populate(bool isEdge)
         {
             this.animatorBody.Play(isEdge ? this.edgeAnimationName : this.cornerAnimationName);
         }

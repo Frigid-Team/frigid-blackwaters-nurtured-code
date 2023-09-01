@@ -28,7 +28,7 @@ namespace FrigidBlackwaters.Game
             {
                 FrigidCoroutine.Kill(this.fadeRoutine);
                 this.fadeRoutine = FrigidCoroutine.Run(
-                    TweenCoroutine.Value(
+                    Tween.Value(
                         this.fadeDuration * (1 - this.spriteRenderer.color.a), 
                         this.spriteRenderer.color.a,
                         1,
@@ -52,7 +52,7 @@ namespace FrigidBlackwaters.Game
             {
                 FrigidCoroutine.Kill(this.fadeRoutine);
                 this.fadeRoutine = FrigidCoroutine.Run(
-                    TweenCoroutine.Value(
+                    Tween.Value(
                         this.fadeDuration * this.spriteRenderer.color.a,
                         this.spriteRenderer.color.a,
                         0,

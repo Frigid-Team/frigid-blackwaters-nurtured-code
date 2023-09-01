@@ -19,7 +19,7 @@ namespace FrigidBlackwaters.Game
 
         protected override void Played(AnimatorBody animatorBody)
         {
-            this.spawnAfterImagesRoutine = FrigidCoroutine.Run(SpawnAfterImages(animatorBody), this.gameObject);
+            this.spawnAfterImagesRoutine = FrigidCoroutine.Run(this.SpawnAfterImages(animatorBody), this.gameObject);
         }
 
         protected override void Stopped() 
@@ -38,7 +38,7 @@ namespace FrigidBlackwaters.Game
 
         private IEnumerator<FrigidCoroutine.Delay> SpawnAfterImages(AnimatorBody animatorBody)
         {
-            float distanceThreshold = 1f / Mathf.Max(GameConstants.SMALLEST_TIME_INTERVAL, this.spawnRateOverDistance.ImmutableValue);
+            float distanceThreshold = 1f / Mathf.Max(FrigidConstants.SMALLEST_TIME_INTERVAL, this.spawnRateOverDistance.ImmutableValue);
             float distanceTraveled = distanceThreshold;
             Vector3 lastPosition = animatorBody.transform.position;
             while (true)
@@ -50,13 +50,13 @@ namespace FrigidBlackwaters.Game
                 if (distanceTraveled >= distanceThreshold)
                 {
                     distanceTraveled = distanceTraveled % distanceThreshold;
-                    foreach (SpriteAnimatorProperty spriteProperty in animatorBody.GetCurrentProperties<SpriteAnimatorProperty>())
+                    foreach (SpriteAnimatorProperty spriteProperty in animatorBody.GetCurrentReferencedProperties<SpriteAnimatorProperty>())
                     {
                         ParticleSystem particleInstance = this.particlePool.Retrieve();
-                        Sprite sprite = spriteProperty.CurrentSprite;
+                        Sprite sprite = spriteProperty.Sprite;
 
                         ParticleSystemRenderer particleRendererer = particleInstance.GetComponent<ParticleSystemRenderer>();
-                        particleRendererer.sortingOrder = spriteProperty.CurrentSortingOrder;
+                        particleRendererer.sortingOrder = spriteProperty.SortingOrder;
                         particleRendererer.material.mainTexture = sprite.texture;
 
                         ParticleSystem.TextureSheetAnimationModule textureSheetAnimation = particleInstance.textureSheetAnimation;
@@ -75,7 +75,7 @@ namespace FrigidBlackwaters.Game
                         particleInstance.Play();
 
                         FrigidCoroutine.Run(
-                            TweenCoroutine.DelayedCall(
+                            Tween.Delay(
                                 particleInstance.main.duration,
                                 () =>
                                 {
@@ -86,7 +86,7 @@ namespace FrigidBlackwaters.Game
                                     this.particlePool.Pool(particleInstance);
                                 }
                                 ),
-                            this.gameObject
+                            spriteProperty.gameObject
                             );
                     }
                 }

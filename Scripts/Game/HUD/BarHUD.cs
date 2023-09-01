@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -48,25 +47,23 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Image mainBarImage;
         [SerializeField]
+        private Image[] mainBarAccentImages;
+        [SerializeField]
         private bool flashMainBar;
         [SerializeField]
         [ShowIfBool("flashMainBar", true)]
-        private ColorSerializedReference mainFlashFromColor;
-        [SerializeField]
-        [ShowIfBool("flashMainBar", true)]
-        private ColorSerializedReference mainFlashToColor;
+        private ColorSerializedReference mainBarFlashColor;
 
         [Header("Buffer Bar")]
         [SerializeField]
         private Image bufferBarImage;
         [SerializeField]
+        private Image[] bufferBarAccentImages;
+        [SerializeField]
         private bool flashBufferBar;
         [SerializeField]
         [ShowIfBool("flashBufferBar", true)]
-        private ColorSerializedReference bufferFlashFromColor;
-        [SerializeField]
-        [ShowIfBool("flashBufferBar", true)]
-        private ColorSerializedReference bufferFlashToColor;
+        private ColorSerializedReference bufferBarFlashColor;
 
         [Header("Durations")]
         [SerializeField]
@@ -74,14 +71,50 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference increaseFillDuration;
 
-        private Color mainBarNeutralColor;
-        private Color bufferBarNeutralColor;
+        private Color mainBarColor;
+        private Color bufferBarColor;
 
         private int current;
         private int maximum;
 
         private List<FrigidCoroutine> transitionRoutines;
         private List<FrigidCoroutine> changeRoutines;
+
+        public Color MainBarColor
+        {
+            get
+            {
+                return this.mainBarColor;
+            }
+            set
+            {
+                if (this.mainBarColor != value)
+                {
+                    this.StopTweensAndFlashes();
+                    this.mainBarColor = value;
+                    this.mainBarImage.color = this.mainBarColor;
+                    foreach (Image mainBarAccentImage in this.mainBarAccentImages) mainBarAccentImage.color = this.mainBarColor;
+                }
+            }
+        }
+
+        public Color BufferBarColor
+        {
+            get
+            {
+                return this.bufferBarColor;
+            }
+            set
+            {
+                if (this.bufferBarColor != value)
+                {
+                    this.StopTweensAndFlashes();
+                    this.bufferBarColor = value;
+                    this.bufferBarImage.color = this.bufferBarColor;
+                    foreach (Image bufferBarAccentImage in this.bufferBarAccentImages) bufferBarAccentImage.color = this.bufferBarColor;
+                }
+            }
+        }
 
         public void Transition(int current, int maximum, float transitionRatio = 0.5f)
         {
@@ -91,7 +124,7 @@ namespace FrigidBlackwaters.Game
             float currentXScale = this.mainBarImage.transform.localScale.x;
             this.transitionRoutines.Add(
                 FrigidCoroutine.Run(
-                    TweenCoroutine.Value(
+                    Tween.Value(
                         this.transitionDuration.ImmutableValue * transitionRatio,
                         currentXScale,
                         0,
@@ -107,7 +140,7 @@ namespace FrigidBlackwaters.Game
                         onComplete:
                         () =>
                         {
-                            StopTweensAndFlashes();
+                            this.StopTweensAndFlashes();
 
                             this.current = current;
                             this.maximum = maximum;
@@ -122,7 +155,7 @@ namespace FrigidBlackwaters.Game
 
                             this.transitionRoutines.Add(
                                 FrigidCoroutine.Run(
-                                    TweenCoroutine.Value(
+                                    Tween.Value(
                                         this.transitionDuration.ImmutableValue * (1 - transitionRatio),
                                         0,
                                         1,
@@ -150,42 +183,44 @@ namespace FrigidBlackwaters.Game
         {
             if (current == this.current) return;
 
-            StopTweensAndFlashes();
+            this.StopTweensAndFlashes();
 
             int previousCurrent = this.current;
             this.current = current;
 
             if (this.showText)
             {
-                if (this.showCurrentTextFlash) FlashTextOutline(this.currentTextOutline);
+                if (this.showCurrentTextFlash) this.FlashTextOutline(this.currentTextOutline);
                 this.currentText.text = this.current.ToString();
             }
 
-            TweenAndFlashBar(this.maximum == 0 ? 0f : ((float)previousCurrent / this.maximum), this.maximum == 0 ? 0f : ((float)this.current / this.maximum));
+            this.TweenAndFlashBar(this.maximum == 0 ? 0f : ((float)previousCurrent / this.maximum), this.maximum == 0 ? 0f : ((float)this.current / this.maximum));
         }
 
         public void SetMaximum(int maximum)
         {
             if (maximum == this.maximum) return;
 
-            StopTweensAndFlashes();
+            this.StopTweensAndFlashes();
 
             int previousMaximum = this.maximum;
             this.maximum = maximum;
             if (this.showText)
             {
-                if (this.showMaxTextFlash) FlashTextOutline(this.maxTextOutline);
+                if (this.showMaxTextFlash) this.FlashTextOutline(this.maxTextOutline);
                 this.maxText.text = this.maximum.ToString();
             }
 
-            TweenAndFlashBar(previousMaximum == 0 ? 0f : ((float)this.current / previousMaximum), this.maximum == 0 ? 0f : ((float)this.current / this.maximum));
+            this.TweenAndFlashBar(previousMaximum == 0 ? 0f : ((float)this.current / previousMaximum), this.maximum == 0 ? 0f : ((float)this.current / this.maximum));
         }
 
         protected override void Awake()
         {
             base.Awake();
-            this.mainBarNeutralColor = this.mainBarImage.color;
-            this.bufferBarNeutralColor = this.bufferBarImage.color;
+            this.mainBarColor = this.mainBarImage.color;
+            foreach (Image mainBarAccentImage in this.mainBarAccentImages) mainBarAccentImage.color = this.mainBarColor;
+            this.bufferBarColor = this.bufferBarImage.color;
+            foreach (Image bufferBarAccentImage in this.bufferBarAccentImages) bufferBarAccentImage.color = this.bufferBarColor;
 
             this.transitionRoutines = new List<FrigidCoroutine>();
             this.changeRoutines = new List<FrigidCoroutine>();
@@ -205,7 +240,7 @@ namespace FrigidBlackwaters.Game
         {
             this.changeRoutines.Add(
                 FrigidCoroutine.Run(
-                    TweenCoroutine.Value(
+                    Tween.Value(
                         this.individualTweenFlashDuration.ImmutableValue,
                         0,
                         1,
@@ -232,10 +267,10 @@ namespace FrigidBlackwaters.Game
             {
                 this.changeRoutines.Add(
                     FrigidCoroutine.Run(
-                        TweenCoroutine.Value(
+                        Tween.Value(
                             this.individualTweenFlashDuration.ImmutableValue,
-                            this.bufferFlashFromColor.ImmutableValue,
-                            this.bufferFlashToColor.ImmutableValue,
+                            this.mainBarFlashColor.ImmutableValue,
+                            this.mainBarColor,
                             EasingType.EaseInOutSine,
                             numberIterations: this.numberFlashes.ImmutableValue,
                             pingPong: true,
@@ -245,17 +280,17 @@ namespace FrigidBlackwaters.Game
                         this.gameObject
                         )
                     );
-                this.mainBarImage.color = this.mainBarNeutralColor;
+                this.mainBarImage.color = this.mainBarColor;
             }
 
             if (this.flashBufferBar)
             {
                 this.changeRoutines.Add(
                     FrigidCoroutine.Run(
-                        TweenCoroutine.Value(
+                        Tween.Value(
                             this.individualTweenFlashDuration.ImmutableValue,
-                            this.bufferFlashFromColor.ImmutableValue,
-                            this.bufferFlashToColor.ImmutableValue,
+                            this.bufferBarFlashColor.ImmutableValue,
+                            this.bufferBarColor,
                             EasingType.EaseInOutSine,
                             numberIterations: this.numberFlashes.ImmutableValue,
                             pingPong: true,
@@ -264,10 +299,10 @@ namespace FrigidBlackwaters.Game
                             onComplete:
                             () =>
                             {
-                                this.bufferBarImage.color = this.bufferBarNeutralColor;
+                                this.bufferBarImage.color = this.bufferBarColor;
                                 this.changeRoutines.Add(
                                     FrigidCoroutine.Run(
-                                        TweenCoroutine.Value(
+                                        Tween.Value(
                                             fillDuration,
                                             this.bufferBarImage.fillAmount,
                                             to,
@@ -288,7 +323,7 @@ namespace FrigidBlackwaters.Game
             {
                 this.changeRoutines.Add(
                     FrigidCoroutine.Run(
-                        TweenCoroutine.Value(
+                        Tween.Value(
                             fillDuration,
                             this.bufferBarImage.fillAmount,
                             to,
@@ -317,11 +352,11 @@ namespace FrigidBlackwaters.Game
             }
             if (this.flashMainBar)
             {
-                this.mainBarImage.color = this.mainBarNeutralColor;
+                this.mainBarImage.color = this.mainBarColor;
             }
             if (this.flashBufferBar)
             {
-                this.bufferBarImage.color = this.bufferBarNeutralColor;
+                this.bufferBarImage.color = this.bufferBarColor;
             }
         }
     }

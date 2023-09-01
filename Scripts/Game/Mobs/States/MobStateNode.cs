@@ -8,9 +8,11 @@ namespace FrigidBlackwaters.Game
     public abstract class MobStateNode : FrigidMonoBehaviour
     {
         [SerializeField]
+        private List<MobStatusTag> statusTags;
+        [SerializeField]
         private List<MobBehaviour> behaviours;
         [SerializeField]
-        private List<Timer> timers;
+        private List<AbilityResource> inUseAbilityResources;
 
         private Mob owner;
         private AnimatorBody ownerAnimatorBody;
@@ -27,7 +29,7 @@ namespace FrigidBlackwaters.Game
             get;
         }
 
-        public abstract HashSet<MobState> SwitchableStates
+        public abstract HashSet<MobState> MoveStates
         {
             get;
         }
@@ -57,46 +59,34 @@ namespace FrigidBlackwaters.Game
             get;
         }
 
-        public virtual bool AutoEnter
+        public abstract bool AutoEnter
         {
-            get
-            {
-                return false;
-            }
+            get;
         }
 
-        public virtual bool AutoExit
+        public abstract bool AutoExit
         {
-            get
-            {
-                return false;
-            }
+            get;
         }
 
-        public virtual bool ShouldEnter
+        public abstract bool ShouldEnter
         {
-            get
-            {
-                return true;
-            }
+            get;
         }
 
-        public virtual bool ShouldExit
+        public abstract bool ShouldExit
         {
-            get
-            {
-                return true;
-            }
+            get;
         }
 
         public bool HasValidInitialState(TiledArea tiledArea, Vector2 position)
         {
-            return TryGetInitialState(tiledArea, position, out _);
+            return this.TryGetInitialState(tiledArea, position, out _);
         }
 
-        public bool HasValidSwitchState(TiledArea tiledArea, Vector2 position)
+        public bool HasValidMoveState(TiledArea tiledArea, Vector2 position)
         {
-            return TryGetSwitchState(tiledArea, position, out _);
+            return this.TryGetMoveState(tiledArea, position, out _);
         }
 
         public void Link(Mob owner, AnimatorBody ownerAnimatorBody)
@@ -109,28 +99,34 @@ namespace FrigidBlackwaters.Game
         {
             this.entered = false;
 
-            this.Owner.OnRequestedTimeScaleChanged += HandleOwnerTimeScaleChange;
-            HandleOwnerTimeScaleChange();
+            this.Owner.OnRequestedTimeScaleChanged += this.HandleOwnerTimeScaleChange;
+            this.HandleOwnerTimeScaleChange();
 
-            if (TryGetInitialState(this.Owner.TiledArea, this.Owner.Position, out MobState initialState)) this.currentState = initialState;
+            if (this.TryGetInitialState(this.Owner.TiledArea, this.Owner.Position, out MobState initialState)) this.currentState = initialState;
             else this.currentState = this.InitialStates.First();
         }
 
-        public virtual void Switch()
+        public virtual void Move()
         {
-            if (TryGetSwitchState(this.Owner.TiledArea, this.Owner.Position, out MobState switchState) && this.currentState != switchState)
+            MobState bestMoveState;
+            if (!this.TryGetMoveState(this.Owner.TiledArea, this.Owner.Position, out bestMoveState))
+            {
+                bestMoveState = this.MoveStates.First();
+            }
+            if (this.currentState != bestMoveState)
             {
                 MobState previousState = this.currentState;
-                this.currentState = switchState;
-                onCurrentStateChanged?.Invoke(previousState, this.currentState);
+                this.currentState = bestMoveState;
+                this.onCurrentStateChanged?.Invoke(previousState, this.currentState);
             }
         }
 
         public virtual void Enter() 
         {
             this.entered = true;
+            foreach (MobStatusTag statusTag in this.statusTags) this.Owner.AddStatusTag(statusTag);
             foreach (MobBehaviour behaviour in this.behaviours) this.Owner.AddBehaviour(behaviour, false);
-            foreach (Timer timer in this.timers) timer.InUse.Request();
+            foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources) inUseAbilityResource.InUse.Request();
             this.enterDuration = 0;
             this.enterDurationDelta = 0;
         }
@@ -138,8 +134,9 @@ namespace FrigidBlackwaters.Game
         public virtual void Exit() 
         {
             this.entered = false;
+            foreach (MobStatusTag statusTag in this.statusTags) this.Owner.RemoveStatusTag(statusTag);
             foreach (MobBehaviour behaviour in this.behaviours) this.Owner.RemoveBehaviour(behaviour);
-            foreach (Timer timer in this.timers) timer.InUse.Release();
+            foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources) inUseAbilityResource.InUse.Release();
         }
 
         public virtual void Refresh()
@@ -199,14 +196,14 @@ namespace FrigidBlackwaters.Game
         {
             return
                 newState.TileSize == this.CurrentState.TileSize && newState.TraversableTerrain >= this.CurrentState.TraversableTerrain || 
-                Mob.CanFitAt(this.Owner.TiledArea, this.Owner.Position, newState.Size, newState.TraversableTerrain);
+                Mob.CanTraverseAt(this.Owner.TiledArea, this.Owner.Position, newState.Size, newState.TraversableTerrain);
         }
 
         protected void SetCurrentState(MobState newState)
         {
-            if (!CanSetCurrentState(newState))
+            if (!this.CanSetCurrentState(newState))
             {
-                Debug.LogError("Mob State Node " + this.name + " is trying to set a MobState that is unviable.");
+                Debug.LogError("MobStateNode " + this.name + " is trying to set a MobState that is unviable.");
                 return;
             }
 
@@ -222,7 +219,7 @@ namespace FrigidBlackwaters.Game
             foreach (MobState potentialInitialState in this.InitialStates)
             {
                 initialState = potentialInitialState;
-                if (Mob.CanFitAt(tiledArea, position, initialState.Size, initialState.TraversableTerrain))
+                if (Mob.CanTraverseAt(tiledArea, position, initialState.Size, initialState.TraversableTerrain))
                 {
                     return true;
                 }
@@ -230,13 +227,13 @@ namespace FrigidBlackwaters.Game
             return false;
         }
 
-        private bool TryGetSwitchState(TiledArea tiledArea, Vector2 position, out MobState switchState)
+        private bool TryGetMoveState(TiledArea tiledArea, Vector2 position, out MobState moveState)
         {
-            switchState = null;
-            foreach (MobState potentialSwitchState in this.SwitchableStates)
+            moveState = null;
+            foreach (MobState potentialMoveState in this.MoveStates)
             {
-                switchState = potentialSwitchState;
-                if (Mob.CanFitAt(tiledArea, position, switchState.Size, switchState.TraversableTerrain))
+                moveState = potentialMoveState;
+                if (Mob.CanTraverseAt(tiledArea, position, moveState.Size, moveState.TraversableTerrain))
                 {
                     return true;
                 }
@@ -246,9 +243,9 @@ namespace FrigidBlackwaters.Game
 
         private void HandleOwnerTimeScaleChange()
         {
-            foreach (Timer timer in this.timers)
+            foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources)
             {
-                timer.LocalTimeScale = this.Owner.RequestedTimeScale;
+                inUseAbilityResource.LocalTimeScale = this.Owner.RequestedTimeScale;
             }
         }
     }

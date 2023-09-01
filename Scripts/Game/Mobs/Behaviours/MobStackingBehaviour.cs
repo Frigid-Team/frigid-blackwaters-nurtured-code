@@ -8,13 +8,13 @@ namespace FrigidBlackwaters.Game
     public class MobStackingBehaviour : MobBehaviour
     {
         [SerializeField]
-        private ConditionalClause stackingConditions;
+        private Conditional stackingCondition;
         [SerializeField]
-        private ConditionalClause unstackingConditions;
+        private Conditional unstackingCondition;
         [SerializeField]
         private IntSerializedReference maxStacks;
         [SerializeField]
-        private MobBehaviour behaviourOriginal;
+        private MobBehaviour childBehaviour;
 
         private List<MobBehaviour> stackedBehaviours;
 
@@ -31,21 +31,25 @@ namespace FrigidBlackwaters.Game
         {
             base.Refresh();
 
-            if (this.stackingConditions.Evaluate(this.EnterDuration - this.timeOfPreviousStackOrUnstack, this.EnterDurationDelta) && this.stackedBehaviours.Count < this.maxStacks.ImmutableValue)
+            int numberStackingOccurrences = this.stackingCondition.Tally(this.EnterDuration - this.timeOfPreviousStackOrUnstack, this.EnterDurationDelta);
+            for (int i = 0; i < numberStackingOccurrences && this.stackedBehaviours.Count < this.maxStacks.ImmutableValue; i++)
             {
-                MobBehaviour newBehaviour = FrigidInstancing.CreateInstance<MobBehaviour>(behaviourOriginal);
+                MobBehaviour newBehaviour = CreateInstance<MobBehaviour>(this.childBehaviour);
                 newBehaviour.transform.SetParent(this.Owner.transform);
+                newBehaviour.transform.localPosition = Vector3.zero;
                 this.Owner.AddBehaviour(newBehaviour, this.Owner.GetIsIgnoringTimeScale(this));
                 this.stackedBehaviours.Add(newBehaviour);
                 this.timeOfPreviousStackOrUnstack = this.EnterDuration;
             }
 
-            if (this.unstackingConditions.Evaluate(this.EnterDuration - this.timeOfPreviousStackOrUnstack, this.EnterDurationDelta) && this.stackedBehaviours.Count > 0)
+            int numberUnStackingOccurrences = this.unstackingCondition.Tally(this.EnterDuration - this.timeOfPreviousStackOrUnstack, this.EnterDurationDelta);
+            for (int i = 0; i < numberUnStackingOccurrences && this.stackedBehaviours.Count > 0; i++)
             {
                 MobBehaviour removedBehaviour = this.stackedBehaviours[this.stackedBehaviours.Count - 1];
                 this.stackedBehaviours.Remove(removedBehaviour);
                 this.Owner.RemoveBehaviour(removedBehaviour);
-                FrigidInstancing.DestroyInstance(removedBehaviour);
+                removedBehaviour.transform.SetParent(this.transform);
+                DestroyInstance(removedBehaviour);
                 this.timeOfPreviousStackOrUnstack = this.EnterDuration;
             }
         }

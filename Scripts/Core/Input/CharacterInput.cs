@@ -7,9 +7,6 @@ namespace FrigidBlackwaters.Core
     {
         private static PlayerActions playerActions;
         private static Vector2 lastInputtedMovementVector;
-        private static bool dashHeld;
-        private static bool attackHeld;
-        private static bool dockHeld;
         private static ControlCounter disabled;
 
         public static Vector2 AimWorldPosition
@@ -48,7 +45,7 @@ namespace FrigidBlackwaters.Core
         {
             get
             {
-                return dashHeld;
+                return playerActions.Character.Dash.IsPressed();
             }
         }
 
@@ -56,7 +53,7 @@ namespace FrigidBlackwaters.Core
         {
             get
             {
-                return attackHeld;
+                return playerActions.Character.Attack.IsPressed();
             }
         }
 
@@ -64,7 +61,31 @@ namespace FrigidBlackwaters.Core
         {
             get
             {
-                return dockHeld;
+                return playerActions.Character.Dock.IsPressed();
+            }
+        }
+
+        public static bool EquipFirstPerformedThisFrame
+        {
+            get
+            {
+                return playerActions.Character.EquipFirst.WasPressedThisFrame();
+            }
+        }
+
+        public static bool EquipSecondPerformedThisFrame
+        {
+            get
+            {
+                return playerActions.Character.EquipSecond.WasPressedThisFrame();
+            }
+        }
+
+        public static bool EquipThirdPerformedThisFrame
+        {
+            get
+            {
+                return playerActions.Character.EquipThird.WasPressedThisFrame();
             }
         }
 
@@ -81,18 +102,9 @@ namespace FrigidBlackwaters.Core
             playerActions = new PlayerActions();
             playerActions.Character.Enable();
             playerActions.Character.Movement.performed += CheckMovementVector;
-            playerActions.Character.Dash.started += DashStarted;
-            playerActions.Character.Dash.canceled += DashCanceled;
-            playerActions.Character.Attack.started += AttackStarted;
-            playerActions.Character.Attack.canceled += AttackCanceled;
-            playerActions.Character.Dock.started += DockStarted;
-            playerActions.Character.Dock.canceled += DockCanceled;
             disabled = new ControlCounter();
             disabled.OnFirstRequest += playerActions.Character.Disable;
             disabled.OnLastRelease += playerActions.Character.Enable;
-            dashHeld = false;
-            attackHeld = false;
-            dockHeld = false;
         }
 
         private static void CheckMovementVector(InputAction.CallbackContext callback)
@@ -102,36 +114,6 @@ namespace FrigidBlackwaters.Core
             {
                 lastInputtedMovementVector = currentMovementVector;
             }
-        }
-
-        private static void DashStarted(InputAction.CallbackContext callback)
-        {
-            dashHeld = true;
-        }
-
-        private static void DashCanceled(InputAction.CallbackContext callback)
-        {
-            dashHeld = false;
-        }
-
-        private static void AttackStarted(InputAction.CallbackContext callback)
-        {
-            attackHeld = true;
-        }
-
-        private static void AttackCanceled(InputAction.CallbackContext callback)
-        {
-            attackHeld = false;
-        }
-
-        private static void DockStarted(InputAction.CallbackContext callback)
-        {
-            dockHeld = true;
-        }
-
-        private static void DockCanceled(InputAction.CallbackContext callback)
-        {
-            dockHeld = false;
         }
     }
 }

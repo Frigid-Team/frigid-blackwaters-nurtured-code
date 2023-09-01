@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Linq;
 using System.Collections.Generic;
 
 using FrigidBlackwaters.Core;
@@ -10,17 +11,11 @@ namespace FrigidBlackwaters.Game
     {
         [SerializeField]
         private RelativeWeightPool<TiledAreaBlueprintGroup> desiredBlueprintGroups;
-        [SerializeField]
-        private TiledArea singleAreaPrefab;
-        [SerializeField]
-        private TiledAreaEntrance exitEntrancePrefab;
-        [SerializeField]
-        private TiledAreaMobGenerator areaMobGenerator;
 
-        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledAreaEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
+        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
         {
-            TiledLevelPlanArea planArea = new TiledLevelPlanArea(this.singleAreaPrefab, this.desiredBlueprintGroups.Retrieve());
-            TiledLevelPlan levelPlan = new TiledLevelPlan(planArea, this.areaMobGenerator);
+            TiledLevelPlanArea planArea = new TiledLevelPlanArea(this.desiredBlueprintGroups.Retrieve());
+            TiledLevelPlan levelPlan = new TiledLevelPlan(planArea);
 
             if (subLevelEntrancesAndContainedAreas.Count > 1)
             {
@@ -28,17 +23,23 @@ namespace FrigidBlackwaters.Game
                 return levelPlan;
             }
 
-            foreach (TiledAreaEntrance subLevelEntrance in subLevelEntrancesAndContainedAreas.Keys)
+            if (subLevelEntrancesAndContainedAreas.Count > 0)
             {
-                TiledArea containedArea = subLevelEntrancesAndContainedAreas[subLevelEntrance];
+                KeyValuePair<TiledEntrance, TiledArea> entranceAndContainedArea = subLevelEntrancesAndContainedAreas.First();
+                TiledEntrance subLevelEntrance = entranceAndContainedArea.Key;
+                TiledArea containedArea = entranceAndContainedArea.Value;
                 levelPlan.AddConnection(
                     new TiledLevelPlanConnection(
                         new TiledLevelPlanEntrance(subLevelEntrance),
-                        new TiledLevelPlanEntrance(planArea, this.exitEntrancePrefab),
-                        Vector2Int.up,
-                        containedArea.NavigationGrid.TerrainAtTile(TilePositioning.TileIndicesFromPosition(subLevelEntrance.transform.position, containedArea.CenterPosition, containedArea.MainAreaDimensions))
+                        new TiledLevelPlanEntrance(planArea),
+                        subLevelEntrance.LocalEntryIndexDirection,
+                        containedArea.NavigationGrid[AreaTiling.TileIndexPositionFromPosition(subLevelEntrance.EntryPosition, containedArea.CenterPosition, containedArea.MainAreaDimensions)].Terrain
                         )
                     );
+                if (subLevelEntrancesAndContainedAreas.Count > 1)
+                {
+                    Debug.LogWarning("PredefinedTiledLevelPlanners cannot support more than 1 sub level entrance.");
+                }
             }
 
             return levelPlan;

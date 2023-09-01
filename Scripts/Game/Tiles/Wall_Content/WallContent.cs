@@ -1,34 +1,16 @@
-
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
     public class WallContent : FrigidMonoBehaviour
     {
-        [SerializeField]
-        private int width;
-        [SerializeField]
-        private int depth;
+        [Space]
         [SerializeField]
         private AnimatorBody animatorBody;
 
-        public int Width
-        {
-            get
-            {
-                return this.width;
-            }
-        }
+        public virtual void Preview(Vector2 orientationDirection) { }
 
-        public int Depth
-        {
-            get
-            {
-                return this.depth;
-            }
-        }
-
-        public virtual void Populated(Vector2 orientationDirection)
+        public virtual void Populate(Vector2 orientationDirection)
         {
             this.animatorBody.Direction = orientationDirection;
         }

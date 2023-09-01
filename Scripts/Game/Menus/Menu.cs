@@ -21,27 +21,21 @@ namespace FrigidBlackwaters.Game
 
         private MenuPrompt menuPrompt;
 
-        public void Open()
+        public virtual bool WantsToOpen() { return false; }
+
+        public virtual bool WantsToClose() { return false; }
+
+        public virtual void Opened()
         {
             this.canvasGroup.interactable = true;
             this.canvasGroup.blocksRaycasts = true;
-            Opened();
         }
 
-        public void Close()
+        public virtual void Closed()
         {
             this.canvasGroup.interactable = false;
             this.canvasGroup.blocksRaycasts = false;
-            Closed();
         }
-
-        public virtual bool IsOpenable() { return true; }
-
-        public virtual bool IsClosable() { return true; }
-
-        protected abstract void Opened();
-
-        protected abstract void Closed();
 
         protected virtual bool ShouldShowPrompt(out Vector2 trackedPosition)
         {
@@ -56,7 +50,7 @@ namespace FrigidBlackwaters.Game
             this.canvasGroup.blocksRaycasts = false;
             if (this.hasPrompt) 
             {
-                this.menuPrompt = FrigidInstancing.CreateInstance<MenuPrompt>(this.menuPromptPrefab);
+                this.menuPrompt = CreateInstance<MenuPrompt>(this.menuPromptPrefab);
             }
         }
 
@@ -65,7 +59,7 @@ namespace FrigidBlackwaters.Game
             base.Update();
             if (this.hasPrompt)
             {
-                if (ShouldShowPrompt(out Vector2 trackedPosition))
+                if (this.ShouldShowPrompt(out Vector2 trackedPosition))
                 {
                     this.menuPrompt.ShowPrompt(this.promptIcon, trackedPosition);
                 }

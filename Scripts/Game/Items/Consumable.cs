@@ -11,6 +11,8 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private IntSerializedReference consumePowerUsage;
         [SerializeField]
+        private IntSerializedReference consumeMaxPowerIncrease;
+        [SerializeField]
         private bool hasConsumedEffect;
         [SerializeField]
         [ShowIfBool("hasConsumedEffect", true)]
@@ -25,15 +27,46 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return true;
+                return this.Storage.TryGetUsingMob(out _);
             }
         }
 
-        public override bool IsInEffect
+        public override bool Used()
         {
-            get
+            if (this.Storage.PowerBudget.TryUsePower(this, this.consumePowerUsage.ImmutableValue) && this.Storage.PowerBudget.TryIncreaseMaxPower(this, this.consumeMaxPowerIncrease.ImmutableValue))
             {
-                return false;
+                if (this.hasUnconsumedEffect) this.DeactivateRootNode(this.unconsumedRootNode);
+                if (this.hasConsumedEffect) this.ActivateRootNode(this.consumedRootNode);
+                this.OnInEffectChanged += () => this.InUse = this.InEffect;
+                this.InUse = this.InEffect;
+                return true;
+            }
+            return false;
+        }
+
+        public override void Stored()
+        {
+            base.Stored();
+            if (this.InUse)
+            {
+                if (this.hasConsumedEffect) this.ActivateRootNode(this.consumedRootNode);
+            }
+            else
+            {
+                if (this.hasUnconsumedEffect) this.ActivateRootNode(this.unconsumedRootNode);
+            }
+        }
+
+        public override void Unstored()
+        {
+            base.Unstored();
+            if (this.InUse)
+            {
+                if (this.hasConsumedEffect) this.DeactivateRootNode(this.consumedRootNode);
+            }
+            else
+            {
+                if (this.hasUnconsumedEffect) this.DeactivateRootNode(this.unconsumedRootNode);
             }
         }
 
@@ -46,29 +79,6 @@ namespace FrigidBlackwaters.Game
                 if (this.hasUnconsumedEffect) rootNodes.Add(this.unconsumedRootNode);
                 return rootNodes;
             }
-        }
-
-        public override bool Used()
-        {
-            if (this.Storage.PowerBudget.TryUsePower(this, this.consumePowerUsage.ImmutableValue))
-            {
-                if (this.hasUnconsumedEffect) DeactivateRootNode(this.unconsumedRootNode);
-                if (this.hasConsumedEffect) ActivateRootNode(this.consumedRootNode);
-                return true;
-            }
-            return false;
-        }
-
-        public override void Stored()
-        {
-            base.Stored();
-            if (this.hasUnconsumedEffect) ActivateRootNode(this.unconsumedRootNode);
-        }
-
-        public override void Unstored()
-        {
-            base.Unstored();
-            if (this.hasUnconsumedEffect) DeactivateRootNode(this.unconsumedRootNode);
         }
     }
 }

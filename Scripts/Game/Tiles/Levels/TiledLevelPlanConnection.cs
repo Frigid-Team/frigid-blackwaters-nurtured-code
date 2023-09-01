@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
@@ -6,42 +7,40 @@ namespace FrigidBlackwaters.Game
     {
         private TiledLevelPlanEntrance firstEntrance;
         private TiledLevelPlanEntrance secondEntrance;
-        private Vector2Int direction;
+        private Vector2Int indexDirection;
         private TileTerrain connectionTerrain;
         private bool isSubLevelConnection;
 
         public TiledLevelPlanConnection(
             TiledLevelPlanEntrance firstEntrance,
             TiledLevelPlanEntrance secondEntrance,
-            Vector2Int direction,
+            Vector2Int indexDirection,
             TileTerrain connectionTerrain = TileTerrain.None
             )
         {
-            if (!TilePositioning.IsValidWallDirection(direction))
+            if (!WallTiling.IsValidWallIndexDirection(indexDirection))
             {
-                Debug.LogError("Connection has invalid direction: " + direction);
-                return;
+                throw new ArgumentException("TiledLevelPlanConnection has invalid wall direction.");
             }
 
             if (firstEntrance.Area == secondEntrance.Area)
             {
-                Debug.LogError("Connection connects to the same area!");
-                return;
+                throw new ArgumentException("TiledLevelPlanConnection connects to the same area.");
             }
 
             this.firstEntrance = firstEntrance;
             this.secondEntrance = secondEntrance;
-            this.direction = direction;
+            this.indexDirection = indexDirection;
             this.connectionTerrain = connectionTerrain;
 
             this.isSubLevelConnection = this.firstEntrance.IsSubLevelEntrance || this.secondEntrance.IsSubLevelEntrance;
             if (!this.firstEntrance.IsSubLevelEntrance)
             {
-                this.firstEntrance.Area.AddWallEntry(this.direction, this.connectionTerrain);
+                this.firstEntrance.Area.AddWallEntry(this.indexDirection, this.connectionTerrain);
             }
             if (!this.secondEntrance.IsSubLevelEntrance)
             {
-                this.secondEntrance.Area.AddWallEntry(-this.direction, this.connectionTerrain);
+                this.secondEntrance.Area.AddWallEntry(-this.indexDirection, this.connectionTerrain);
             }
         }
 
@@ -61,11 +60,11 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Vector2Int Direction
+        public Vector2Int IndexDirection
         {
             get
             {
-                return this.direction;
+                return this.indexDirection;
             }
         }
 
@@ -80,11 +79,11 @@ namespace FrigidBlackwaters.Game
                 this.connectionTerrain = value;
                 if (!this.firstEntrance.IsSubLevelEntrance)
                 {
-                    this.firstEntrance.Area.SetWallEntry(this.direction, this.connectionTerrain);
+                    this.firstEntrance.Area.SetWallEntry(this.indexDirection, this.connectionTerrain);
                 }
                 if (!this.secondEntrance.IsSubLevelEntrance)
                 {
-                    this.secondEntrance.Area.SetWallEntry(-this.direction, this.connectionTerrain);
+                    this.secondEntrance.Area.SetWallEntry(-this.indexDirection, this.connectionTerrain);
                 }
             }
         }

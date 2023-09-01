@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-
 using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
@@ -21,11 +20,21 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override bool IsInEffect
+        public override void Stored()
         {
-            get
+            base.Stored();
+            if (this.hasPassiveEffect)
             {
-                return false;
+                this.ActivateRootNode(this.passiveRootItemNode);
+            }
+        }
+
+        public override void Unstored()
+        {
+            base.Unstored();
+            if (this.hasPassiveEffect)
+            {
+                this.DeactivateRootNode(this.passiveRootItemNode);
             }
         }
 
@@ -36,18 +45,6 @@ namespace FrigidBlackwaters.Game
                 if (this.hasPassiveEffect) return new HashSet<ItemNode> { this.passiveRootItemNode };
                 return new HashSet<ItemNode>();
             }
-        }
-
-        public override void Stored()
-        {
-            base.Stored();
-            if (this.hasPassiveEffect) ActivateRootNode(this.passiveRootItemNode);
-        }
-
-        public override void Unstored()
-        {
-            base.Unstored();
-            if (this.hasPassiveEffect) DeactivateRootNode(this.passiveRootItemNode);
         }
     }
 }

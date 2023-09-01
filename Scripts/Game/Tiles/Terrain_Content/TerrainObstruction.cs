@@ -23,54 +23,64 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override void Populated(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> allTileIndices)
+        public override void Populate(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> tileIndexPositions)
         {
-            base.Populated(orientationDirection, navigationGrid, allTileIndices);
+            base.Populate(orientationDirection, navigationGrid, tileIndexPositions);
 
-            foreach (Vector2Int tileIndices in this.AllTileIndices)
+            foreach (Vector2Int tileIndexPosition in this.TileIndexPositions)
             {
-                foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetProperties<ResistBoxAnimatorProperty>())
+                foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>())
                 {
-                    this.NavigationGrid.AddObstruction(tileIndices, resistBoxProperty.DefensiveResistance);
+                    this.NavigationGrid[tileIndexPosition].AddObstruction(resistBoxProperty.DefensiveResistance);
                 }
             }
-            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetProperties<ResistBoxAnimatorProperty>())
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>())
             {
-                resistBoxProperty.OnReceived += AttemptBreak;
+                resistBoxProperty.OnReceived += this.AttemptBreak;
                 resistBoxProperty.IsIgnoringDamage = false;
             }
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.AnimatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.AnimatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 breakBoxProperty.IsIgnoringDamage = false;
             }
-            this.rigidBody2D.bodyType = RigidbodyType2D.Static;
+            foreach (PushColliderAnimatorProperty pushColliderProperty in this.AnimatorBody.GetReferencedProperties<PushColliderAnimatorProperty>())
+            {
+                pushColliderProperty.Layer = (int)FrigidLayer.Obstructions;
+            }
+            this.rigidBody2D.bodyType = RigidbodyType2D.Kinematic;
+            this.rigidBody2D.constraints = RigidbodyConstraints2D.FreezeAll;
         }
 
         protected virtual void Break()
         {
-            foreach (Vector2Int tileIndices in this.AllTileIndices)
+            foreach (Vector2Int tileIndexPosition in this.TileIndexPositions)
             {
-                foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetProperties<ResistBoxAnimatorProperty>())
+                foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>())
                 {
-                    this.NavigationGrid.RemoveObstruction(tileIndices, resistBoxProperty.DefensiveResistance);
+                    this.NavigationGrid[tileIndexPosition].RemoveObstruction(resistBoxProperty.DefensiveResistance);
                 }
             }
-            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetProperties<ResistBoxAnimatorProperty>())
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>())
             {
-                resistBoxProperty.OnReceived -= AttemptBreak;
+                resistBoxProperty.OnReceived -= this.AttemptBreak;
                 resistBoxProperty.IsIgnoringDamage = true;
             }
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.AnimatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.AnimatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 breakBoxProperty.IsIgnoringDamage = true;
             }
+            foreach (PushColliderAnimatorProperty pushColliderProperty in this.AnimatorBody.GetReferencedProperties<PushColliderAnimatorProperty>())
+            {
+                pushColliderProperty.Layer = (int)FrigidLayer.Default;
+            }
             this.rigidBody2D.bodyType = RigidbodyType2D.Dynamic;
+            this.rigidBody2D.constraints = RigidbodyConstraints2D.FreezeRotation;
         }
 
         private void AttemptBreak(BreakInfo breakInfo)
         {
             if (!breakInfo.Broken) return;
-            Break();
+            this.Break();
             this.onBroken?.Invoke();
         }
 
@@ -78,7 +88,7 @@ namespace FrigidBlackwaters.Game
         private bool CanBreak()
         {
             if (this.AnimatorBody == null) return false;
-            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetProperties<ResistBoxAnimatorProperty>())
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.AnimatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>())
             {
                 if (resistBoxProperty.DefensiveResistance < Resistance.Unbreakable)
                 {

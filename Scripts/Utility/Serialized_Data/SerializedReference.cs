@@ -25,7 +25,7 @@ namespace FrigidBlackwaters.Utility
         public SerializedReference()
         {
             this.referenceType = SerializedReferenceType.Custom;
-            this.customValue = GetDefaultCustomValue();
+            this.customValue = this.GetDefaultCustomValue();
             this.scriptableConstant = null;
             this.selection = new List<T>();
             this.scriptableVariable = null;
@@ -34,12 +34,12 @@ namespace FrigidBlackwaters.Utility
         public SerializedReference(SerializedReference<T> other)
         {
             this.referenceType = other.referenceType;
-            this.customValue = GetCopyValue(other.customValue);
+            this.customValue = this.GetCopyValue(other.customValue);
             this.scriptableConstant = other.scriptableConstant;
             this.selection = new List<T>();
             foreach (T selectionValue in other.selection)
             {
-                this.selection.Add(GetCopyValue(selectionValue));
+                this.selection.Add(this.GetCopyValue(selectionValue));
             }
             this.scriptableVariable = other.scriptableVariable;
         }
@@ -70,13 +70,13 @@ namespace FrigidBlackwaters.Utility
                     case SerializedReferenceType.ScriptableConstant:
                         return this.scriptableConstant.Value;
                     case SerializedReferenceType.RandomFromRange:
-                        return GetRandomFromRangeImmutableValue();
+                        return this.GetRandomFromRangeImmutableValue();
                     case SerializedReferenceType.RandomFromSelection:
-                        return this.selection.Count == 0 ? default(T) : this.selection[new System.Random(GetHashCode()).Next(this.selection.Count)];
+                        return this.selection.Count == 0 ? default(T) : this.selection[new System.Random(this.GetHashCode()).Next(this.selection.Count)];
                     case SerializedReferenceType.ScriptableVariable:
-                        return this.scriptableVariable.Value;
+                        return this.scriptableVariable.InitialValue;
                     case SerializedReferenceType.Inherited:
-                        return GetInheritedImmutableValue();
+                        return this.GetInheritedImmutableValue();
                 }
                 return this.customValue;
             }
@@ -93,13 +93,13 @@ namespace FrigidBlackwaters.Utility
                     case SerializedReferenceType.ScriptableConstant:
                         return this.scriptableConstant.Value;
                     case SerializedReferenceType.RandomFromRange:
-                        return GetRandomFromRangeMutableValue();
+                        return this.GetRandomFromRangeMutableValue();
                     case SerializedReferenceType.RandomFromSelection:
-                        return this.selection[new System.Random().Next(this.selection.Count)];
+                        return this.selection[UnityEngine.Random.Range(0, this.selection.Count)];
                     case SerializedReferenceType.ScriptableVariable:
                         return this.scriptableVariable.Value;
                     case SerializedReferenceType.Inherited:
-                        return GetInheritedMutableValue();
+                        return this.GetInheritedMutableValue();
                 }
                 return this.customValue;
             }
@@ -147,14 +147,14 @@ namespace FrigidBlackwaters.Utility
 
         public override bool Equals(object obj)
         {
-            return Equals(obj as SerializedReference<T>);
+            return this.Equals(obj as SerializedReference<T>);
         }
 
         public bool Equals(SerializedReference<T> other)
         {
             if (other == null) return false;
             if (ReferenceEquals(this, other)) return true;
-            if (GetType() != other.GetType()) return false;
+            if (this.GetType() != other.GetType()) return false;
 
             if (this.referenceType != other.referenceType) return false;
 
@@ -165,13 +165,13 @@ namespace FrigidBlackwaters.Utility
                 case SerializedReferenceType.ScriptableConstant:
                     return this.scriptableConstant == other.scriptableConstant;
                 case SerializedReferenceType.RandomFromRange:
-                    return RangeEquals(other);
+                    return this.RangeEquals(other);
                 case SerializedReferenceType.RandomFromSelection:
                     return this.selection.SequenceEqual(other.selection);
                 case SerializedReferenceType.ScriptableVariable:
                     return this.scriptableVariable = other.scriptableVariable;
                 case SerializedReferenceType.Inherited:
-                    return InheritEquals(other);
+                    return this.InheritEquals(other);
             }
             return false;
         }
@@ -185,13 +185,13 @@ namespace FrigidBlackwaters.Utility
                 case SerializedReferenceType.ScriptableConstant:
                     return this.scriptableConstant.GetHashCode();
                 case SerializedReferenceType.RandomFromRange:
-                    return GetHashCodeFromRange();
+                    return this.GetHashCodeFromRange();
                 case SerializedReferenceType.RandomFromSelection:
                     return this.selection.GetHashCode();
                 case SerializedReferenceType.ScriptableVariable:
                     return this.scriptableVariable.GetHashCode();
                 case SerializedReferenceType.Inherited:
-                    return GetHashCodeFromInherited();
+                    return this.GetHashCodeFromInherited();
             }
             return base.GetHashCode();
         }

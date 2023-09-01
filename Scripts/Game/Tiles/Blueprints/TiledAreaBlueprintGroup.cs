@@ -20,10 +20,15 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public bool Includes(TiledAreaBlueprint blueprint)
+        {
+            return this.allBlueprints.Contains(blueprint);
+        }
+
         public List<TiledAreaBlueprint> GetMatchingEntranceTerrainBlueprints(TileTerrain[] entranceTerrains)
         {
             List<TiledAreaBlueprint> matchingBlueprints = new List<TiledAreaBlueprint>();
-            VisitMatchingEntranceTerrainCodes(
+            this.VisitMatchingEntranceTerrainCodes(
                 0,
                 entranceTerrains, 
                 (int code) => 
@@ -37,19 +42,31 @@ namespace FrigidBlackwaters.Game
             return matchingBlueprints;
         }
 
-        protected override void Init()
+        protected override void Initialize()
         {
-            base.Init();
+            base.Initialize();
             this.entranceTerrainMappedBlueprints = new Dictionary<int, List<TiledAreaBlueprint>>();
 
-            foreach (TiledAreaBlueprint tiledAreaBlueprint in this.allBlueprints)
+            foreach (TiledAreaBlueprint blueprint in this.allBlueprints)
             {
-                int code = GetEntranceTerrainCode(tiledAreaBlueprint.EntranceTerrains);
+                TileTerrain[] entranceTerrains = new TileTerrain[4];
+                foreach (Vector2Int wallIndexDirection in WallTiling.GetAllWallIndexDirections())
+                {
+                    int wallIndex = WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection);
+                    entranceTerrains[wallIndex] = TileTerrain.None;
+                    if (!blueprint.TryGetWallEntranceAssetAndIndexAndWidth(wallIndexDirection, out _, out int tileIndex, out _)) 
+                    {
+                        continue;
+                    }
+                    entranceTerrains[wallIndex] = blueprint.GetTerrainTileAssetAt(WallTiling.WallIndexDirectionAndTileIndexToInnerTileIndexPosition(wallIndexDirection, tileIndex, blueprint.MainAreaDimensions)).Terrain;
+                }
+
+                int code = this.GetEntranceTerrainCode(entranceTerrains);
                 if (!this.entranceTerrainMappedBlueprints.ContainsKey(code))
                 {
                     this.entranceTerrainMappedBlueprints.Add(code, new List<TiledAreaBlueprint>());
                 }
-                this.entranceTerrainMappedBlueprints[code].Add(tiledAreaBlueprint);
+                this.entranceTerrainMappedBlueprints[code].Add(blueprint);
             }
         }
 
@@ -57,22 +74,22 @@ namespace FrigidBlackwaters.Game
         {
             if (index >= entranceTerrains.Length)
             {
-                onVisited?.Invoke(GetEntranceTerrainCode(entranceTerrains));
+                onVisited?.Invoke(this.GetEntranceTerrainCode(entranceTerrains));
                 return;
             }
 
             if (entranceTerrains[index] == TileTerrain.None)
             {
-                for (int i = (int)TileTerrain.None + 1; i < (int)TileTerrain.Count; i++)
+                for (int i = (int)TileTerrain.None; i < (int)TileTerrain.Count; i++)
                 {
                     entranceTerrains[index] = (TileTerrain)i;
-                    VisitMatchingEntranceTerrainCodes(index + 1, entranceTerrains, onVisited);
+                    this.VisitMatchingEntranceTerrainCodes(index + 1, entranceTerrains, onVisited);
                     entranceTerrains[index] = TileTerrain.None;
                 }
             }
             else
             {
-                VisitMatchingEntranceTerrainCodes(index + 1, entranceTerrains, onVisited);
+                this.VisitMatchingEntranceTerrainCodes(index + 1, entranceTerrains, onVisited);
             }
         }
 

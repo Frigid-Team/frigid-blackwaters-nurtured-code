@@ -11,6 +11,7 @@ namespace FrigidBlackwaters.Game
         private TiledWorldMap tiledWorldMap;
         [SerializeField]
         private float dragSpeed;
+        private bool mapActionPerformed;
 
         public void OnDrag(PointerEventData eventData)
         {
@@ -22,18 +23,33 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected override void Opened()
+        public override bool WantsToOpen()
         {
+            return InterfaceInput.ExpandPerformedThisFrame;
+        }
+
+        public override bool WantsToClose()
+        {
+            return this.mapActionPerformed || InterfaceInput.ExpandPerformedThisFrame || InterfaceInput.ReturnPerformedThisFrame;
+        }
+
+        public override void Opened()
+        {
+            base.Opened();
             this.tiledWorldMap.gameObject.SetActive(true);
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea tiledArea))
+            if (TiledArea.TryGetFocusedArea(out TiledArea tiledArea))
             {
                 this.tiledWorldMap.MoveTo(-tiledArea.CenterPosition);
             }
+            this.mapActionPerformed = false;
+            this.tiledWorldMap.OnMapActionPerformed += this.FlagAsClosedOnMapAction;
         }
 
-        protected override void Closed()
+        public override void Closed()
         {
+            base.Closed();
             this.tiledWorldMap.gameObject.SetActive(false);
+            this.tiledWorldMap.OnMapActionPerformed -= this.FlagAsClosedOnMapAction;
         }
 
         protected override void Awake()
@@ -41,5 +57,7 @@ namespace FrigidBlackwaters.Game
             base.Awake();
             this.tiledWorldMap.gameObject.SetActive(false);
         }
+
+        private void FlagAsClosedOnMapAction() => this.mapActionPerformed = true;
     }
 }

@@ -9,9 +9,6 @@ namespace FrigidBlackwaters.Game
     [CreateAssetMenu(fileName = "DungeonGenerator", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.DUNGEON_GENERATION + "DungeonGenerator")]
     public class DungeonGenerator : FrigidScriptableObject
     {
-        public const int SPAWN_X_POSITION_INDEX = 0;
-        public const int SPAWN_Y_POSITION_INDEX = 0;
-
         [SerializeField]
         private IntSerializedReference numberOfRooms;
         [SerializeField]
@@ -35,21 +32,21 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private DungeonFinaleOutcome finaleOutcome;
 
-        public GeneratedDungeon GenerateDungeon()
+        public GeneratedDungeon GenerateDungeon(Vector2Int startingIndexPosition, List<Vector2Int> restrictedIndexPositions)
         {
             GeneratedDungeon generatedDungeon = new GeneratedDungeon();
-            GenerateLayout(generatedDungeon);
-            GenerateContent(generatedDungeon);
+            this.GenerateLayout(generatedDungeon, startingIndexPosition, restrictedIndexPositions);
+            this.GenerateContent(generatedDungeon);
             return generatedDungeon;
         }
 
-        private void GenerateLayout(GeneratedDungeon generatedDungeon)
+        private void GenerateLayout(GeneratedDungeon generatedDungeon, Vector2Int startingIndexPosition, List<Vector2Int> restrictedIndexPositions)
         {
             Queue<GeneratedDungeonRoom> intersectionsQueue = new Queue<GeneratedDungeonRoom>();
-            Vector2Int spawnRoomIndices = new Vector2Int(SPAWN_X_POSITION_INDEX, SPAWN_Y_POSITION_INDEX);
-            GeneratedDungeonRoom spawnRoom = new GeneratedDungeonRoom(spawnRoomIndices);
+            Vector2Int spawnRoomIndexPosition = startingIndexPosition;
+            GeneratedDungeonRoom spawnRoom = new GeneratedDungeonRoom(spawnRoomIndexPosition);
             spawnRoom.RoomLayoutType = RoomLayoutType.Spawn;
-            generatedDungeon.RoomPerIndices.Add(spawnRoomIndices, spawnRoom);
+            generatedDungeon.RoomPerIndexPosition.Add(spawnRoomIndexPosition, spawnRoom);
             generatedDungeon.CurrentlyGeneratedNumberOfRooms++;
 
             intersectionsQueue.Enqueue(spawnRoom);
@@ -58,11 +55,11 @@ namespace FrigidBlackwaters.Game
             {
                 GeneratedDungeonRoom currentRoom = intersectionsQueue.Dequeue();
 
-                CreateDungeonRoomBranches(generatedDungeon, currentRoom, intersectionsQueue);
+                this.CreateDungeonRoomBranches(generatedDungeon, currentRoom, intersectionsQueue, restrictedIndexPositions);
 
                 if (intersectionsQueue.Count == 0)
                 {
-                    intersectionsQueue = RepopulateintersectionRoomsQueue(generatedDungeon, intersectionsQueue);
+                    intersectionsQueue = this.RepopulateintersectionRoomsQueue(generatedDungeon, intersectionsQueue);
                 }
             }
 
@@ -74,18 +71,18 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            DesignateCompletionRooms(generatedDungeon);
-            PopulateRoomsPerLayouts(generatedDungeon);
+            this.DesignateCompletionRooms(generatedDungeon, restrictedIndexPositions);
+            this.PopulateRoomsPerLayouts(generatedDungeon);
 #if UNITY_EDITOR
             Debug.Log("Dungeon layout dungeon generation finished!");
 #endif
         }
 
-        private void CreateDungeonRoomBranches(GeneratedDungeon generatedDungeon, GeneratedDungeonRoom currentRoom, Queue<GeneratedDungeonRoom> intersectionRoomsQueue)
+        private void CreateDungeonRoomBranches(GeneratedDungeon generatedDungeon, GeneratedDungeonRoom currentRoom, Queue<GeneratedDungeonRoom> intersectionRoomsQueue, List<Vector2Int> restrictedIndexPositions)
         {
-            List<Vector2Int> availableIndices = GetAvailableNearbyIndices(generatedDungeon, currentRoom);
+            List<Vector2Int> availableIndexPositions = this.GetAvailableNearbyIndexPositions(generatedDungeon, currentRoom, restrictedIndexPositions);
 
-            if (availableIndices.Count == 0)
+            if (availableIndexPositions.Count == 0)
             {
                 if (currentRoom.AdjacentRooms.Count == 1)
                 {
@@ -98,7 +95,7 @@ namespace FrigidBlackwaters.Game
                 this.meanNumOfSplits.ImmutableValue,
                 this.stdDevNumOfSplits.ImmutableValue,
                 this.minNumOfSplits.ImmutableValue,
-                Mathf.Min(this.maxNumOfSplits.ImmutableValue, availableIndices.Count)
+                Mathf.Min(this.maxNumOfSplits.ImmutableValue, availableIndexPositions.Count)
                 );
 
             int roomsLeft = this.numberOfRooms.ImmutableValue - generatedDungeon.CurrentlyGeneratedNumberOfRooms;
@@ -112,41 +109,41 @@ namespace FrigidBlackwaters.Game
 
             while (splitsCreated < numOfSplits)
             {
-                int randomDirection = UnityEngine.Random.Range(0, availableIndices.Count);
-                Vector2Int newRoomIndices = availableIndices[randomDirection];
+                int randomDirection = UnityEngine.Random.Range(0, availableIndexPositions.Count);
+                Vector2Int newRoomIndexPosition = availableIndexPositions[randomDirection];
 
-                GeneratedDungeonRoom intersectionRoom = CreateDungeonCorridor(generatedDungeon, currentRoom, newRoomIndices - currentRoom.PositionIndices);
+                GeneratedDungeonRoom intersectionRoom = this.CreateDungeonCorridor(generatedDungeon, currentRoom, newRoomIndexPosition - currentRoom.IndexPosition);
                 intersectionRoomsQueue.Enqueue(intersectionRoom);
 
-                availableIndices.RemoveAt(randomDirection);
+                availableIndexPositions.RemoveAt(randomDirection);
                 splitsCreated++;
             }
         }
 
-        private List<Vector2Int> GetAvailableNearbyIndices(GeneratedDungeon generatedDungeon, GeneratedDungeonRoom currentRoom)
+        private List<Vector2Int> GetAvailableNearbyIndexPositions(GeneratedDungeon generatedDungeon, GeneratedDungeonRoom currentRoom, List<Vector2Int> restrictedIndexPositions)
         {
-            List<Vector2Int> availableIndices = new List<Vector2Int>();
+            List<Vector2Int> availableIndexPositions = new List<Vector2Int>();
 
-            if (!generatedDungeon.RoomPerIndices.ContainsKey(new Vector2Int(currentRoom.PositionIndices.x, currentRoom.PositionIndices.y + 1)))
+            if (!generatedDungeon.RoomPerIndexPosition.ContainsKey(new Vector2Int(currentRoom.IndexPosition.x, currentRoom.IndexPosition.y + 1)))
             {
-                availableIndices.Add(new Vector2Int(currentRoom.PositionIndices.x, currentRoom.PositionIndices.y + 1));
+                availableIndexPositions.Add(new Vector2Int(currentRoom.IndexPosition.x, currentRoom.IndexPosition.y + 1));
             }
-            if (!generatedDungeon.RoomPerIndices.ContainsKey(new Vector2Int(currentRoom.PositionIndices.x + 1, currentRoom.PositionIndices.y)))
+            if (!generatedDungeon.RoomPerIndexPosition.ContainsKey(new Vector2Int(currentRoom.IndexPosition.x + 1, currentRoom.IndexPosition.y)))
             {
-                availableIndices.Add(new Vector2Int(currentRoom.PositionIndices.x + 1, currentRoom.PositionIndices.y));
+                availableIndexPositions.Add(new Vector2Int(currentRoom.IndexPosition.x + 1, currentRoom.IndexPosition.y));
             }
-            if (!generatedDungeon.RoomPerIndices.ContainsKey(new Vector2Int(currentRoom.PositionIndices.x, currentRoom.PositionIndices.y - 1)) && 
-                currentRoom.RoomLayoutType != RoomLayoutType.Spawn)
+            if (!generatedDungeon.RoomPerIndexPosition.ContainsKey(new Vector2Int(currentRoom.IndexPosition.x, currentRoom.IndexPosition.y - 1)))
             {
-                // We reserve the down direction for the spawn room, as it will likely be the entry from other levels.
-                availableIndices.Add(new Vector2Int(currentRoom.PositionIndices.x, currentRoom.PositionIndices.y - 1));
+                availableIndexPositions.Add(new Vector2Int(currentRoom.IndexPosition.x, currentRoom.IndexPosition.y - 1));
             }
-            if (!generatedDungeon.RoomPerIndices.ContainsKey(new Vector2Int(currentRoom.PositionIndices.x - 1, currentRoom.PositionIndices.y)))
+            if (!generatedDungeon.RoomPerIndexPosition.ContainsKey(new Vector2Int(currentRoom.IndexPosition.x - 1, currentRoom.IndexPosition.y)))
             {
-                availableIndices.Add(new Vector2Int(currentRoom.PositionIndices.x - 1, currentRoom.PositionIndices.y));
+                availableIndexPositions.Add(new Vector2Int(currentRoom.IndexPosition.x - 1, currentRoom.IndexPosition.y));
             }
 
-            return availableIndices;
+            availableIndexPositions.RemoveAll((Vector2Int nearbyIndexPosition) => restrictedIndexPositions.Contains(nearbyIndexPosition));
+
+            return availableIndexPositions;
         }
 
         private GeneratedDungeonRoom CreateDungeonCorridor(GeneratedDungeon generatedDungeon, GeneratedDungeonRoom branchRoom, Vector2Int relativeDirection)
@@ -168,21 +165,21 @@ namespace FrigidBlackwaters.Game
 
             while (roomsCreated < corridorLength)
             {
-                Vector2Int newRoomPositionIndices = currentEndOfCorridorRoom.PositionIndices + relativeDirection;
+                Vector2Int newRoomIndexPosition = currentEndOfCorridorRoom.IndexPosition + relativeDirection;
                 GeneratedDungeonRoom newCorridorRoom;
 
-                if (!generatedDungeon.RoomPerIndices.ContainsKey(newRoomPositionIndices))
+                if (!generatedDungeon.RoomPerIndexPosition.ContainsKey(newRoomIndexPosition))
                 {
-                    newCorridorRoom = new GeneratedDungeonRoom(newRoomPositionIndices);
+                    newCorridorRoom = new GeneratedDungeonRoom(newRoomIndexPosition);
                     newCorridorRoom.AddAdjacentRoom(currentEndOfCorridorRoom);
                     newCorridorRoom.RoomLayoutType = RoomLayoutType.Corridor;
-                    generatedDungeon.RoomPerIndices.Add(newRoomPositionIndices, newCorridorRoom);
+                    generatedDungeon.RoomPerIndexPosition.Add(newRoomIndexPosition, newCorridorRoom);
                     generatedDungeon.CurrentlyGeneratedNumberOfRooms++;
                 }
-                else if (generatedDungeon.RoomPerIndices[newRoomPositionIndices].RoomLayoutType != RoomLayoutType.Spawn)
+                else if (generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition].RoomLayoutType != RoomLayoutType.Spawn)
                 {
-                    generatedDungeon.RoomPerIndices[newRoomPositionIndices].AddAdjacentRoom(generatedDungeon.RoomPerIndices[currentEndOfCorridorRoom.PositionIndices]);
-                    newCorridorRoom = generatedDungeon.RoomPerIndices[newRoomPositionIndices];
+                    generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition].AddAdjacentRoom(generatedDungeon.RoomPerIndexPosition[currentEndOfCorridorRoom.IndexPosition]);
+                    newCorridorRoom = generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition];
                 }
                 else
                 {
@@ -195,7 +192,7 @@ namespace FrigidBlackwaters.Game
                 roomsCreated++;
             }
 
-            GeneratedDungeonRoom intersectionRoom = CreateIntersectionRoom(generatedDungeon, currentEndOfCorridorRoom, relativeDirection);
+            GeneratedDungeonRoom intersectionRoom = this.CreateIntersectionRoom(generatedDungeon, currentEndOfCorridorRoom, relativeDirection);
 
             return intersectionRoom;
         }
@@ -204,33 +201,33 @@ namespace FrigidBlackwaters.Game
         {
             if (generatedDungeon.CurrentlyGeneratedNumberOfRooms < this.numberOfRooms.ImmutableValue)
             {
-                Vector2Int newRoomPositionIndices = lastCorridorRoom.PositionIndices + relativeDirection;
-                if (!generatedDungeon.RoomPerIndices.ContainsKey(new Vector2Int(newRoomPositionIndices.x, newRoomPositionIndices.y)))
+                Vector2Int newRoomIndexPosition = lastCorridorRoom.IndexPosition + relativeDirection;
+                if (!generatedDungeon.RoomPerIndexPosition.ContainsKey(new Vector2Int(newRoomIndexPosition.x, newRoomIndexPosition.y)))
                 {
-                    GeneratedDungeonRoom intersectionRoom = new GeneratedDungeonRoom(newRoomPositionIndices);
+                    GeneratedDungeonRoom intersectionRoom = new GeneratedDungeonRoom(newRoomIndexPosition);
                     intersectionRoom.AddAdjacentRoom(lastCorridorRoom);
                     intersectionRoom.RoomLayoutType = RoomLayoutType.Intersection;
-                    generatedDungeon.RoomPerIndices[newRoomPositionIndices] = intersectionRoom;
+                    generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition] = intersectionRoom;
                     generatedDungeon.CurrentlyGeneratedNumberOfRooms++;
                 }
-                else if (generatedDungeon.RoomPerIndices[newRoomPositionIndices].RoomLayoutType == RoomLayoutType.Spawn)
+                else if (generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition].RoomLayoutType == RoomLayoutType.Spawn)
                 {
                     lastCorridorRoom.RoomLayoutType = RoomLayoutType.Intersection;
                     return lastCorridorRoom;
                 }
                 else
                 {
-                    generatedDungeon.RoomPerIndices[newRoomPositionIndices].RoomLayoutType = RoomLayoutType.Intersection;
-                    generatedDungeon.RoomPerIndices[newRoomPositionIndices].AddAdjacentRoom(lastCorridorRoom);
+                    generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition].RoomLayoutType = RoomLayoutType.Intersection;
+                    generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition].AddAdjacentRoom(lastCorridorRoom);
                 }
-                generatedDungeon.RoomPerIndices[lastCorridorRoom.PositionIndices].AddAdjacentRoom(generatedDungeon.RoomPerIndices[newRoomPositionIndices]);
-                return generatedDungeon.RoomPerIndices[newRoomPositionIndices];
+                generatedDungeon.RoomPerIndexPosition[lastCorridorRoom.IndexPosition].AddAdjacentRoom(generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition]);
+                return generatedDungeon.RoomPerIndexPosition[newRoomIndexPosition];
             }
             lastCorridorRoom.RoomLayoutType = RoomLayoutType.Intersection;
             return lastCorridorRoom;
         }
 
-        private void DesignateCompletionRooms(GeneratedDungeon generatedDungeon)
+        private void DesignateCompletionRooms(GeneratedDungeon generatedDungeon, List<Vector2Int> restrictedIndexPositions)
         {
             RoomLayoutType[] finaleLayoutTypes = null;
             switch (this.finaleOutcome)
@@ -262,20 +259,22 @@ namespace FrigidBlackwaters.Game
                 GeneratedDungeonRoom designatedRoom = endOfCorridorRooms[UnityEngine.Random.Range(0, endOfCorridorRooms.Count)];
                 designatedRoom.RoomLayoutType = finaleLayoutTypes[0];
 
-                List<Vector2Int> availableIndices = GetAvailableNearbyIndices(generatedDungeon, designatedRoom);
-                if (finaleLayoutTypes.Length > 1 && availableIndices.Count > 0)
+                List<Vector2Int> availableIndexPositions = this.GetAvailableNearbyIndexPositions(generatedDungeon, designatedRoom, restrictedIndexPositions);
+                if (finaleLayoutTypes.Length > 1)
                 {
-                    GeneratedDungeonRoom floorExitRoom = new GeneratedDungeonRoom(availableIndices[UnityEngine.Random.Range(0, availableIndices.Count)]);
-                    floorExitRoom.RoomLayoutType = finaleLayoutTypes[1];
-                    generatedDungeon.RoomPerIndices.Add(floorExitRoom.PositionIndices, floorExitRoom);
-                    designatedRoom.AddAdjacentRoom(floorExitRoom);
-                    floorExitRoom.AddAdjacentRoom(designatedRoom);
+                    if (availableIndexPositions.Count > 0)
+                    {
+                        GeneratedDungeonRoom floorExitRoom = new GeneratedDungeonRoom(availableIndexPositions[UnityEngine.Random.Range(0, availableIndexPositions.Count)]);
+                        floorExitRoom.RoomLayoutType = finaleLayoutTypes[1];
+                        generatedDungeon.RoomPerIndexPosition.Add(floorExitRoom.IndexPosition, floorExitRoom);
+                        designatedRoom.AddAdjacentRoom(floorExitRoom);
+                        floorExitRoom.AddAdjacentRoom(designatedRoom);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Seems like there are no available index positions to place the next floor room.");
+                    }
                 }
-                else
-                {
-                    Debug.LogWarning("Seems like there are no available indices to place the next floor room.");
-                }
-
                 return;
             }
 #if UNITY_EDITOR
@@ -348,7 +347,7 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            PopulateRoomsPerContents(generatedDungeon);
+            this.PopulateRoomsPerContents(generatedDungeon);
 #if UNITY_EDITOR
             Debug.Log("Room content dungeon generation finished!");
 #endif

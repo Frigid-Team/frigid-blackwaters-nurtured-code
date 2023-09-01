@@ -13,9 +13,9 @@ namespace FrigidBlackwaters.Core
                 position.y <= (boxPosition.y + dimensions.y / 2);
         }
 
-        public static float ComponentAngle0To2PI(this Vector2 vector)
+        public static float ComponentAngle0To360(this Vector2 vector)
         {
-            return (Mathf.Atan2(vector.y, vector.x) + Mathf.PI * 2) % (Mathf.PI * 2);
+            return (vector.ComponentAngleSigned() + 360) % 360;
         }
 
         public static float ComponentAngle(this Vector2 vector)
@@ -25,29 +25,38 @@ namespace FrigidBlackwaters.Core
 
         public static float ComponentAngleSigned(this Vector2 vector)
         {
-            return Mathf.Atan2(vector.y, vector.x);
+            return Mathf.Atan2(vector.y, vector.x) * Mathf.Rad2Deg;
         }
 
         public static int Division(this Vector2 vector, int numberDivisions)
         {
             return Mathf.RoundToInt((Mathf.Atan2(vector.y, vector.x) + (2 * Mathf.PI)) % (2 * Mathf.PI) / (2 * Mathf.PI / numberDivisions)) % numberDivisions;
         }
+        
 
-        public static Vector2 RotateAround(this Vector2 vector, Vector2 pivot, float angleRad)
+        public static Vector2 RotateAround(this Vector2 vector, float angle)
         {
+            return vector.RotateAround(Vector2.zero, angle);
+        }
+
+        public static Vector2 RotateAround(this Vector2 vector, Vector2 pivot, float angle)
+        {
+            float angleRad = angle * Mathf.Deg2Rad;
             float s = Mathf.Sin(angleRad);
             float c = Mathf.Cos(angleRad);
 
-            vector.x -= pivot.x;
-            vector.y -= pivot.y;
+            Vector2 tempVector = new Vector2(vector.x, vector.y);
 
-            float xNew = vector.x * c - vector.y * s;
-            float yNew = vector.x * s + vector.y * c;
+            tempVector.x -= pivot.x;
+            tempVector.y -= pivot.y;
 
-            vector.x = xNew + pivot.x;
-            vector.y = yNew + pivot.y;
+            float xNew = tempVector.x * c - tempVector.y * s;
+            float yNew = tempVector.x * s + tempVector.y * c;
 
-            return vector;
+            tempVector.x = xNew + pivot.x;
+            tempVector.y = yNew + pivot.y;
+
+            return tempVector;
         } 
     }
 }

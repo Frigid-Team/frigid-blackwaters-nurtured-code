@@ -2,7 +2,8 @@
     "name": "FrigidBlackwaters.Utility",
     "rootNamespace": "",
     "references": [
-        "GUID:510f83eb16e4f2e4dbf0ef5d745c9562"
+        "GUID:510f83eb16e4f2e4dbf0ef5d745c9562",
+        "GUID:15fc0a57446b3144c949da3e2b9737a9"
     ],
     "includePlatforms": [],
     "excludePlatforms": [

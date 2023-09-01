@@ -8,7 +8,7 @@ namespace FrigidBlackwaters.Game
     public class MobSightLineTargeter : Targeter
     {
         [SerializeField]
-        private MobSerializedReference mob;
+        private MobSerializedHandle mob;
         [SerializeField]
         private Targeter sightTargeter;
         [SerializeField]
@@ -18,15 +18,32 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference sweetSpotMax;
         [SerializeField]
-        private List<Targeter> avoidanceTargeters;
+        private List<Targeter> targetersToAvoid;
+        [SerializeField]
+        private List<MobQuery> mobsToAvoidQueries;
 
-        public override Vector2[] Calculate(Vector2[] currentPositions, float elapsedDuration, float elapsedDurationDelta)
+        protected override Vector2[] CustomRetrieve(Vector2[] currentPositions, float elapsedDuration, float elapsedDurationDelta)
         {
-            Mob mob = this.mob.ImmutableValue;
+            if (!this.mob.TryGetValue(out Mob mob))
+            {
+                return currentPositions;
+            }
 
-            Vector2[] sightPositions = this.sightTargeter.Calculate(currentPositions, elapsedDuration, elapsedDurationDelta);
-            List<Vector2[]> avoidancePositionsPerTargeter = new List<Vector2[]>();
-            foreach (Targeter avoidanceTargeter in this.avoidanceTargeters) avoidancePositionsPerTargeter.Add(avoidanceTargeter.Calculate(currentPositions, elapsedDuration, elapsedDurationDelta));
+            List<Vector2> positionsToAvoid = new List<Vector2>();
+            foreach (Targeter targeterToAvoid in this.targetersToAvoid)
+            {
+                positionsToAvoid.Add(targeterToAvoid.Retrieve(mob.Position, elapsedDuration, elapsedDurationDelta));
+            }
+            foreach (MobQuery mobsToAvoidQuery in this.mobsToAvoidQueries)
+            {
+                foreach (Mob mobToAvoid in mobsToAvoidQuery.Execute())
+                {
+                    positionsToAvoid.Add(mobToAvoid.Position);
+                }
+            }
+
+            Vector2[] sightPositions = this.sightTargeter.Retrieve(currentPositions, elapsedDuration, elapsedDurationDelta);
+
             Vector2[] positions = new Vector2[currentPositions.Length];
             currentPositions.CopyTo(positions, 0);
 
@@ -35,22 +52,22 @@ namespace FrigidBlackwaters.Game
 
             for (int i = 0; i < positions.Length; i++)
             {
-                List<Vector2Int> reachableTileIndices = mob.TiledArea.NavigationGrid.FindReachableIndices(mob.PositionIndices, mob.TileSize, mob.TraversableTerrain, 0, this.sweetSpotMax.ImmutableValue);
-                reachableTileIndices.Sort(
-                    (Vector2Int firstTileIndices, Vector2Int secondTileIndices) => 
+                List<Vector2Int> reachableIndexPositions = mob.TiledArea.NavigationGrid.FindReachableIndexPositions(mob.IndexPosition, mob.TileSize, mob.TraversableTerrain, 0, this.sweetSpotMax.ImmutableValue);
+                reachableIndexPositions.Sort(
+                    (Vector2Int firstIndexPosition, Vector2Int secondIndexPosition) => 
                     {
-                        Vector2 firstPosition = TilePositioning.RectPositionFromIndices(firstTileIndices, centerPosition, areaDimensions, mob.TileSize);
-                        Vector2 secondPosition = TilePositioning.RectPositionFromIndices(secondTileIndices, centerPosition, areaDimensions, mob.TileSize);
+                        Vector2 firstPosition = AreaTiling.RectPositionFromIndexPosition(firstIndexPosition, centerPosition, areaDimensions, mob.TileSize);
+                        Vector2 secondPosition = AreaTiling.RectPositionFromIndexPosition(secondIndexPosition, centerPosition, areaDimensions, mob.TileSize);
                         float firstDistance = Vector2.Distance(mob.Position, firstPosition);
                         float secondDistance = Vector2.Distance(mob.Position, secondPosition);
                         bool firstInSweetSpot = firstDistance >= this.sweetSpotMin.ImmutableValue && firstDistance <= this.sweetSpotMax.ImmutableValue;
                         bool secondInSweetSpot = secondDistance >= this.sweetSpotMin.ImmutableValue && secondDistance <= this.sweetSpotMax.ImmutableValue;
                         float firstAvoidanceDistScore = 0;
                         float secondAvoidanceDistScore = 0;
-                        foreach (Vector2[] avoidancePositions in avoidancePositionsPerTargeter)
+                        foreach (Vector2 positionToAvoid in positionsToAvoid)
                         {
-                            firstAvoidanceDistScore += Vector2.Distance(avoidancePositions[i], firstPosition);
-                            secondAvoidanceDistScore += Vector2.Distance(avoidancePositions[i], secondPosition);
+                            firstAvoidanceDistScore += Vector2.Distance(positionToAvoid, firstPosition);
+                            secondAvoidanceDistScore += Vector2.Distance(positionToAvoid, secondPosition);
                         }
 
                         if (firstInSweetSpot && secondInSweetSpot || !firstInSweetSpot && !secondInSweetSpot)
@@ -69,10 +86,10 @@ namespace FrigidBlackwaters.Game
                     }
                     );
 
-                foreach (Vector2Int nearbyTileIndices in reachableTileIndices)
+                foreach (Vector2Int reachableIndexPosition in reachableIndexPositions)
                 {
-                    Vector2 nearbyTilePosition = TilePositioning.RectPositionFromIndices(nearbyTileIndices, centerPosition, areaDimensions, mob.TileSize);
-                    if (mob.CanSeeThrough(nearbyTilePosition, sightPositions[i], this.blockingRadius.ImmutableValue))
+                    Vector2 nearbyTilePosition = AreaTiling.RectPositionFromIndexPosition(reachableIndexPosition, centerPosition, areaDimensions, mob.TileSize);
+                    if (mob.CanSeeUnobstructed(nearbyTilePosition, sightPositions[i], this.blockingRadius.ImmutableValue))
                     {
                         positions[i] = nearbyTilePosition;
                         break;

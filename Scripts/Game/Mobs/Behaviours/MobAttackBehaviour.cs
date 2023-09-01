@@ -7,11 +7,13 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Attack attack;
 
+        private bool attackComplete;
+
         public override bool IsFinished
         {
             get
             {
-                return true;
+                return this.attackComplete;
             }
         }
 
@@ -19,7 +21,8 @@ namespace FrigidBlackwaters.Game
         {
             base.Enter();
             this.attack.DamageAlignment = this.Owner.Alignment;
-            this.attack.Perform(this.EnterDuration);
+            this.attackComplete = false;
+            this.attack.Perform(this.EnterDuration, () => this.attackComplete = true);
         }
     }
 }

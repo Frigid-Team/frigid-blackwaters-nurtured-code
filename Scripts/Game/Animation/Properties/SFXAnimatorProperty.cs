@@ -21,8 +21,12 @@ namespace FrigidBlackwaters.Game
 
         public void SetSFXType(Type sfxType)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            this.sfx = (SFX)FrigidEditMode.AddComponent(this.gameObject, sfxType);
+            FrigidEdit.RecordChanges(this);
+            if (this.sfx != null)
+            {
+                FrigidEdit.RemoveComponent(this.sfx);
+            }
+            this.sfx = (SFX)FrigidEdit.AddComponent(this.gameObject, sfxType);
         }
 
         public bool GetPlayedThisFrame(int animationIndex, int frameIndex)
@@ -34,7 +38,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.playedThisFrames[animationIndex][frameIndex] != playThisFrame)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.playedThisFrames[animationIndex][frameIndex] = playThisFrame;
             }
         }
@@ -42,7 +46,8 @@ namespace FrigidBlackwaters.Game
         public override void Created()
         {
             base.Created();
-            this.sfx = FrigidEditMode.AddComponent<AfterImageSFX>(this.gameObject);
+            FrigidEdit.RecordChanges(this);
+            this.sfx = FrigidEdit.AddComponent<AfterImageSFX>(this.gameObject);
             this.playedThisFrames = new Nested2DList<bool>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
             {
@@ -56,7 +61,7 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationAddedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.playedThisFrames.Insert(animationIndex, new Nested1DList<bool>());
             for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
             {
@@ -67,21 +72,21 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationRemovedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.playedThisFrames.RemoveAt(animationIndex);
             base.AnimationRemovedAt(animationIndex);
         }
 
         public override void FrameAddedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.playedThisFrames[animationIndex].Insert(frameIndex, false);
             base.FrameAddedAt(animationIndex, frameIndex);
         }
 
         public override void FrameRemovedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.playedThisFrames[animationIndex].RemoveAt(frameIndex);
             base.FrameRemovedAt(animationIndex, frameIndex);
         }
@@ -91,32 +96,47 @@ namespace FrigidBlackwaters.Game
             SFXAnimatorProperty otherAudioProperty = otherProperty as SFXAnimatorProperty;
             if (otherAudioProperty)
             {
-                otherAudioProperty.SetPlayedThisFrame(toAnimationIndex, toFrameIndex, GetPlayedThisFrame(fromAnimationIndex, fromFrameIndex));
+                otherAudioProperty.SetPlayedThisFrame(toAnimationIndex, toFrameIndex, this.GetPlayedThisFrame(fromAnimationIndex, fromFrameIndex));
             }
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
 
+        public override void Enable(bool enabled)
+        {
+            if (!enabled)
+            {
+                this.sfx.Stop();
+            }
+            base.Enable(enabled);
+        }
+
         public override void FrameEnter()
         {
-            base.FrameEnter();
-            if (GetPlayedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
+            if (!this.Body.Previewing)
             {
-                this.sfx.Play(this.Body);
+                if (this.GetPlayedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
+                {
+                    this.sfx.Play(this.Body);
+                }
             }
+            base.FrameEnter();
         }
 
         public override void FrameExit()
         {
+            if (!this.Body.Previewing)
+            {
+                int nextFrameIndex = this.Body.CurrFrameIndex + 1;
+                if (this.Body.GetLooping(this.Body.CurrAnimationIndex))
+                {
+                    nextFrameIndex = nextFrameIndex % this.Body.GetFrameCount(this.Body.CurrAnimationIndex);
+                }
+                if (nextFrameIndex >= this.Body.GetFrameCount(this.Body.CurrAnimationIndex) || !this.GetPlayedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
+                {
+                    this.sfx.Stop();
+                }
+            }
             base.FrameExit();
-            int nextFrameIndex = this.Body.CurrFrameIndex + 1;
-            if (this.Body.GetLooping(this.Body.CurrAnimationIndex))
-            {
-                nextFrameIndex = nextFrameIndex % this.Body.GetFrameCount(this.Body.CurrAnimationIndex);
-            }
-            if (nextFrameIndex >= this.Body.GetFrameCount(this.Body.CurrAnimationIndex) || !GetPlayedThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
-            {
-                this.sfx.Stop();
-            }
         }
     }
 }

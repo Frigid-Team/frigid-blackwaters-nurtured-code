@@ -51,9 +51,9 @@ namespace FrigidBlackwaters.Game
         protected override void OnActive()
         {
             base.OnActive();
-            TiledArea.OnFocusedTiledAreaChanged += AddOrRemoveAsCurrentBossMob;
-            this.OnTiledAreaChanged += AddOrRemoveAsCurrentBossMob;
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && focusedTiledArea == this.TiledArea)
+            TiledArea.OnFocusedAreaChanged += this.AddOrRemoveAsCurrentBossMob;
+            this.OnTiledAreaChanged += this.AddOrRemoveAsCurrentBossMob;
+            if (TiledArea.TryGetFocusedArea(out TiledArea focusedTiledArea) && focusedTiledArea == this.TiledArea)
             {
                 if (currentBosses.Current.Add(this)) onCurrentBossAdded?.Invoke(this);
             }
@@ -62,9 +62,9 @@ namespace FrigidBlackwaters.Game
         protected override void OnInactive()
         {
             base.OnInactive();
-            TiledArea.OnFocusedTiledAreaChanged -= AddOrRemoveAsCurrentBossMob;
-            this.OnTiledAreaChanged -= AddOrRemoveAsCurrentBossMob;
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && focusedTiledArea == this.TiledArea)
+            TiledArea.OnFocusedAreaChanged -= this.AddOrRemoveAsCurrentBossMob;
+            this.OnTiledAreaChanged -= this.AddOrRemoveAsCurrentBossMob;
+            if (TiledArea.TryGetFocusedArea(out TiledArea focusedTiledArea) && focusedTiledArea == this.TiledArea)
             {
                 if (currentBosses.Current.Remove(this)) onCurrentBossRemoved?.Invoke(this);
             }
@@ -72,12 +72,12 @@ namespace FrigidBlackwaters.Game
 
         private void AddOrRemoveAsCurrentBossMob(TiledArea previousTiledArea, TiledArea currentTiledArea)
         {
-            AddOrRemoveAsCurrentBossMob();
+            this.AddOrRemoveAsCurrentBossMob();
         }
 
         private void AddOrRemoveAsCurrentBossMob()
         {
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && focusedTiledArea == this.TiledArea)
+            if (TiledArea.TryGetFocusedArea(out TiledArea focusedTiledArea) && focusedTiledArea == this.TiledArea)
             {
                 if (currentBosses.Current.Add(this)) onCurrentBossAdded?.Invoke(this);
             }

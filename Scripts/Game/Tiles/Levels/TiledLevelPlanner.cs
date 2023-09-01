@@ -1,21 +1,21 @@
+using System;
 using System.Linq;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
     public abstract class TiledLevelPlanner : FrigidScriptableObject
     {
-        public TiledLevelPlan CreateLevelPlan(Dictionary<TiledAreaEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
+        public TiledLevelPlan CreateLevelPlan(Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
         {
-            TiledLevelPlan tiledLevelPlan = CreateInitialLevelPlan(subLevelEntrancesAndContainedAreas);
-            SyncConnectionTerrains(tiledLevelPlan);
-            CalculateDistancesFromStart(tiledLevelPlan);
-            ChooseBlueprints(tiledLevelPlan);
+            TiledLevelPlan tiledLevelPlan = this.CreateInitialLevelPlan(subLevelEntrancesAndContainedAreas);
+            this.SyncConnectionTerrains(tiledLevelPlan);
+            this.CalculateDistancesFromStart(tiledLevelPlan);
+            this.ChooseBlueprints(tiledLevelPlan);
             return tiledLevelPlan;
         }
 
-        protected abstract TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledAreaEntrance, TiledArea> subLevelEntrancesAndContainedAreas);
+        protected abstract TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas);
 
         private void SyncConnectionTerrains(TiledLevelPlan tiledLevelPlan)
         {
@@ -46,7 +46,7 @@ namespace FrigidBlackwaters.Game
                         if (!planConnection.FirstEntrance.IsSubLevelEntrance)
                         {
                             TileTerrain[] validEntrances = planConnection.FirstEntrance.Area.EntranceTerrains;
-                            validEntrances[TilePositioning.WallArrayIndex(planConnection.Direction)] = (TileTerrain)i;
+                            validEntrances[WallTiling.WallIndexFromWallIndexDirection(planConnection.IndexDirection)] = (TileTerrain)i;
                             if (planConnection.FirstEntrance.Area.BlueprintGroup.GetMatchingEntranceTerrainBlueprints(validEntrances).Count == 0)
                             {
                                 available = false;
@@ -55,7 +55,7 @@ namespace FrigidBlackwaters.Game
                         if (!planConnection.SecondEntrance.IsSubLevelEntrance)
                         {
                             TileTerrain[] validEntrances = planConnection.SecondEntrance.Area.EntranceTerrains;
-                            validEntrances[TilePositioning.WallArrayIndex(-planConnection.Direction)] = (TileTerrain)i;
+                            validEntrances[WallTiling.WallIndexFromWallIndexDirection(-planConnection.IndexDirection)] = (TileTerrain)i;
                             if (planConnection.SecondEntrance.Area.BlueprintGroup.GetMatchingEntranceTerrainBlueprints(validEntrances).Count == 0)
                             {
                                 available = false;
@@ -69,11 +69,10 @@ namespace FrigidBlackwaters.Game
 
                     if (availableConnectionTerrains.Count == 0)
                     {
-                        Debug.LogError("It is impossible to generate valid terrain connections for " + this.name + ".");
-                        break;
+                        throw new Exception("It is impossible to pick a connection TileTerrain for " + this.name + ".");
                     }
 
-                    planConnection.ConnectionTerrain = availableConnectionTerrains[Random.Range(0, availableConnectionTerrains.Count)];
+                    planConnection.ConnectionTerrain = availableConnectionTerrains[UnityEngine.Random.Range(0, availableConnectionTerrains.Count)];
                 }
             }
         }
@@ -127,7 +126,11 @@ namespace FrigidBlackwaters.Game
             foreach (TiledLevelPlanArea planArea in tiledLevelPlan.Areas)
             {
                 List<TiledAreaBlueprint> blueprints = planArea.BlueprintGroup.GetMatchingEntranceTerrainBlueprints(planArea.EntranceTerrains);
-                TiledAreaBlueprint chosenBlueprint = blueprints[Random.Range(0, blueprints.Count)];
+                if (blueprints.Count == 0) 
+                {
+                    throw new Exception("It is impossible to choose a TiledAreaBlueprint for " + this.name + ".");
+                }
+                TiledAreaBlueprint chosenBlueprint = blueprints[UnityEngine.Random.Range(0, blueprints.Count)];
                 planArea.ChosenBlueprint = chosenBlueprint;
             }
         }

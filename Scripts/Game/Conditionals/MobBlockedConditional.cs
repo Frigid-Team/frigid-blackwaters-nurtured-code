@@ -7,13 +7,13 @@ namespace FrigidBlackwaters.Game
     public class MobBlockedConditional : Conditional
     {
         [SerializeField]
-        private MobSerializedReference mob;
+        private MobSerializedHandle mob;
         [SerializeField]
         private FloatSerializedReference detectionDistance;
 
-        public override bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
+        protected override bool CustomEvaluate(float elapsedDuration, float elapsedDurationDelta)
         {
-            return this.mob.ImmutableValue.LinePushCast(this.mob.ImmutableValue.Position, this.mob.ImmutableValue.FacingDirection, this.detectionDistance.ImmutableValue).Count > 0;
+            return this.mob.TryGetValue(out Mob mob) && mob.PushCast(mob.Position, mob.FacingDirection, this.detectionDistance.ImmutableValue, out _);
         }
     }
 }

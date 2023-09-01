@@ -12,7 +12,7 @@ namespace FrigidBlackwaters.Game
 
         public override void Created()
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.gameObject.layer = (int)FrigidLayer.ResistBoxes;
             base.Created();
         }

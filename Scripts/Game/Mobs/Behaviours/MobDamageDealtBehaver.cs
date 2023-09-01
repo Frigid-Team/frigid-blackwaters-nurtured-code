@@ -10,7 +10,7 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private DB damageDealerBox;
         [SerializeField]
-        private List<MobBehaviour> behaviourOriginals;
+        private List<MobBehaviour> childBehaviours;
 
         private List<RecyclePool<MobBehaviour>> behaviourPools;
 
@@ -18,17 +18,17 @@ namespace FrigidBlackwaters.Game
         {
             base.Awake();
             this.behaviourPools = new List<RecyclePool<MobBehaviour>>();
-            foreach (MobBehaviour behaviourOriginal in this.behaviourOriginals)
+            foreach (MobBehaviour childBehaviour in this.childBehaviours)
             {
                 this.behaviourPools.Add(
                     new RecyclePool<MobBehaviour>(
-                        () => FrigidInstancing.CreateInstance<MobBehaviour>(behaviourOriginal),
-                        (MobBehaviour behaviour) => FrigidInstancing.DestroyInstance(behaviour)
+                        () => CreateInstance<MobBehaviour>(childBehaviour),
+                        (MobBehaviour behaviour) => DestroyInstance(behaviour)
                         )
                     );
-                this.behaviourPools[this.behaviourPools.Count - 1].Pool(behaviourOriginal);
+                this.behaviourPools[this.behaviourPools.Count - 1].Pool(childBehaviour);
             }
-            this.damageDealerBox.OnDealt += DoBehavioursOnDamage;
+            this.damageDealerBox.OnDealt += this.DoBehavioursOnDamage;
         }
 
         private void DoBehavioursOnDamage(I damageInfo)

@@ -8,10 +8,10 @@ namespace FrigidBlackwaters.Game
     {
         [SerializeField]
         private AnimatorBody animatorBody;
-        [SerializeField]
-        private bool alignToSummonRotation;
 
         [Header("Exploding")]
+        [SerializeField]
+        private bool alignToSummonRotation;
         [SerializeField]
         private string explodeAnimationName;
 
@@ -26,19 +26,19 @@ namespace FrigidBlackwaters.Game
             Action<ThreatInfo> onThreatDealt
             )
         {
-            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>())
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>())
             {
                 hitBoxProperty.DamageAlignment = damageAlignment;
             }
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 breakBoxProperty.DamageAlignment = damageAlignment;
             }
-            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetProperties<ThreatBoxAnimatorProperty>())
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>())
             {
                 threatBoxProperty.DamageAlignment = damageAlignment;
             }
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetProperties<AttackAnimatorProperty>())
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>())
             {
                 attackProperty.DamageAlignment = damageAlignment;
             }
@@ -46,11 +46,12 @@ namespace FrigidBlackwaters.Game
             this.transform.position = spawnPosition;
             if (this.alignToSummonRotation) this.transform.rotation = Quaternion.Euler(0, 0, summonRotationDeg);
 
-            if (TiledArea.TryGetTiledAreaAtPosition(spawnPosition, out TiledArea tiledArea))
+            if (TiledArea.TryGetAreaAtPosition(spawnPosition, out TiledArea tiledArea))
             {
                 this.transform.SetParent(tiledArea.ContentsTransform);
+
                 FrigidCoroutine.Run(
-                    ExplosionLifetime(
+                    this.ExplosionLifetime(
                         damageBonus, 
                         () =>
                         {
@@ -78,20 +79,20 @@ namespace FrigidBlackwaters.Game
             Action<ThreatInfo> onThreatDealt
             )
         {
-            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>())
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>())
             {
                 hitBoxProperty.OnDealt += onHitDealt;
                 hitBoxProperty.DamageBonus += damageBonus;
             }
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 breakBoxProperty.OnDealt += onBreakDealt;
             }
-            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetProperties<ThreatBoxAnimatorProperty>())
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>())
             {
                 threatBoxProperty.OnDealt += onThreatDealt;
             }
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetProperties<AttackAnimatorProperty>())
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>())
             {
                 attackProperty.DamageBonus += damageBonus;
                 attackProperty.OnHitDealt += onHitDealt;
@@ -103,20 +104,20 @@ namespace FrigidBlackwaters.Game
             this.animatorBody.Play(this.explodeAnimationName, () => { explosionFinished = true; });
             yield return new FrigidCoroutine.DelayWhile(() => { return !explosionFinished; });
 
-            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>())
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>())
             {
                 hitBoxProperty.OnDealt -= onHitDealt;
                 hitBoxProperty.DamageBonus -= damageBonus;
             }
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 breakBoxProperty.OnDealt -= onBreakDealt;
             }
-            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetProperties<ThreatBoxAnimatorProperty>())
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>())
             {
                 threatBoxProperty.OnDealt -= onThreatDealt;
             }
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetProperties<AttackAnimatorProperty>())
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>())
             {
                 attackProperty.DamageBonus -= damageBonus;
                 attackProperty.OnHitDealt -= onHitDealt;

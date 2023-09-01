@@ -12,7 +12,7 @@ namespace FrigidBlackwaters.Game
 
         private bool crossingTerrain;
 
-        public override bool CanSetPosition
+        public override bool MovePositionSafe
         {
             get
             {
@@ -20,7 +20,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override bool CanSetTiledArea
+        public override bool MoveTiledAreaSafe
         {
             get
             {
@@ -31,18 +31,18 @@ namespace FrigidBlackwaters.Game
         protected override void EnterSelf()
         {
             base.EnterSelf();
-            StartLeap();
+            this.StartLeap();
         }
 
         protected override void ExitSelf()
         {
             base.ExitSelf();
-            CancelLeap();
+            this.CancelLeap();
         }
 
         private void BeginLeaping()
         {
-            if (IsCrossable())
+            if (this.IsCrossable())
             {
                 this.crossingTerrain = true;
                 this.Owner.RequestPushMode(MobPushMode.IgnoreMobsAndTerrain);
@@ -61,19 +61,19 @@ namespace FrigidBlackwaters.Game
         private void StartLeap()
         {
             this.crossingTerrain = false;
-            if (!this.Owner.StopVelocities && this.Owner.SetForcedMove(this.moveByDashingForConstantDistance, null, BeginLeaping, EndLeaping))
+            if (!this.Owner.StopVelocities && this.Owner.SetForcedMove(this.moveByDashingForConstantDistance, null, this.BeginLeaping, this.EndLeaping))
             {
-                this.Owner.StopVelocities.OnFirstRequest += CancelLeap;
+                this.Owner.StopVelocities.OnFirstRequest += this.CancelLeap;
             }
         }
 
         private void CancelLeap()
         {
-            EndLeaping();
+            this.EndLeaping();
             if (this.Owner.ClearForcedMove(this.moveByDashingForConstantDistance))
             {
                 if (this.crossingTerrain) this.Owner.RelocateToTraversableSpace();
-                this.Owner.StopVelocities.OnFirstRequest -= CancelLeap;
+                this.Owner.StopVelocities.OnFirstRequest -= this.CancelLeap;
             }
         }
 
@@ -84,23 +84,23 @@ namespace FrigidBlackwaters.Game
 
             if (direction == Vector2.zero) return false;
 
-            Vector2Int startingPositionIndices = this.Owner.PositionIndices;
-            Vector2Int destinationPositionIndices = TilePositioning.RectIndicesFromPosition(this.Owner.Position + direction * distance, this.Owner.TiledArea.CenterPosition, this.Owner.TiledArea.MainAreaDimensions, this.Owner.TileSize);
+            Vector2Int startingIndexPosition = this.Owner.IndexPosition;
+            Vector2Int destinationIndexPosition = AreaTiling.RectIndexPositionFromPosition(this.Owner.Position + direction * distance, this.Owner.TiledArea.CenterPosition, this.Owner.TiledArea.MainAreaDimensions, this.Owner.TileSize);
 
-            List<Vector2Int> bresenhamLineIndices = Geometry.GetAllSquaresAlongLine(startingPositionIndices, destinationPositionIndices);
+            List<Vector2Int> lineIndexPositions = Geometry.GetAllSquaresAlongLine(startingIndexPosition, destinationIndexPosition);
 
             Resistance highestResistance = Resistance.None;
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.OwnerAnimatorBody.GetCurrentProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.OwnerAnimatorBody.GetCurrentReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 highestResistance = (Resistance)Mathf.Max((int)breakBoxProperty.OffensiveResistance, (int)highestResistance);
             }
-            foreach (Vector2Int lineIndices in bresenhamLineIndices)
+            foreach (Vector2Int lineIndexPosition in lineIndexPositions)
             {
-                if (lineIndices == startingPositionIndices) continue;
+                if (lineIndexPosition == startingIndexPosition) continue;
 
-                if (!TilePositioning.RectIndicesWithinBounds(lineIndices, this.Owner.TiledArea.MainAreaDimensions, this.Owner.TileSize) ||
-                    !this.Owner.TiledArea.NavigationGrid.IsTraversable(lineIndices, this.Owner.TileSize, TraversableTerrain.All, highestResistance) ||
-                    lineIndices == destinationPositionIndices && !this.Owner.TiledArea.NavigationGrid.IsTraversable(destinationPositionIndices, this.Owner.TileSize, this.Owner.TraversableTerrain, highestResistance))
+                if (!AreaTiling.RectIndexPositionWithinBounds(lineIndexPosition, this.Owner.TiledArea.MainAreaDimensions, this.Owner.TileSize) ||
+                    !this.Owner.TiledArea.NavigationGrid.IsTraversable(lineIndexPosition, this.Owner.TileSize, TraversableTerrain.All, highestResistance) ||
+                    lineIndexPosition == destinationIndexPosition && !this.Owner.TiledArea.NavigationGrid.IsTraversable(destinationIndexPosition, this.Owner.TileSize, this.Owner.TraversableTerrain, highestResistance))
                 {
                     return false;
                 }

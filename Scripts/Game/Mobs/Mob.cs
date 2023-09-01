@@ -3,16 +3,17 @@ using System.Collections.Generic;
 using UnityEngine;
 
 using FrigidBlackwaters.Core;
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
     [RequireComponent(typeof(Rigidbody2D))]
     public class Mob : FrigidMonoBehaviour
     {
-        private static SceneVariable<MobSet> spawnedMobs;
+        private static SceneVariable<HashSet<Mob>> spawnedMobs;
         private static Action<Mob> onMobSpawned;
 
-        private static SceneVariable<Dictionary<TiledArea, MobSet>> activeMobsInTiledAreas;
+        private static SceneVariable<Dictionary<TiledArea, HashSet<Mob>>> activeMobsInTiledAreas;
 
         [SerializeField]
         private DamageAlignment alignment;
@@ -22,6 +23,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private MobEquipPoint[] equipPoints;
         [SerializeField]
+        private bool hasOverheadDisplay;
+        [SerializeField]
+        [ShowIfBool("hasOverheadDisplay", true)]
         private MobOverheadDisplay overheadDisplayPrefab;
         [SerializeField]
         private Mover mover;
@@ -32,17 +36,22 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference basePoise;
 
+        private ControlCounter deactivated;
         private Action onActiveChanged;
 
         private TiledArea tiledArea;
         private Action<TiledArea, TiledArea> onTiledAreaChanged;
 
-        private Dictionary<MobStat, (int amount, Action<int, int> onAmountChanged)> statMap;
+        private (int, Action<int, int>)[][] statGrid;
 
         private int remainingHealth;
         private int maxHealthBonus;
+
         private Action<int, int> onRemainingHealthChanged;
         private Action<int, int> onMaxHealthChanged;
+
+        private Action<int> onHealed;
+        private Action<int> onDamaged;
 
         private float accumulatedPoise;
         private bool stunned;
@@ -68,28 +77,31 @@ namespace FrigidBlackwaters.Game
         private int[] numPushModeRequests;
         private MobPushMode currentPushMode;
 
-        private Dictionary<MobBehaviour, (bool ignoreTimeScale, Action onFinished, bool currentlyFinished)> behaviourMap;
+        private Dictionary<MobBehaviour, (bool, Action, bool)> behaviourMap;
 
         private Action onSizeChanged;
         private Action onTraversableTerrainChanged;
-        private Action onClassificationChanged;
         private Action onHeightChanged;
         private Action onShowDisplaysChanged;
+        private Action onStatusChanged;
 
-        private Action onDeadChange;
-        private Action onWaitChange;
+        private Dictionary<MobStatusTag, int> statusTagCounts;
+        private Action<MobStatusTag> onStatusTagAdded;
+        private Action<MobStatusTag> onStatusTagRemoved;
 
         private float requestedTimeScale;
         private Action onRequestedTimeScaleChanged;
-        private Dictionary<int, int> timeScaleRequestCounts; 
+        private Dictionary<int, int> timeScaleRequestCounts;
+
+        private Dictionary<MobEquipContext, MobEquipPoint> contextualEquipPoints;
 
         static Mob()
         {
-            spawnedMobs = new SceneVariable<MobSet>(() => new MobSet());
-            activeMobsInTiledAreas = new SceneVariable<Dictionary<TiledArea, MobSet>>(() => new Dictionary<TiledArea, MobSet>());
+            spawnedMobs = new SceneVariable<HashSet<Mob>>(() => new HashSet<Mob>());
+            activeMobsInTiledAreas = new SceneVariable<Dictionary<TiledArea, HashSet<Mob>>>(() => new Dictionary<TiledArea, HashSet<Mob>>());
         }
 
-        public static MobSet SpawnedMobs
+        public static HashSet<Mob> SpawnedMobs
         {
             get
             {
@@ -147,33 +159,33 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public DamageAlignment[] PassiveAlignments
+        public DamageAlignment[] FriendlyAlignments
         {
             get
             {
-                DamageAlignment[] passiveAlignments = new DamageAlignment[(int)DamageAlignment.Count];
-                int passiveCount = 0;
+                DamageAlignment[] friendlyAlignments = new DamageAlignment[(int)DamageAlignment.Count];
+                int friendlyCount = 0;
                 for (int i = 0; i < (int)DamageAlignment.Count; i++)
                 {
                     DamageAlignment currentAlignment = (DamageAlignment)i;
-                    bool isPassive = false;
+                    bool isFriendly = false;
                     switch (currentAlignment)
                     {
                         case DamageAlignment.Voyagers:
-                            isPassive = this.Alignment == DamageAlignment.Voyagers || this.Alignment == DamageAlignment.Neutrals;
+                            isFriendly = this.Alignment == DamageAlignment.Voyagers || this.Alignment == DamageAlignment.Neutrals;
                             break;
                         case DamageAlignment.Labyrinth:
-                            isPassive = this.Alignment == DamageAlignment.Labyrinth || this.Alignment == DamageAlignment.Neutrals;
+                            isFriendly = this.Alignment == DamageAlignment.Labyrinth || this.Alignment == DamageAlignment.Neutrals;
                             break;
                     }
-                    if (isPassive)
+                    if (isFriendly)
                     {
-                        passiveAlignments[passiveCount] = currentAlignment;
-                        passiveCount++;
+                        friendlyAlignments[friendlyCount] = currentAlignment;
+                        friendlyCount++;
                     }
                 }
-                Array.Resize(ref passiveAlignments, passiveCount);
-                return passiveAlignments;
+                Array.Resize(ref friendlyAlignments, friendlyCount);
+                return friendlyAlignments;
             }
         }
 
@@ -182,34 +194,6 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.gameObject.activeSelf;
-            }
-            set
-            {
-                if (value != this.gameObject.activeSelf)
-                {
-                    if (value)
-                    {
-                        this.gameObject.SetActive(true);
-                        OnActive();
-                        foreach (MobBehaviour behaviour in this.behaviourMap.Keys)
-                        {
-                            BeginBehaviour(behaviour);
-                        }
-                        BeginRootStateNode();
-                        this.onActiveChanged?.Invoke();
-                    }
-                    else
-                    {
-                        EndRootStateNode();
-                        foreach (MobBehaviour behaviour in this.behaviourMap.Keys)
-                        {
-                            EndBehaviour(behaviour);
-                        }
-                        OnInactive();
-                        this.gameObject.SetActive(false);
-                        this.onActiveChanged?.Invoke();
-                    }
-                }
             }
         }
 
@@ -293,26 +277,6 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public MobClassification Classification
-        {
-            get
-            {
-                return this.RootStateNode.CurrentState.Classification;
-            }
-        }
-
-        public Action OnClassificationChanged
-        {
-            get
-            {
-                return this.onClassificationChanged;
-            }
-            set
-            {
-                this.onClassificationChanged = value;
-            }
-        }
-
         public bool ShowDisplays
         {
             get
@@ -333,11 +297,47 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Vector2 DisplayPosition
+        public MobStatus Status
         {
             get
             {
-                return this.RootStateNode.CurrentState.DisplayPosition;
+                return this.RootStateNode.CurrentState.Status;
+            }
+        }
+
+        public Action OnStatusChanged
+        {
+            get
+            {
+                return this.onStatusChanged;
+            }
+            set
+            {
+                this.onStatusChanged = value;
+            }
+        }
+
+        public Action<MobStatusTag> OnStatusTagAdded
+        {
+            get
+            {
+                return this.onStatusTagAdded;
+            }
+            set
+            {
+                this.onStatusTagAdded = value;
+            }
+        }
+
+        public Action<MobStatusTag> OnStatusTagRemoved
+        {
+            get
+            {
+                return this.onStatusTagRemoved;
+            }
+            set
+            {
+                this.onStatusTagRemoved = value;
             }
         }
 
@@ -381,51 +381,11 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public bool Dead
+        public bool IsActingAndNotStunned
         {
             get
             {
-                return this.RootStateNode.CurrentState.Dead;
-            }
-        }
-
-        public Action OnDeadChange
-        {
-            get
-            {
-                return this.onDeadChange;
-            }
-            set
-            {
-                this.onDeadChange = value;
-            }
-        }
-
-        public bool Waiting
-        {
-            get
-            {
-                return this.RootStateNode.CurrentState.Waiting;
-            }
-        }
-
-        public Action OnWaitChange
-        {
-            get
-            {
-                return this.onWaitChange;
-            }
-            set
-            {
-                this.onWaitChange = value;
-            }
-        }
-
-        public bool CanAct
-        {
-            get
-            {
-                return !this.Dead && !this.Waiting && !this.Stunned;
+                return this.Status == MobStatus.Acting && !this.Stunned;
             }
         }
 
@@ -445,11 +405,11 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Vector2Int PositionIndices
+        public Vector2Int IndexPosition
         {
             get
             {
-                return TilePositioning.RectIndicesFromPosition(this.Position, this.TiledArea.CenterPosition, this.TiledArea.MainAreaDimensions, this.TileSize);
+                return AreaTiling.RectIndexPositionFromPosition(this.Position, this.TiledArea.CenterPosition, this.TiledArea.MainAreaDimensions, this.TileSize);
             }
         }
 
@@ -458,13 +418,6 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.remainingHealth;
-            }
-            set
-            {
-                if (this.Dead) return;
-                int previousRemainingHealth = this.RemainingHealth;
-                this.remainingHealth = Mathf.Clamp(value, 0, this.MaxHealth);
-                if (previousRemainingHealth != this.RemainingHealth) this.onRemainingHealthChanged?.Invoke(previousRemainingHealth, this.RemainingHealth);
             }
         }
 
@@ -500,6 +453,30 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public Action<int> OnHealed
+        {
+            get
+            {
+                return this.onHealed;
+            }
+            set
+            {
+                this.onHealed = value;
+            }
+        }
+
+        public Action<int> OnDamaged
+        {
+            get
+            {
+                return this.onDamaged;
+            }
+            set
+            {
+                this.onDamaged = value;
+            }
+        }
+ 
         public float Poise
         {
             get
@@ -688,6 +665,14 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public MobMovePriority CurrentMovePriority
+        {
+            get
+            {
+                return (MobMovePriority)this.mover.HighestPriority;
+            }
+        }
+
         public MobPushMode CurrentPushMode
         {
             get
@@ -696,34 +681,35 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public static MobSet GetActiveMobsIn(TiledArea tiledArea)
+        public static HashSet<Mob> GetActiveMobsIn(TiledArea tiledArea)
         {
-            if (activeMobsInTiledAreas.Current.TryGetValue(tiledArea, out MobSet activeMobs))
+            if (activeMobsInTiledAreas.Current.TryGetValue(tiledArea, out HashSet<Mob> activeMobs))
             {
                 return activeMobs;
             }
-            return new MobSet();
+            return new HashSet<Mob>();
         }
 
-        public static bool CanFitAt(TiledArea tiledArea, Vector2 position, Vector2 size, TraversableTerrain traversableTerrain)
+        public void ToActive() => this.deactivated.Release();
+
+        public void ToInactive() => this.deactivated.Request();
+
+        public static bool CanTraverseAt(TiledArea tiledArea, Vector2 position, Vector2 size, TraversableTerrain traversableTerrain)
         {
-            Vector2 testSize = new Vector2(
-                (Mathf.CeilToInt(size.x) - 1) * GameConstants.PIXELS_PER_UNIT + GameConstants.SMALLEST_WORLD_SIZE,
-                (Mathf.CeilToInt(size.y) - 1) * GameConstants.PIXELS_PER_UNIT + GameConstants.SMALLEST_WORLD_SIZE
-                );
+            Vector2 testSize = new Vector2((Mathf.CeilToInt(size.x) - 1) * FrigidConstants.PIXELS_PER_UNIT + FrigidConstants.SMALLEST_WORLD_SIZE, (Mathf.CeilToInt(size.y) - 1) * FrigidConstants.PIXELS_PER_UNIT + FrigidConstants.SMALLEST_WORLD_SIZE);
             bool allTraversable = true;
-            return TilePositioning.VisitTileIndicesInRect(
+            return AreaTiling.VisitTileIndexPositionsInRect(
                 position,
                 testSize,
                 tiledArea.CenterPosition,
                 tiledArea.MainAreaDimensions,
-                (Vector2Int tileIndices) => allTraversable &= tiledArea.NavigationGrid.IsTraversable(tileIndices, Vector2Int.one, traversableTerrain)
+                (Vector2Int tileIndexPosition) => allTraversable &= tiledArea.NavigationGrid.IsTraversable(tileIndexPosition, Vector2Int.one, traversableTerrain, Resistance.None)
                 ) && allTraversable;
         }
 
         public bool CanSpawnAt(Vector2 spawnPosition)
         {
-            if (!TiledArea.TryGetTiledAreaAtPosition(spawnPosition, out TiledArea tiledArea))
+            if (!TiledArea.TryGetAreaAtPosition(spawnPosition, out TiledArea tiledArea))
             {
                 return false;
             }
@@ -732,9 +718,9 @@ namespace FrigidBlackwaters.Game
 
         public void Spawn(Vector2 spawnPosition, Vector2 facingDirection)
         {
-            if (!CanSpawnAt(spawnPosition))
+            if (!this.CanSpawnAt(spawnPosition))
             {
-                Debug.LogError("Mob " + this.name + " tried to be spawned as active on position " + spawnPosition + ".");
+                Debug.LogError("Mob " + this.name + " tried to be spawned on position that it can't traverse!");
                 return;
             }
 
@@ -744,97 +730,107 @@ namespace FrigidBlackwaters.Game
                 return;
             }
 
+            this.deactivated = new ControlCounter();
+            this.deactivated.OnFirstRequest += this.OnInactive;
+            this.deactivated.OnLastRelease += this.OnActive;
+
             this.transform.position = spawnPosition;
-            TiledArea.TryGetTiledAreaAtPosition(this.Position, out this.tiledArea);
+            TiledArea.TryGetAreaAtPosition(this.Position, out this.tiledArea);
             this.transform.SetParent(this.tiledArea.ContentsTransform);
 
             this.animatorBody.Direction = facingDirection;
 
-            this.statMap = new Dictionary<MobStat, (int amount, Action<int, int> onAmountChanged)>();
-            for (int i = 0; i < (int)MobStat.Count; i++)
+            this.statGrid = new (int amount, Action<int, int> onAmountChanged)[(int)MobStatLayer.Count][];
+            for (int i = 0; i < (int)MobStatLayer.Count; i++)
             {
-                this.statMap.Add((MobStat)i, (0, null));
+                this.statGrid[i] = new (int amount, Action<int, int> onAmountChanged)[(int)MobStat.Count];
+                for (int j = 0; j < (int)MobStat.Count; j++)
+                {
+                    this.statGrid[i][j] = (0, null);
+                }
             }
 
             this.remainingHealth = this.baseMaxHealth.ImmutableValue;
-            this.maxHealthBonus = MaxHealthBonusFromVitality(GetStatAmount(MobStat.Vitality));
-            SubscribeToStatChange(MobStat.Vitality, UpdateMaxHealthBonusFromVitalityChange);
+            this.maxHealthBonus = MaxHealthBonusFromVitality(this.GetTotalStatAmount(MobStat.Vitality));
+            this.SubscribeToTotalStatChange(MobStat.Vitality, this.UpdateMaxHealthBonusFromVitalityChange);
 
             this.accumulatedPoise = 0;
             this.stunned = false;
 
-            SubscribeToStatChange(MobStat.Might, UpdateDamageBonusFromMightChange);
-            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>())
+            this.SubscribeToTotalStatChange(MobStat.Might, this.UpdateDamageBonusFromMightChange);
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>())
             {
                 hitBoxProperty.DamageAlignment = this.Alignment;
-                hitBoxProperty.OnDealt += HitDealt;
-                hitBoxProperty.DamageBonus += DamageBonusFromMight(GetStatAmount(MobStat.Might));
+                hitBoxProperty.OnDealt += this.HitDealt;
+                hitBoxProperty.DamageBonus += DamageBonusFromMight(this.GetTotalStatAmount(MobStat.Might));
             }
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 breakBoxProperty.DamageAlignment = this.Alignment;
-                breakBoxProperty.OnDealt += BreakDealt;
+                breakBoxProperty.OnDealt += this.BreakDealt;
             }
-            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetProperties<ThreatBoxAnimatorProperty>())
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>())
             {
                 threatBoxProperty.DamageAlignment = this.Alignment;
 
-                threatBoxProperty.OnDealt += ThreatDealt;
+                threatBoxProperty.OnDealt += this.ThreatDealt;
             }
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetProperties<AttackAnimatorProperty>())
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>())
             {
                 attackProperty.DamageAlignment = this.Alignment;
-                attackProperty.OnHitDealt += HitDealt;
-                attackProperty.OnBreakDealt += BreakDealt;
-                attackProperty.OnThreatDealt += ThreatDealt;
-                attackProperty.DamageBonus += DamageBonusFromMight(GetStatAmount(MobStat.Might));
+                attackProperty.OnHitDealt += this.HitDealt;
+                attackProperty.OnBreakDealt += this.BreakDealt;
+                attackProperty.OnThreatDealt += this.ThreatDealt;
+                attackProperty.DamageBonus += DamageBonusFromMight(this.GetTotalStatAmount(MobStat.Might));
             }
             this.stopDealingDamage = new ControlCounter();
-            this.stopDealingDamage.OnFirstRequest += DisableDamageDealers;
-            this.stopDealingDamage.OnLastRelease += EnableDamageDealers;
+            this.stopDealingDamage.OnFirstRequest += this.DisableDamageDealers;
+            this.stopDealingDamage.OnLastRelease += this.EnableDamageDealers;
             this.hitsDealt = new LinkedList<HitInfo>();
             this.breaksDealt = new LinkedList<BreakInfo>();
             this.threatsDealt = new LinkedList<ThreatInfo>();
-            EnableDamageDealers();
+            this.EnableDamageDealers();
 
-            SubscribeToStatChange(MobStat.Armour, UpdateDamageMitigationFromArmourChange);
-            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.animatorBody.GetProperties<HurtBoxAnimatorProperty>())
+            this.SubscribeToTotalStatChange(MobStat.Armour, this.UpdateDamageMitigationFromArmourChange);
+            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.animatorBody.GetReferencedProperties<HurtBoxAnimatorProperty>())
             {
                 hurtBoxProperty.DamageAlignment = this.Alignment;
-                hurtBoxProperty.OnReceived += HitReceived;
-                hurtBoxProperty.DamageMitigation += DamageMitigationFromArmour(GetStatAmount(MobStat.Armour));
+                hurtBoxProperty.OnReceived += this.HitReceived;
+                hurtBoxProperty.DamageMitigation += DamageMitigationFromArmour(this.GetTotalStatAmount(MobStat.Armour));
             }
-            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetProperties<ResistBoxAnimatorProperty>())
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>())
             {
                 resistBoxProperty.DamageAlignment = this.Alignment;
-                resistBoxProperty.OnReceived += BreakReceived;
+                resistBoxProperty.OnReceived += this.BreakReceived;
             }
-            foreach (LookoutBoxAnimatorProperty lookoutBoxProperty in this.animatorBody.GetProperties<LookoutBoxAnimatorProperty>())
+            foreach (LookoutBoxAnimatorProperty lookoutBoxProperty in this.animatorBody.GetReferencedProperties<LookoutBoxAnimatorProperty>())
             {
                 lookoutBoxProperty.DamageAlignment = this.Alignment;
-                lookoutBoxProperty.OnReceived += ThreatReceived;
+                lookoutBoxProperty.OnReceived += this.ThreatReceived;
             }
             this.stopReceivingDamage = new ControlCounter();
-            this.stopReceivingDamage.OnFirstRequest += DisableDamageReceivers;
-            this.stopReceivingDamage.OnLastRelease += EnableDamageReceivers;
+            this.stopReceivingDamage.OnFirstRequest += this.DisableDamageReceivers;
+            this.stopReceivingDamage.OnLastRelease += this.EnableDamageReceivers;
             this.hitsReceived = new LinkedList<HitInfo>();
             this.breaksReceived = new LinkedList<BreakInfo>();
             this.threatsReceived = new LinkedList<ThreatInfo>();
-            EnableDamageReceivers();
+            this.EnableDamageReceivers();
 
-            this.mover.SpeedBonus += SpeedBonusFromAgility(GetStatAmount(MobStat.Agility));
-            SubscribeToStatChange(MobStat.Agility, UpdateSpeedBonusFromAgilityChange);
+            this.mover.SpeedBonus += SpeedBonusFromAgility(this.GetTotalStatAmount(MobStat.Agility));
+            this.SubscribeToTotalStatChange(MobStat.Agility, this.UpdateSpeedBonusFromAgilityChange);
 
             this.numPushModeRequests = new int[(int)MobPushMode.Count];
             for (int i = 0; i < this.numPushModeRequests.Length; i++) this.numPushModeRequests[i] = 0;
             this.currentPushMode = MobPushMode.IgnoreNone;
 
+            this.statusTagCounts = new Dictionary<MobStatusTag, int>();
+
             this.requestedTimeScale = 1f;
             this.timeScaleRequestCounts = new Dictionary<int, int>();
 
-            this.behaviourMap = new Dictionary<MobBehaviour, (bool ignoreTimeScale, Action onFinished, bool currentlyFinished)>();
+            this.behaviourMap = new Dictionary<MobBehaviour, (bool, Action, bool)>();
 
-            VisitStateNodes(
+            this.VisitStateNodes(
                 (MobStateNode stateNode) =>
                 {
                     stateNode.Link(this, this.animatorBody);
@@ -842,68 +838,80 @@ namespace FrigidBlackwaters.Game
                 }
                 );
 
+            this.contextualEquipPoints = new Dictionary<MobEquipContext, MobEquipPoint>();
             foreach (MobEquipPoint equipPoint in this.equipPoints)
             {
-                equipPoint.Spawn(this);
+                equipPoint.Spawn(this, this.rootStateNode);
+                if (!this.contextualEquipPoints.TryAdd(equipPoint.EquipContext, equipPoint))
+                {
+                    Debug.LogError("Null or duplicate equip context on MobEquipPoint " + equipPoint.name + " on " + this.name + ".");
+                }
             }
 
-            FrigidInstancing.CreateInstance<MobOverheadDisplay>(this.overheadDisplayPrefab, this.transform).Spawn(this);
+            if (this.hasOverheadDisplay) CreateInstance<MobOverheadDisplay>(this.overheadDisplayPrefab).Spawn(this);
 
-            this.RootStateNode.OnCurrentStateChanged += HandleNewState;
-            BeginRootStateNode();
-            UpdatePushColliders();
+            this.RootStateNode.OnCurrentStateChanged += this.HandleNewState;
+            this.UpdatePushColliders();
 
-            FrigidCoroutine.Run(Refresh(), this.gameObject);
+            FrigidCoroutine.Run(this.Refresh(), this.gameObject);
 
             onMobSpawned?.Invoke(this);
-            OnActive();
+            this.OnActive();
         }
 
-        public bool CanMoveTo(Vector2 movePosition)
+        public bool CanMoveTo(Vector2 movePosition, bool keepState = true)
         {
-            if (!this.RootStateNode.CurrentState.CanSetPosition) return false;
+            if (!this.Active) return false;
             TiledArea tiledArea = this.TiledArea;
-            if (!TilePositioning.TilePositionWithinBounds(movePosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions))
+            if (!AreaTiling.TilePositionWithinBounds(movePosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions))
             {
-                if (!this.RootStateNode.CurrentState.CanSetTiledArea) return false;
-
-                if (!TiledArea.TryGetTiledAreaAtPosition(movePosition, out tiledArea))
+                if (!TiledArea.TryGetAreaAtPosition(movePosition, out tiledArea))
                 {
                     return false;
                 }
             }
-            return CanFitAt(tiledArea, movePosition, this.Size, this.TraversableTerrain) || this.RootStateNode.HasValidSwitchState(tiledArea, movePosition);
+            if (keepState)
+            {
+                return this.RootStateNode.CurrentState.MovePositionSafe && (tiledArea == this.TiledArea || this.RootStateNode.CurrentState.MoveTiledAreaSafe);
+            }
+            else
+            {
+                return this.RootStateNode.HasValidMoveState(tiledArea, movePosition);
+            }
         }
 
-        public void MoveTo(Vector2 movePosition)
+        public void MoveTo(Vector2 movePosition, bool keepState = true)
         {
-            if (!CanMoveTo(movePosition))
+            if (!this.CanMoveTo(movePosition, keepState))
             {
-                Debug.LogError("Tried moving Mob " + this.name + " to a non existent TiledArea or a position where it doesn't fit!");
+                Debug.LogError("Tried moving Mob " + this.name + " to a non existent TiledArea or a position where it can't traverse!");
                 return;
             }
 
             TiledArea tiledArea = this.tiledArea;
-            if (!TilePositioning.TilePositionWithinBounds(movePosition, this.tiledArea.CenterPosition, this.tiledArea.MainAreaDimensions))
+            if (!AreaTiling.TilePositionWithinBounds(movePosition, this.tiledArea.CenterPosition, this.tiledArea.MainAreaDimensions))
             {
-                TiledArea.TryGetTiledAreaAtPosition(movePosition, out tiledArea);
+                TiledArea.TryGetAreaAtPosition(movePosition, out tiledArea);
             }
 
             this.transform.position = movePosition;
             if (this.tiledArea != tiledArea)
             {
                 TiledArea previousTiledArea = this.tiledArea;
+
                 this.tiledArea = tiledArea;
+
                 this.transform.SetParent(this.tiledArea.ContentsTransform);
+
                 RemoveActiveMob(this, previousTiledArea);
                 AddActiveMob(this, this.tiledArea);
                 this.onTiledAreaChanged?.Invoke(previousTiledArea, this.tiledArea);
             }
-            if (!CanFitAt(this.TiledArea, this.Position, this.Size, this.TraversableTerrain))
+            if (!keepState)
             {
-                EndRootStateNode();
-                VisitStateNodes((MobStateNode stateNode) => stateNode.Switch());
-                BeginRootStateNode();
+                this.EndRootStateNode();
+                this.VisitStateNodes((MobStateNode stateNode) => stateNode.Move());
+                this.BeginRootStateNode();
             }
         }
 
@@ -918,14 +926,14 @@ namespace FrigidBlackwaters.Game
                     int y1 = range - Mathf.Abs(x);
                     int y2 = -y1;
                     Vector2 v1 = this.Position + new Vector2(x * this.Size.x / 2, y1 * this.Size.y / 2);
-                    if (TilePositioning.RectPositionWithinBounds(v1, this.TiledArea.CenterPosition, this.TiledArea.MainAreaDimensions, this.TileSize)) 
+                    if (AreaTiling.RectPositionWithinBounds(v1, this.TiledArea.CenterPosition, this.TiledArea.MainAreaDimensions, this.TileSize)) 
                     {
                         testPositions.Add(v1);
                     }
                     if (y1 != y2)
                     {
                         Vector2 v2 = this.Position + new Vector2(x * this.Size.x / 2, y2 * this.Size.y / 2);
-                        if (TilePositioning.RectPositionWithinBounds(v2, this.TiledArea.CenterPosition, this.TiledArea.MainAreaDimensions, this.TileSize))
+                        if (AreaTiling.RectPositionWithinBounds(v2, this.TiledArea.CenterPosition, this.TiledArea.MainAreaDimensions, this.TileSize))
                         {
                             testPositions.Add(v2);
                         }
@@ -940,7 +948,7 @@ namespace FrigidBlackwaters.Game
                     foreach (Vector2 testPosition in testPositions)
                     {
                         float distance = Vector2.Distance(this.Position, testPosition);
-                        if (CanFitAt(this.TiledArea, testPosition, this.Size, this.TraversableTerrain) && distance < closestDistance)
+                        if (CanTraverseAt(this.TiledArea, testPosition, this.Size, this.TraversableTerrain) && distance < closestDistance)
                         {
                             foundPosition = true;
                             closestTestPosition = testPosition;
@@ -963,67 +971,84 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public bool HasStatusTag(MobStatusTag statusTag)
+        {
+            return this.statusTagCounts.ContainsKey(statusTag);
+        }
+
+        public void AddStatusTag(MobStatusTag statusTag)
+        {
+            if (!this.statusTagCounts.ContainsKey(statusTag))
+            {
+                this.statusTagCounts.Add(statusTag, 0);
+            }
+            this.statusTagCounts[statusTag]++;
+            this.onStatusTagAdded?.Invoke(statusTag);
+        }
+
+        public void RemoveStatusTag(MobStatusTag statusTag)
+        {
+            this.statusTagCounts[statusTag]--;
+            if (this.statusTagCounts[statusTag] == 0)
+            {
+                this.statusTagCounts.Remove(statusTag);
+            }
+            this.onStatusTagRemoved?.Invoke(statusTag);
+        }
+
         public void RequestTimeScale(float timeScale)
         {
-            int timeScaleIndex = Mathf.RoundToInt(timeScale / GameConstants.SMALLEST_TIME_INTERVAL);
-            if (!timeScaleRequestCounts.ContainsKey(timeScaleIndex))
+            int timeScaleIndex = Mathf.RoundToInt(timeScale / FrigidConstants.SMALLEST_TIME_INTERVAL);
+            if (!this.timeScaleRequestCounts.ContainsKey(timeScaleIndex))
             {
-                timeScaleRequestCounts.Add(timeScaleIndex, 0);
+                this.timeScaleRequestCounts.Add(timeScaleIndex, 0);
             }
-            timeScaleRequestCounts[timeScaleIndex]++;
-            UpdateRequestedTimeScale();
+            this.timeScaleRequestCounts[timeScaleIndex]++;
+            this.UpdateRequestedTimeScale();
         }
 
         public void ReleaseTimeScale(float timeScale)
         {
-            int timeScaleIndex = Mathf.RoundToInt(timeScale / GameConstants.SMALLEST_TIME_INTERVAL);
-            timeScaleRequestCounts[timeScaleIndex]--;
-            if (timeScaleRequestCounts[timeScaleIndex] == 0)
+            int timeScaleIndex = Mathf.RoundToInt(timeScale / FrigidConstants.SMALLEST_TIME_INTERVAL);
+            this.timeScaleRequestCounts[timeScaleIndex]--;
+            if (this.timeScaleRequestCounts[timeScaleIndex] == 0)
             {
-                timeScaleRequestCounts.Remove(timeScaleIndex);
+                this.timeScaleRequestCounts.Remove(timeScaleIndex);
             }
-            UpdateRequestedTimeScale();
+            this.UpdateRequestedTimeScale();
         }
 
-        public bool TryGetAggressor(out Mob aggressor)
+        public void Heal(int heal)
         {
-            MobSet hostileMobs = GetActiveMobsIn(this.TiledArea).ThatAreNotDead().ThatAreOfAlignments(this.HostileAlignments).ThatDoNotInclude(this);
-            aggressor = null;
-            float closestDistance = float.MaxValue;
-            foreach (Mob hostileMob in hostileMobs)
-            {
-                float distance = Vector2.Distance(hostileMob.Position, this.Position);
-                if (distance < closestDistance)
-                {
-                    aggressor = hostileMob;
-                    closestDistance = distance;
-                }
-            }
-            return aggressor != null;
+            if (this.Status == MobStatus.Dead) return;
+
+            heal = Mathf.Max(0, heal);
+
+            int previousRemainingHealth = this.RemainingHealth;
+            this.remainingHealth = Mathf.Min(this.RemainingHealth + heal, this.MaxHealth);
+
+            this.onHealed?.Invoke(heal);
+            if (previousRemainingHealth != this.RemainingHealth) this.onRemainingHealthChanged?.Invoke(previousRemainingHealth, this.RemainingHealth);
         }
 
-        public bool TryGetFriend(out Mob friend)
+        public void Damage(int damage)
         {
-            MobSet passiveMobs = GetActiveMobsIn(this.TiledArea).ThatAreNotDead().ThatAreOfAlignments(this.PassiveAlignments).ThatDoNotInclude(this);
-            friend = null;
-            float closestDistance = float.MaxValue;
-            foreach (Mob passiveMob in passiveMobs)
-            {
-                float distance = Vector2.Distance(passiveMob.Position, this.Position);
-                if (distance < closestDistance)
-                {
-                    friend = passiveMob;
-                    closestDistance = distance;
-                }
-            }
-            return friend != null;
+            if (this.Status == MobStatus.Dead) return;
+
+            damage = Mathf.Max(0, damage);
+
+            int previousRemainingHealth = this.RemainingHealth;
+            this.remainingHealth = Mathf.Max(this.RemainingHealth - damage, 0);
+
+            this.onDamaged?.Invoke(damage);
+            if (previousRemainingHealth != this.RemainingHealth) this.onRemainingHealthChanged?.Invoke(previousRemainingHealth, this.RemainingHealth);
         }
 
         public void StunByStagger(float stagger)
         {
             if (stagger > 0)
             {
-                StunForDuration(stagger / Mathf.Max(1f, this.Poise));
+                this.StunForDuration(stagger / Mathf.Max(1f, this.Poise));
                 this.accumulatedPoise += stagger + this.accumulatedPoise;
             }
         }
@@ -1037,7 +1062,7 @@ namespace FrigidBlackwaters.Game
                 this.elapsedStunDuration = Mathf.Max(this.elapsedStunDuration, duration);
                 if (!this.stunned)
                 {
-                    RequestTimeScale(0f);
+                    this.RequestTimeScale(0f);
                     this.stopDealingDamage.Request();
                     this.stunned = true;
                     this.onStunnedChanged?.Invoke();
@@ -1045,35 +1070,70 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public int GetStatAmount(MobStat stat)
+        public int GetTotalStatAmount(MobStat stat)
         {
-            return this.statMap[stat].amount;
+            int totalStatAmount = 0;
+            for (int i = 0; i < (int)MobStatLayer.Count; i++)
+            {
+                totalStatAmount += this.GetStatAmount((MobStatLayer)i, stat);
+            }
+            return totalStatAmount;
         }
 
-        public void SetStatAmount(MobStat stat, int amount)
+        public int GetStatAmount(MobStatLayer statLayer, MobStat stat)
         {
-            (int amount, Action<int, int> onAmountChanged) statMappingValue = this.statMap[stat];
-            if (statMappingValue.amount != amount)
+            (int amount, Action<int, int> onAmountChanged) statCollectionEntry = this.statGrid[(int)statLayer][(int)stat];
+            return statCollectionEntry.amount;
+        }
+
+        public void SetTotalStatAmount(MobStat stat, int totalAmount)
+        {
+            for (int i = 0; i < (int)MobStatLayer.Count; i++)
             {
-                int prevAmount = statMappingValue.amount;
-                statMappingValue.amount = amount;
-                this.statMap[stat] = statMappingValue;
-                statMappingValue.onAmountChanged?.Invoke(prevAmount, amount);
+                this.SetStatAmount((MobStatLayer)i, stat, totalAmount);
             }
         }
 
-        public void SubscribeToStatChange(MobStat stat, Action<int, int> onAmountChanged)
+        public void SetStatAmount(MobStatLayer statLayer, MobStat stat, int amount)
         {
-            (int amount, Action<int, int> onAmountChanged) statMappingValue = this.statMap[stat];
-            statMappingValue.onAmountChanged += onAmountChanged;
-            this.statMap[stat] = statMappingValue;
+            (int amount, Action<int, int> onAmountChanged) statCollectionEntry = this.statGrid[(int)statLayer][(int)stat];
+            if (statCollectionEntry.amount != amount)
+            {
+                int prevAmount = statCollectionEntry.amount;
+                statCollectionEntry.amount = amount;
+                this.statGrid[(int)statLayer][(int)stat] = statCollectionEntry;
+                statCollectionEntry.onAmountChanged?.Invoke(prevAmount, amount);
+            }
         }
 
-        public void UnsubscribeToStatChange(MobStat stat, Action<int, int> onAmountChanged)
+        public void SubscribeToTotalStatChange(MobStat stat, Action<int, int> onAmountChanged)
         {
-            (int amount, Action<int, int> onAmountChanged) statMappingValue = this.statMap[stat];
+            for (int i = 0; i < (int)MobStatLayer.Count; i++)
+            {
+                this.SubscribeToStatChange((MobStatLayer)i, stat, onAmountChanged);
+            }
+        }
+
+        public void SubscribeToStatChange(MobStatLayer statLayer, MobStat stat, Action<int, int> onAmountChanged)
+        {
+            (int amount, Action<int, int> onAmountChanged) statMappingValue = this.statGrid[(int)statLayer][(int)stat];
+            statMappingValue.onAmountChanged += onAmountChanged;
+            this.statGrid[(int)statLayer][(int)stat] = statMappingValue;
+        }
+
+        public void UnsubscribeToTotalStatChange(MobStat stat, Action<int, int> onAmountChanged)
+        {
+            for (int i = 0; i < (int)MobStatLayer.Count; i++)
+            {
+                this.UnsubscribeToStatChange((MobStatLayer)i, stat, onAmountChanged);
+            }
+        } 
+
+        public void UnsubscribeToStatChange(MobStatLayer statLayer, MobStat stat, Action<int, int> onAmountChanged)
+        {
+            (int amount, Action<int, int> onAmountChanged) statMappingValue = this.statGrid[(int)statLayer][(int)stat];
             statMappingValue.onAmountChanged -= onAmountChanged;
-            this.statMap[stat] = statMappingValue;
+            this.statGrid[(int)statLayer][(int)stat] = statMappingValue;
         }
 
         public static int MaxHealthBonusFromVitality(int vitality)
@@ -1129,11 +1189,11 @@ namespace FrigidBlackwaters.Game
 
         public bool DoForcedMove(Move move, Action onFinished = null, Action onBeginMotion = null, Action onEndMotion = null)
         {
-            return SetForcedMove(
+            return this.SetForcedMove(
                 move,
                 () =>
                 {
-                    ClearForcedMove(move);
+                    this.ClearForcedMove(move);
                     onFinished?.Invoke();
                 },
                 onBeginMotion,
@@ -1143,21 +1203,31 @@ namespace FrigidBlackwaters.Game
 
         public bool SetForcedMove(Move move, Action onFinished = null, Action onBeginMotion = null, Action onEndMotion = null)
         {
-            return this.mover.HighestPriority < (int)MobMovePriority.Count && this.mover.AddMove(move, (int)MobMovePriority.Count, false, onFinished, onBeginMotion, onEndMotion);
+            return this.mover.HighestPriority < (int)MobMovePriority.Forced && this.mover.AddMove(move, (int)MobMovePriority.Forced, false, onFinished, onBeginMotion, onEndMotion);
         }
 
         public bool ClearForcedMove(Move move)
         {
-            return this.mover.RemoveMove(move) && this.mover.HighestPriority < (int)MobMovePriority.Count;
+            return this.mover.RemoveMove(move) && this.mover.HighestPriority < (int)MobMovePriority.Forced;
         }
 
         public bool DoMove(Move move, MobMovePriority priority, bool ignoreTimeScale, Action onFinished = null, Action onBeginMotion = null, Action onEndMotion = null)
         {
+            if (priority == MobMovePriority.Forced)
+            {
+                Debug.LogWarning("Tried to do Move " + move.name + " with MobMovePriority.Forced. Forced priority is reserved for special movement.");
+                return false;
+            }
             return this.mover.DoMove(move, (int)priority, ignoreTimeScale, onFinished, onBeginMotion, onEndMotion);
         }
 
         public bool AddMove(Move move, MobMovePriority priority, bool ignoreTimeScale, Action onFinished = null, Action onBeginMotion = null, Action onEndMotion = null)
         {
+            if (priority == MobMovePriority.Forced)
+            {
+                Debug.LogWarning("Tried to add Move " + move.name + " with MobMovePriority.Forced. Forced priority is reserved for special movement.");
+                return false;
+            }
             return this.mover.AddMove(move, (int)priority, ignoreTimeScale, onFinished, onBeginMotion, onEndMotion);
         }
 
@@ -1174,111 +1244,70 @@ namespace FrigidBlackwaters.Game
         public void RequestPushMode(MobPushMode mode)
         {
             this.numPushModeRequests[(int)mode]++;
-            UpdateCurrentModeFromRequests();
+            this.UpdateCurrentModeFromRequests();
         }
 
         public void ReleasePushMode(MobPushMode mode)
         {
             this.numPushModeRequests[(int)mode]--;
-            UpdateCurrentModeFromRequests();
+            this.UpdateCurrentModeFromRequests();
         }
 
-        public bool CanSeeThrough(Vector2 originPosition, Vector2 sightPosition, float blockingRadius)
+        public bool CanSeeUnobstructed(Vector2 originPosition, Vector2 sightPosition, float blockingRadius)
         {
-            List<Collider2D> sightColliders = LineSightCast(originPosition, sightPosition - originPosition, Vector2.Distance(sightPosition, originPosition), blockingRadius);
-            foreach (Collider2D sightCollider in sightColliders)
-            {
-                if (!sightCollider.bounds.Contains(sightPosition))
-                {
-                    return false;
-                }
-            }
-            return true;
+            return !this.SightCast(originPosition, sightPosition - originPosition, Vector2.Distance(sightPosition, originPosition), blockingRadius, out Collider2D collider) || collider.bounds.Contains(sightPosition);
         }
 
         public bool CanPassThrough(Vector2 originPosition, Vector2 pushPosition)
         {
-            List<Collider2D> pushColliders = LinePushCast(originPosition, pushPosition - originPosition, Vector2.Distance(pushPosition, originPosition));
-            foreach (Collider2D sightCollider in pushColliders)
-            {
-                if (!sightCollider.bounds.Contains(pushPosition))
-                {
-                    return false;
-                }
-            }
-            return true;
+            return !this.PushCast(originPosition, pushPosition - originPosition, Vector2.Distance(pushPosition, originPosition), out Collider2D collider) || collider.bounds.Contains(pushPosition);
         }
 
-        public List<Collider2D> LineSightCast(Vector2 originPosition, Vector2 direction, float distance, float blockingRadius)
+        public bool SightCast(Vector2 originPosition, Vector2 direction, float distance, float blockingRadius, out Collider2D collider)
         {
-            List<Collider2D> otherColliders = new List<Collider2D>();
+            direction = direction.normalized;
             LayerMask layerMask = FrigidLayerMask.GetCollidingMask(FrigidLayer.Sight);
-            RaycastHit2D[] circleCastHits = Physics2D.CircleCastAll(originPosition, blockingRadius, direction, distance, layerMask);
-            foreach (RaycastHit2D circleCastHit in circleCastHits)
-            {
-                otherColliders.Add(circleCastHit.collider);
-            }
-            return otherColliders;
+            RaycastHit2D circleCastHit = Physics2D.CircleCast(originPosition + direction * blockingRadius, blockingRadius, direction, distance - blockingRadius, layerMask);
+            collider = circleCastHit.collider;
+            return collider != null;
         }
 
-        public List<Collider2D> LinePushCast(Vector2 originPosition, Vector2 direction, float distance)
+        public bool PushCast(Vector2 originPosition, Vector2 direction, float distance, out Collider2D collider)
         {
-            List<Collider2D> otherColliders = new List<Collider2D>();
+            direction = direction.normalized;
             if (this.currentPushMode != MobPushMode.IgnoreEverything)
             {
-                FrigidLayer layer = CalculatePushLayer();
-                LayerMask layerMask = FrigidLayerMask.GetCollidingMask(layer);
-                if (this.Size.magnitude > 0)
+                float sizeMagnitude = this.Size.magnitude;
+                if (sizeMagnitude > 0)
                 {
-                    RaycastHit2D[] boxCastHits = Physics2D.BoxCastAll(originPosition, this.Size, 0, direction, distance, layerMask);
-                    foreach (RaycastHit2D boxCastHit in boxCastHits)
+                    List<PushColliderAnimatorProperty> pushColliderProperties = this.animatorBody.GetReferencedProperties<PushColliderAnimatorProperty>();
+                    for (int i = 0; i < pushColliderProperties.Count; i++)
                     {
-                        if (!IsColliderPartOfPushColliders(boxCastHit.collider)) otherColliders.Add(boxCastHit.collider);
+                        pushColliderProperties[i].Layer = (int)FrigidLayer.IgnoreRaycast;
                     }
+                    FrigidLayer pushLayer = this.CalculatePushLayer();
+                    LayerMask layerMask = FrigidLayerMask.GetCollidingMask(pushLayer);
+                    RaycastHit2D boxCastHit = Physics2D.BoxCast(originPosition + direction * sizeMagnitude / 2, this.Size, 0, direction, distance - sizeMagnitude / 2, layerMask);
+                    for (int i = 0; i < pushColliderProperties.Count; i++)
+                    {
+                        pushColliderProperties[i].Layer = (int)pushLayer;
+                    }
+                    collider = boxCastHit.collider;
+                    return collider != null;
                 }
             }
-            return otherColliders;
-        }
-
-        public List<Collider2D> OverlapSight(Vector2 originPosition, float blockingRadius)
-        {
-            List<Collider2D> otherColliders = new List<Collider2D>();
-            LayerMask layerMask = FrigidLayerMask.GetCollidingMask(FrigidLayer.Sight);
-            Collider2D[] overlapCircleColliders = Physics2D.OverlapCircleAll(originPosition, blockingRadius, layerMask);
-            foreach (Collider2D overlapCircleCollider in overlapCircleColliders)
-            {
-                otherColliders.Add(overlapCircleCollider);
-            }
-            return otherColliders;
-        }
-
-        public List<Collider2D> OverlapPush(Vector2 originPosition)
-        {
-            List<Collider2D> otherColliders = new List<Collider2D>();
-            if (this.currentPushMode != MobPushMode.IgnoreEverything)
-            {
-                FrigidLayer layer = CalculatePushLayer();
-                LayerMask layerMask = FrigidLayerMask.GetCollidingMask(layer);
-                if (this.Size.magnitude > 0)
-                {
-                    Collider2D[] overlapBoxColliders = Physics2D.OverlapBoxAll(originPosition, this.Size, 0, layerMask);
-                    foreach (Collider2D overlapBoxCollider in overlapBoxColliders)
-                    {
-                        if (!IsColliderPartOfPushColliders(overlapBoxCollider)) otherColliders.Add(overlapBoxCollider);
-                    }
-                }
-            }
-            return otherColliders;
+            collider = null;
+            return false;
         }
 
         public bool DoBehaviour(MobBehaviour behaviour, bool ignoreTimeScale, Action onFinished = null)
         {
-            return AddBehaviour(
+            return this.AddBehaviour(
                 behaviour,
                 ignoreTimeScale,
                 () =>
                 {
-                    RemoveBehaviour(behaviour);
+                    this.RemoveBehaviour(behaviour);
                     onFinished?.Invoke();
                 }
                 );
@@ -1291,7 +1320,7 @@ namespace FrigidBlackwaters.Game
                 this.behaviourMap.Add(behaviour, (ignoreTimeScale, onFinished, false));
                 behaviour.Assign(this, this.animatorBody);
                 behaviour.Added();
-                BeginBehaviour(behaviour);
+                this.BeginBehaviour(behaviour);
                 return true;
             }
             return false;
@@ -1301,7 +1330,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.behaviourMap.ContainsKey(behaviour))
             {
-                EndBehaviour(behaviour);
+                this.EndBehaviour(behaviour);
                 behaviour.Removed();
                 behaviour.Unassign();
                 this.behaviourMap.Remove(behaviour);
@@ -1319,6 +1348,11 @@ namespace FrigidBlackwaters.Game
             return false;
         }
 
+        public bool TryGetEquipPointInContext(MobEquipContext equipContext, out MobEquipPoint equipPoint)
+        {
+            return this.contextualEquipPoints.TryGetValue(equipContext, out equipPoint);
+        }
+
         protected MobStateNode RootStateNode
         {
             get
@@ -1329,12 +1363,26 @@ namespace FrigidBlackwaters.Game
 
         protected virtual void OnActive()
         {
+            this.gameObject.SetActive(true);
             AddActiveMob(this, this.TiledArea);
+            foreach (MobBehaviour behaviour in this.behaviourMap.Keys)
+            {
+                this.BeginBehaviour(behaviour);
+            }
+            this.BeginRootStateNode();
+            this.onActiveChanged?.Invoke();
         }
 
         protected virtual void OnInactive()
         {
+            this.EndRootStateNode();
+            foreach (MobBehaviour behaviour in this.behaviourMap.Keys)
+            {
+                this.EndBehaviour(behaviour);
+            }
             RemoveActiveMob(this, this.TiledArea);
+            this.gameObject.SetActive(false);
+            this.onActiveChanged?.Invoke();
         }
 
         private static void AddActiveMob(Mob mob, TiledArea tiledArea)
@@ -1342,7 +1390,7 @@ namespace FrigidBlackwaters.Game
             if (!mob.Active) return;
             if (!activeMobsInTiledAreas.Current.ContainsKey(tiledArea))
             {
-                activeMobsInTiledAreas.Current.Add(tiledArea, new MobSet());
+                activeMobsInTiledAreas.Current.Add(tiledArea, new HashSet<Mob>());
             }
             activeMobsInTiledAreas.Current[tiledArea].Add(mob);
         }
@@ -1370,7 +1418,7 @@ namespace FrigidBlackwaters.Game
                 {
                     if (this.RequestedTimeScale == 0f && this.stunned)
                     {
-                        ReleaseTimeScale(0f);
+                        this.ReleaseTimeScale(0f);
                         this.stopDealingDamage.Release();
                         this.stunned = false;
                         this.onStunnedChanged?.Invoke();
@@ -1379,8 +1427,7 @@ namespace FrigidBlackwaters.Game
 
                 this.rootStateNode.Refresh();
 
-                Dictionary<MobBehaviour, (bool ignoreTimeScale, Action onFinished, bool currentlyFinished)> behaviourMapCopy =
-                    new Dictionary<MobBehaviour, (bool ignoreTimeScale, Action onFinished, bool currentlyFinished)>(this.behaviourMap);
+                Dictionary<MobBehaviour, (bool, Action, bool)> behaviourMapCopy = new Dictionary<MobBehaviour, (bool, Action, bool)>(this.behaviourMap);
                 foreach (KeyValuePair<MobBehaviour, (bool ignoreTimeScale, Action onFinished, bool currentlyFinished)> behaviourMapping in behaviourMapCopy)
                 {
                     MobBehaviour behaviour = behaviourMapping.Key;
@@ -1406,7 +1453,7 @@ namespace FrigidBlackwaters.Game
             float newTimeScale = 1f;
             foreach (KeyValuePair<int, int> timeScaleRequestCount in this.timeScaleRequestCounts)
             {
-                float timeScaleInRequest = timeScaleRequestCount.Key * GameConstants.SMALLEST_TIME_INTERVAL;
+                float timeScaleInRequest = timeScaleRequestCount.Key * FrigidConstants.SMALLEST_TIME_INTERVAL;
                 int numRequests = timeScaleRequestCount.Value;
                 newTimeScale *= Mathf.Pow(timeScaleInRequest, numRequests);
             }
@@ -1425,34 +1472,37 @@ namespace FrigidBlackwaters.Game
             this.maxHealthBonus += MaxHealthBonusFromVitality(currentVitality) - MaxHealthBonusFromVitality(previousVitality);
             if (this.MaxHealth != prevMaxHealth) 
             {
-                this.RemainingHealth = this.RemainingHealth;
+                int previousRemainingHealth = this.RemainingHealth;
+                this.remainingHealth = Mathf.Clamp(this.RemainingHealth, 0, this.MaxHealth);
+                if (previousRemainingHealth != this.RemainingHealth) this.onRemainingHealthChanged?.Invoke(previousRemainingHealth, this.RemainingHealth);
+                
                 this.onMaxHealthChanged?.Invoke(prevMaxHealth, this.MaxHealth); 
             }
         }
 
         private void EnableDamageDealers()
         {
-            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = false;
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = false;
-            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = false;
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetProperties<AttackAnimatorProperty>()) attackProperty.ForceStop = false;
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = false;
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = false;
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = false;
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.ForceStop = false;
         }
 
         private void DisableDamageDealers()
         {
-            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = true;
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = true;
-            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = true;
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetProperties<AttackAnimatorProperty>()) attackProperty.ForceStop = true;
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = true;
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = true;
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = true;
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.ForceStop = true;
         }
 
         private void UpdateDamageBonusFromMightChange(int previousMight, int currentMight)
         {
-            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetProperties<HitBoxAnimatorProperty>())
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>())
             {
                 hitBoxProperty.DamageBonus += DamageBonusFromMight(currentMight) - DamageBonusFromMight(previousMight);
             }
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetProperties<AttackAnimatorProperty>())
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>())
             {
                 attackProperty.DamageBonus += DamageBonusFromMight(currentMight) - DamageBonusFromMight(previousMight);
             }
@@ -1460,21 +1510,21 @@ namespace FrigidBlackwaters.Game
 
         private void EnableDamageReceivers()
         {
-            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.animatorBody.GetProperties<HurtBoxAnimatorProperty>()) hurtBoxProperty.IsIgnoringDamage = false;
-            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetProperties<ResistBoxAnimatorProperty>()) resistBoxProperty.IsIgnoringDamage = false;
-            foreach (LookoutBoxAnimatorProperty lookoutBoxProperty in this.animatorBody.GetProperties<LookoutBoxAnimatorProperty>()) lookoutBoxProperty.IsIgnoringDamage = false;
+            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.animatorBody.GetReferencedProperties<HurtBoxAnimatorProperty>()) hurtBoxProperty.IsIgnoringDamage = false;
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>()) resistBoxProperty.IsIgnoringDamage = false;
+            foreach (LookoutBoxAnimatorProperty lookoutBoxProperty in this.animatorBody.GetReferencedProperties<LookoutBoxAnimatorProperty>()) lookoutBoxProperty.IsIgnoringDamage = false;
         }
 
         private void DisableDamageReceivers()
         {
-            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.animatorBody.GetProperties<HurtBoxAnimatorProperty>()) hurtBoxProperty.IsIgnoringDamage = true;
-            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetProperties<ResistBoxAnimatorProperty>()) resistBoxProperty.IsIgnoringDamage = true;
-            foreach (LookoutBoxAnimatorProperty lookoutBoxProperty in this.animatorBody.GetProperties<LookoutBoxAnimatorProperty>()) lookoutBoxProperty.IsIgnoringDamage = true;
+            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.animatorBody.GetReferencedProperties<HurtBoxAnimatorProperty>()) hurtBoxProperty.IsIgnoringDamage = true;
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>()) resistBoxProperty.IsIgnoringDamage = true;
+            foreach (LookoutBoxAnimatorProperty lookoutBoxProperty in this.animatorBody.GetReferencedProperties<LookoutBoxAnimatorProperty>()) lookoutBoxProperty.IsIgnoringDamage = true;
         }
 
         private void UpdateDamageMitigationFromArmourChange(int previousArmour, int currentArmour)
         {
-            foreach (HurtBoxAnimatorProperty hurtBoxAnimatorProperty in this.animatorBody.GetProperties<HurtBoxAnimatorProperty>())
+            foreach (HurtBoxAnimatorProperty hurtBoxAnimatorProperty in this.animatorBody.GetReferencedProperties<HurtBoxAnimatorProperty>())
             {
                 hurtBoxAnimatorProperty.DamageMitigation += DamageMitigationFromArmour(currentArmour) - DamageMitigationFromArmour(previousArmour);
             }
@@ -1510,18 +1560,6 @@ namespace FrigidBlackwaters.Game
             return pushLayer;
         }
 
-        private bool IsColliderPartOfPushColliders(Collider2D collider)
-        {
-            foreach (PushColliderAnimatorProperty pushColliderProperty in this.animatorBody.GetProperties<PushColliderAnimatorProperty>())
-            {
-                if (pushColliderProperty.Collider == collider)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         private void UpdateCurrentModeFromRequests()
         {
             MobPushMode newMode = MobPushMode.IgnoreNone;
@@ -1536,14 +1574,14 @@ namespace FrigidBlackwaters.Game
             if (newMode != this.currentPushMode)
             {
                 this.currentPushMode = newMode;
-                UpdatePushColliders();
+                this.UpdatePushColliders();
             }
         }
 
         private void UpdatePushColliders()
         {
-            FrigidLayer layer = CalculatePushLayer();
-            foreach (PushColliderAnimatorProperty pushColliderProperty in this.animatorBody.GetProperties<PushColliderAnimatorProperty>())
+            FrigidLayer layer = this.CalculatePushLayer();
+            foreach (PushColliderAnimatorProperty pushColliderProperty in this.animatorBody.GetReferencedProperties<PushColliderAnimatorProperty>())
             {
                 pushColliderProperty.Layer = (int)layer;
             }
@@ -1606,14 +1644,12 @@ namespace FrigidBlackwaters.Game
             if (currentState.Size != previousState.Size) this.onSizeChanged?.Invoke();
             if (currentState.TraversableTerrain != previousState.TraversableTerrain)
             {
-                UpdatePushColliders();
+                this.UpdatePushColliders();
                 this.onTraversableTerrainChanged?.Invoke();
             }
             if (currentState.Height != previousState.Height) this.onHeightChanged?.Invoke();
-            if (currentState.Classification != previousState.Classification) this.onClassificationChanged?.Invoke();
             if (currentState.ShowDisplays != previousState.ShowDisplays) this.onShowDisplaysChanged?.Invoke();
-            if (currentState.Dead != previousState.Dead) this.onDeadChange?.Invoke();
-            if (currentState.Waiting != previousState.Waiting) this.onWaitChange?.Invoke();
+            if (currentState.Status != previousState.Status) this.onStatusChanged?.Invoke();
         }
     }
 }

@@ -8,6 +8,8 @@ namespace FrigidBlackwaters.Game
     public class LoadingOverlay : FrigidMonoBehaviour
     {
         private static LoadingOverlay instance;
+        private static Action onLoadStart;
+        private static Action onLoadFinish;
 
         [SerializeField]
         private CanvasGroup overlayCanvasGroup;
@@ -17,6 +19,30 @@ namespace FrigidBlackwaters.Game
         private FrigidCoroutine loadingScreenRoutine;
         private ControlCounter isLoading;
         private Action onScreenFullyShown;
+
+        public static Action OnLoadStart
+        {
+            get
+            {
+                return onLoadStart;
+            }
+            set
+            {
+                onLoadStart = value;
+            }
+        }
+
+        public static Action OnLoadFinish
+        {
+            get
+            {
+                return onLoadFinish;
+            }
+            set
+            {
+                onLoadFinish = value;
+            }
+        }
 
         public static void RequestLoad(Action onReadyForLoad)
         {
@@ -41,9 +67,9 @@ namespace FrigidBlackwaters.Game
             base.Awake();
             instance = this;
             this.isLoading = new ControlCounter();
-            this.isLoading.OnFirstRequest += instance.ShowScreen;
-            this.isLoading.OnLastRelease += instance.HideScreen;
-            FrigidInstancing.DontDestroyInstanceOnLoad(this);
+            this.isLoading.OnFirstRequest += instance.LoadStart;
+            this.isLoading.OnLastRelease += instance.LoadFinish;
+            DontDestroyInstanceOnLoad(this);
         }
 
         private bool IsScreenFullyShown
@@ -62,8 +88,9 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        private void ShowScreen()
+        private void LoadStart()
         {
+            onLoadStart?.Invoke();
             if (!this.IsScreenPartiallyShown)
             {
                 CharacterInput.Disabled.Request();
@@ -74,7 +101,7 @@ namespace FrigidBlackwaters.Game
             FrigidCoroutine.Kill(this.loadingScreenRoutine);
             this.loadingScreenRoutine =
                 FrigidCoroutine.Run(
-                    TweenCoroutine.Value(
+                    Tween.Value(
                         this.fadeDuration.ImmutableValue * (1 - this.overlayCanvasGroup.alpha),
                         this.overlayCanvasGroup.alpha, 
                         1,
@@ -86,12 +113,12 @@ namespace FrigidBlackwaters.Game
                     );
         }
 
-        private void HideScreen()
+        private void LoadFinish()
         {
             FrigidCoroutine.Kill(this.loadingScreenRoutine);
             this.loadingScreenRoutine =
                 FrigidCoroutine.Run(
-                    TweenCoroutine.Value(
+                    Tween.Value(
                         this.fadeDuration.ImmutableValue * this.overlayCanvasGroup.alpha,
                         this.overlayCanvasGroup.alpha,
                         0,
@@ -107,7 +134,7 @@ namespace FrigidBlackwaters.Game
                         ),
                     this.gameObject
                     );
+            onLoadFinish?.Invoke();
         }
-
     }
 }

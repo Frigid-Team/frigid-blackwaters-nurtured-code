@@ -12,8 +12,6 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private TraversableTerrain traversableTerrain;
         [SerializeField]
-        private MobClassification classification;
-        [SerializeField]
         private bool showDisplays;
 
         public override HashSet<MobState> InitialStates
@@ -24,7 +22,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override HashSet<MobState> SwitchableStates
+        public override HashSet<MobState> MoveStates
         {
             get
             {
@@ -64,14 +62,6 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public MobClassification Classification
-        {
-            get
-            {
-                return this.classification;
-            }
-        }
-
         public bool ShowDisplays
         {
             get
@@ -80,15 +70,12 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public virtual Vector2 DisplayPosition
+        public abstract MobStatus Status
         {
-            get
-            {
-                return this.Owner.Position;
-            }
+            get;
         }
 
-        public virtual bool CanSetPosition
+        public virtual bool MovePositionSafe
         {
             get
             {
@@ -96,22 +83,12 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public virtual bool CanSetTiledArea
+        public virtual bool MoveTiledAreaSafe
         {
             get
             {
                 return true;
             }
-        }
-
-        public abstract bool Dead
-        {
-            get;
-        }
-
-        public abstract bool Waiting
-        {
-            get;
         }
     }
 }

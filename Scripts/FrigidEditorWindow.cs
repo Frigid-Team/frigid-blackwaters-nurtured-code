@@ -26,27 +26,31 @@ namespace FrigidBlackwaters
 
         private void Awake()
         {
-            Opened();
+            this.Opened();
         }
 
         private void OnDestroy()
         {
-            Closed();
+            this.Closed();
         }
 
         private void Update()
         {
             if (this.hasFocus)
             {
-                Repaint();
+                this.Repaint();
             }
         }
 
         private void OnGUI() 
         {
-            using (new FrigidEditMode.EditingScope())
+            using (new FrigidEdit.EditingScope())
             {
-                Draw();
+                this.Draw();
+            }
+            if (GUI.Button(new Rect(Vector2.zero, this.position.size), "", new GUIStyle()))
+            {
+                GUI.FocusControl(null);
             }
         }
     }

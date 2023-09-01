@@ -1,11 +1,9 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 using System.Collections.Generic;
 
+using FrigidBlackwaters.Utility;
 using FrigidBlackwaters.Core;
 using FrigidBlackwaters.Game;
 
@@ -25,12 +23,6 @@ namespace FrigidBlackwaters.Cheats
         public static void ReloadScene()
         {
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        }
-
-        [ConsoleMethod("ReloadSceneFancy", "ReloadCurrentScene")]
-        public static void ReloadSceneFancy()
-        {
-            SceneChanger.Instance.ChangeScene(SceneManager.GetActiveScene().name, null);
         }
 
         [ConsoleMethod("SetTimeScale", "Set the time scale of the game")]
@@ -55,10 +47,8 @@ namespace FrigidBlackwaters.Cheats
         [ConsoleMethod("SpawnMob", "Spawn a mob at your mouse position.")]
         public static void SpawnMobs(string spawnableName, int quantity, float radius)
         {
-            string[] guids = AssetDatabase.FindAssets(spawnableName + " t:" + typeof(MobSpawnable).Name);
-            if (guids.Length > 0)
+            if (AssetDatabaseUpdater.TryFindAsset<MobSpawnable>(spawnableName, out MobSpawnable mobSpawnable))
             {
-                MobSpawnable mobSpawnable = AssetDatabase.LoadAssetAtPath<MobSpawnable>(AssetDatabase.GUIDToAssetPath(guids[0]));
                 for (int i = 0; i < quantity; i++)
                 {
                     float angleRad = Mathf.PI * 2 / quantity * i;
@@ -71,15 +61,22 @@ namespace FrigidBlackwaters.Cheats
             }
         }
 
+        [ConsoleMethod("GiveStamps", "Gives the player stamps.")]
+        public static void GiveStamps(int stampsAdded)
+        {
+            Stamps.TotalStamps += stampsAdded;
+            Stamps.CurrentStamps += stampsAdded;
+        }
+
         [ConsoleMethod("MovePlayer", "Moves the player to your mouse position.")]
         public static void MovePlayer()
         {
             if (PlayerMob.TryGet(out PlayerMob player))
             {
                 Vector2 movePosition = MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue());
-                if (player.CanMoveTo(movePosition))
+                if (player.CanMoveTo(movePosition, false))
                 {
-                    player.MoveTo(movePosition);
+                    player.MoveTo(movePosition, false);
                 }
             }
         }
@@ -87,50 +84,38 @@ namespace FrigidBlackwaters.Cheats
         [ConsoleMethod("SpawnProjectile", "Spawn a projectile at your mouse position.")]
         public static void SpawnProjectile(string projectilePrefabName)
         {
-            string[] guids = AssetDatabase.FindAssets("t:Prefab " + projectilePrefabName);
-            foreach (string guid in guids)
+            if (AssetDatabaseUpdater.TryFindPrefab<Projectile>(projectilePrefabName, out Projectile projectilePrefab))
             {
-                Projectile projectilePrefab = AssetDatabase.LoadAssetAtPath<Projectile>(AssetDatabase.GUIDToAssetPath(guid));
-                if (projectilePrefab != null)
-                {
-                    Projectile spawnedProjectile = FrigidInstancing.CreateInstance<Projectile>(projectilePrefab);
-                    spawnedProjectile.LaunchProjectile(
-                        0,
-                        DamageAlignment.Neutrals,
-                        () => FrigidInstancing.DestroyInstance(spawnedProjectile),
-                        MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
-                        Vector2.right,
-                        null,
-                        null,
-                        null
-                        );
-                    return;
-                }
+                Projectile spawnedProjectile = FrigidMonoBehaviour.CreateInstance<Projectile>(projectilePrefab);
+                spawnedProjectile.LaunchProjectile(
+                    0,
+                    DamageAlignment.Neutrals,
+                    () => FrigidMonoBehaviour.DestroyInstance(spawnedProjectile),
+                    MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
+                    Vector2.right,
+                    null,
+                    null,
+                    null
+                    );
             }
         }
 
         [ConsoleMethod("SpawnExplosion", "Spawn a explosion at your mouse position.")]
         public static void SpawnExplosion(string explosionPrefabName)
         {
-            string[] guids = AssetDatabase.FindAssets("t:Prefab " + explosionPrefabName);
-            foreach (string guid in guids)
+            if (AssetDatabaseUpdater.TryFindPrefab<Explosion>(explosionPrefabName, out Explosion explosionPrefab))
             {
-                Explosion explosionPrefab = AssetDatabase.LoadAssetAtPath<Explosion>(AssetDatabase.GUIDToAssetPath(guid));
-                if (explosionPrefab != null)
-                {
-                    Explosion spawnedExplosion = FrigidInstancing.CreateInstance<Explosion>(explosionPrefab);
-                    spawnedExplosion.SummonExplosion(
-                        0,
-                        DamageAlignment.Neutrals,
-                        () => FrigidInstancing.DestroyInstance(spawnedExplosion),
-                        MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
-                        0,
-                        null,
-                        null,
-                        null
-                        );
-                    return;
-                }
+                Explosion spawnedExplosion = FrigidMonoBehaviour.CreateInstance<Explosion>(explosionPrefab);
+                spawnedExplosion.SummonExplosion(
+                    0,
+                    DamageAlignment.Neutrals,
+                    () => FrigidMonoBehaviour.DestroyInstance(spawnedExplosion),
+                    MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
+                    0,
+                    null,
+                    null,
+                    null
+                    );
             }
         }
 
@@ -143,34 +128,38 @@ namespace FrigidBlackwaters.Cheats
         [ConsoleMethod("GiveItemToPlayer", "Give the player an item.")]
         public static void GiveItemToPlayer(string itemStorableName, int quantity)
         {
-            string[] guids = AssetDatabase.FindAssets("t:" + typeof(ItemStorable).Name + " " + itemStorableName);
-            foreach (string guid in guids)
+            if (PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out ItemStorage playerItemStorage) && AssetDatabaseUpdater.TryFindAsset<ItemStorable>(itemStorableName, out ItemStorable itemStorable))
             {
-                ItemStorable itemStorable = AssetDatabase.LoadAssetAtPath<ItemStorable>(AssetDatabase.GUIDToAssetPath(guid));
-                if (itemStorable != null)
+                List<Item> items = itemStorable.CreateItems(quantity);
+                foreach (ItemStorageGrid storageGrid in playerItemStorage.StorageGrids)
                 {
-                    if (PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out ItemStorage playerItemStorage))
+                    for (int x = 0; x < storageGrid.Dimensions.x; x++)
                     {
-                        foreach (ItemStorageGrid storageGrid in playerItemStorage.StorageGrids)
+                        for (int y = 0; y < storageGrid.Dimensions.y; y++)
                         {
-                            for (int x = 0; x < storageGrid.Dimensions.x; x++)
+                            if (storageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash itemStash))
                             {
-                                for (int y = 0; y < storageGrid.Dimensions.y; y++)
+                                items.RemoveRange(0, itemStash.PushItems(itemStorable, items));
+                                if (items.Count == 0)
                                 {
-                                    if (storageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash itemStash))
-                                    {
-                                        if (itemStash.CanStackStorable(itemStorable) && !itemStash.IsFull)
-                                        {
-                                            List<Item> createdItems = itemStorable.CreateItems(quantity);
-                                            playerItemStorage.AddStoredItems(createdItems);
-                                            itemStash.AddItems(createdItems, itemStorable);
-                                            return;
-                                        }
-                                    }
+                                    return;
                                 }
                             }
                         }
                     }
+                }
+                ItemStorable.DiscardItems(items);
+            }
+        }
+
+        [ConsoleMethod("AddPlayerEquipment", "Add equipment to the player.")]
+        public static void AddPlayerEquipment(string equipmentSpawnableName, string equipContextName)
+        {
+            if (PlayerMob.TryGet(out PlayerMob player) && AssetDatabaseUpdater.TryFindAsset<MobEquipmentSpawnable>(equipmentSpawnableName, out MobEquipmentSpawnable mobEquipmentSpawnable) && AssetDatabaseUpdater.TryFindAsset<MobEquipContext>(equipContextName, out MobEquipContext mobEquipContext)) 
+            {
+                if (player.TryGetEquipPointInContext(mobEquipContext, out MobEquipPoint mobEquipPoint))
+                {
+                    mobEquipPoint.AddEquipment(mobEquipmentSpawnable.Spawn());
                 }
             }
         }

@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Core
 
         public static implicit operator bool(ControlCounter semaphore)
         {
-            return semaphore.counter > 0;
+            return semaphore == null || semaphore.counter > 0;
         }
 
         public ControlCounter(int counter = 0) 
@@ -53,11 +53,11 @@ namespace FrigidBlackwaters.Core
 
         public void Request()
         {
-            if (this.counter == 0)
+            this.counter++;
+            if (this.counter == 1)
             {
                 this.onFirstRequest?.Invoke();
             }
-            this.counter += 1;
         }
 
         public void Release()

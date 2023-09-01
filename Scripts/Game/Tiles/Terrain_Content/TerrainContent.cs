@@ -6,34 +6,26 @@ namespace FrigidBlackwaters.Game
     public abstract class TerrainContent : FrigidMonoBehaviour
     {
         [SerializeField]
-        private Vector2Int dimensions;
-        [SerializeField]
         private AnimatorBody animatorBody;
 
-        private List<Vector2Int> allTileIndices;
+        private List<Vector2Int> tileIndexPositions;
         private NavigationGrid navigationGrid;
 
-        public Vector2Int Dimensions
-        {
-            get
-            {
-                return this.dimensions;
-            }
-        }
+        public virtual void Preview(Vector2 orientationDirection) { }
 
-        public virtual void Populated(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> allTileIndices) 
+        public virtual void Populate(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> tileIndexPositions) 
         {
             this.animatorBody.Direction = orientationDirection;
-            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetProperties<BreakBoxAnimatorProperty>())
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>())
             {
                 breakBoxProperty.DamageAlignment = DamageAlignment.Environment;
             }
-            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetProperties<ResistBoxAnimatorProperty>())
+            foreach (ResistBoxAnimatorProperty resistBoxProperty in this.animatorBody.GetReferencedProperties<ResistBoxAnimatorProperty>())
             {
                 resistBoxProperty.DamageAlignment = DamageAlignment.Environment;
             }
             this.navigationGrid = navigationGrid;
-            this.allTileIndices = allTileIndices;
+            this.tileIndexPositions = tileIndexPositions;
         }
 
         protected AnimatorBody AnimatorBody
@@ -52,11 +44,11 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected List<Vector2Int> AllTileIndices
+        protected List<Vector2Int> TileIndexPositions
         {
             get
             {
-                return this.allTileIndices;
+                return this.tileIndexPositions;
             }
         }
 

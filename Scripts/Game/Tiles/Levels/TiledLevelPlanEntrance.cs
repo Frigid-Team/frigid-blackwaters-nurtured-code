@@ -3,18 +3,16 @@ namespace FrigidBlackwaters.Game
     public class TiledLevelPlanEntrance
     {
         private TiledLevelPlanArea area;
-        private TiledAreaEntrance entrancePrefab;
-        private TiledAreaEntrance subLevelEntrance;
+        private TiledEntrance subLevelEntrance;
         private bool isSubLevelEntrance;
 
-        public TiledLevelPlanEntrance(TiledLevelPlanArea area, TiledAreaEntrance entrancePrefab)
+        public TiledLevelPlanEntrance(TiledLevelPlanArea area)
         {
             this.area = area;
-            this.entrancePrefab = entrancePrefab;
             this.isSubLevelEntrance = false;
         }
 
-        public TiledLevelPlanEntrance(TiledAreaEntrance subLevelEntrance)
+        public TiledLevelPlanEntrance(TiledEntrance subLevelEntrance)
         {
             this.subLevelEntrance = subLevelEntrance;
             this.isSubLevelEntrance = true;
@@ -28,15 +26,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public TiledAreaEntrance EntrancePrefab
-        {
-            get
-            {
-                return this.entrancePrefab;
-            }
-        }
-
-        public TiledAreaEntrance SublevelEntrance
+        public TiledEntrance SublevelEntrance
         {
             get
             {

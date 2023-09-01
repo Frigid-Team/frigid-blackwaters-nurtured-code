@@ -5,265 +5,262 @@ namespace FrigidBlackwaters.Game
 {
     public class NavigationGrid
     {
-        private NavigationTile[][] navigationTileGrid;
-        private Vector2Int gridDimensions;
+        private NavigationTile[][] grid;
+        private Vector2Int dimensions;
 
-        public NavigationGrid(TiledAreaBlueprint tiledAreaBlueprint)
+        public NavigationGrid(TiledAreaBlueprint blueprint)
         {
-            this.navigationTileGrid = new NavigationTile[tiledAreaBlueprint.MainAreaDimensions.x][];
-            this.gridDimensions = tiledAreaBlueprint.MainAreaDimensions;
-            for (int x = 0; x < tiledAreaBlueprint.MainAreaDimensions.x; x++)
+            this.dimensions = blueprint.MainAreaDimensions;
+            this.grid = new NavigationTile[this.dimensions.x][];
+            for (int x = 0; x < this.dimensions.x; x++)
             {
-                this.navigationTileGrid[x] = new NavigationTile[tiledAreaBlueprint.MainAreaDimensions.y];
-                for (int y = 0; y < tiledAreaBlueprint.MainAreaDimensions.y; y++)
+                this.grid[x] = new NavigationTile[this.dimensions.y];
+                for (int y = 0; y < this.dimensions.y; y++)
                 {
-                    this.navigationTileGrid[x][y] = new NavigationTile(tiledAreaBlueprint.GetTerrainTileAssetAt(new Vector2Int(x, y)).Terrain);
+                    NavigationTile tile = new NavigationTile(blueprint.GetTerrainTileAssetAt(new Vector2Int(x, y)).Terrain);
+                    this.grid[x][y] = tile;
                 }
             }
         }
 
-        public TileTerrain TerrainAtTile(Vector2Int tileIndices)
+        public NavigationTile this[Vector2Int indexPosition]
         {
-            return this.navigationTileGrid[tileIndices.x][tileIndices.y].Terrain;
+            get
+            {
+                return this.grid[indexPosition.x][indexPosition.y];
+            }
         }
 
-        public bool UnobstructedAtTile(Vector2Int tileIndices)
+        public Vector2Int Dimensions
         {
-            return this.navigationTileGrid[tileIndices.x][tileIndices.y].Unobstructed;
+            get
+            {
+                return this.dimensions;
+            }
         }
 
-        public void AddObstruction(Vector2Int tileIndices, Resistance resistance)
+        public bool IsOnTerrain(Vector2Int indexPosition, Vector2Int rectDimensions, TraversableTerrain traversableTerrain)
         {
-            this.navigationTileGrid[tileIndices.x][tileIndices.y].AddObstruction(resistance);
-        }
-
-        public void RemoveObstruction(Vector2Int tileIndices, Resistance resistance)
-        {
-            this.navigationTileGrid[tileIndices.x][tileIndices.y].RemoveObstruction(resistance);
-        }
-
-        public bool IsOnTerrain(Vector2Int indices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain)
-        {
-            if (!TilePositioning.RectIndicesWithinBounds(indices, this.gridDimensions, rectDimensions)) return false;
+            if (!AreaTiling.RectIndexPositionWithinBounds(indexPosition, this.Dimensions, rectDimensions)) return false;
             bool onTerrain = true;
-            return TilePositioning.VisitTileIndicesInTileRect(
-                indices,
+            return AreaTiling.VisitTileIndexPositionsInTileRect(
+                indexPosition,
                 rectDimensions,
-                this.gridDimensions,
-                (Vector2Int indices) =>
+                this.Dimensions,
+                (Vector2Int indexPosition) =>
                 {
-                    NavigationTile navigationTile = this.navigationTileGrid[indices.x][indices.y];
+                    NavigationTile navigationTile = this[indexPosition];
                     onTerrain &= traversableTerrain.Includes(navigationTile.Terrain);
                 }
                 ) && onTerrain;
         }
 
-        public bool IsTraversable(Vector2Int indices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain, Resistance breakingResistance = Resistance.None)
+        public bool IsTraversable(Vector2Int indexPosition, Vector2Int rectDimensions, TraversableTerrain traversableTerrain, Resistance traversableResistance)
         {
-            if (!TilePositioning.RectIndicesWithinBounds(indices, this.gridDimensions, rectDimensions)) return false;
+            if (!AreaTiling.RectIndexPositionWithinBounds(indexPosition, this.Dimensions, rectDimensions)) return false;
             bool isTraversable = true;
-            return TilePositioning.VisitTileIndicesInTileRect(
-                indices,
+            return AreaTiling.VisitTileIndexPositionsInTileRect(
+                indexPosition,
                 rectDimensions,
-                this.gridDimensions,
-                (Vector2Int indices) =>
+                this.Dimensions,
+                (Vector2Int indexPosition) =>
                 {
-                    NavigationTile navigationTile = this.navigationTileGrid[indices.x][indices.y];
-                    BreakInfo breakInfo = new BreakInfo(breakingResistance, navigationTile.HighestObstructiveResistance, null);
-                    isTraversable &= (navigationTile.Unobstructed || breakInfo.Broken) && traversableTerrain.Includes(navigationTile.Terrain);
+                    NavigationTile navigationTile = this[indexPosition];
+                    isTraversable &= (navigationTile.Unobstructed || traversableResistance >= navigationTile.HighestObstructiveResistance) && traversableTerrain.Includes(navigationTile.Terrain);
                 }
                 ) && isTraversable;
         }
 
-        public List<Vector2Int> GetAdjacentTraversableIndices(Vector2Int originIndices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain)
+        public List<Vector2Int> GetAdjacentTraversableIndexPositions(Vector2Int originIndexPosition, Vector2Int rectDimensions, TraversableTerrain traversableTerrain, Resistance traversableResistance)
         {
             List<Vector2Int> returnTiles = new List<Vector2Int>();
 
-            bool rightTraversable = IsTraversable(originIndices + Vector2Int.right, new Vector2Int(1, rectDimensions.y), traversableTerrain);
-            bool upTraversable = IsTraversable(originIndices + Vector2Int.down * rectDimensions.y, new Vector2Int(rectDimensions.x, 1), traversableTerrain);
-            bool leftTraversable = IsTraversable(originIndices + Vector2Int.left * rectDimensions.x, new Vector2Int(1, rectDimensions.y), traversableTerrain);
-            bool downTraversable = IsTraversable(originIndices + Vector2Int.up, new Vector2Int(rectDimensions.x, 1), traversableTerrain);
+            bool rightTraversable = this.IsTraversable(originIndexPosition + Vector2Int.right, new Vector2Int(1, rectDimensions.y), traversableTerrain, traversableResistance);
+            bool upTraversable = this.IsTraversable(originIndexPosition + Vector2Int.down * rectDimensions.y, new Vector2Int(rectDimensions.x, 1), traversableTerrain, traversableResistance);
+            bool leftTraversable = this.IsTraversable(originIndexPosition + Vector2Int.left * rectDimensions.x, new Vector2Int(1, rectDimensions.y), traversableTerrain, traversableResistance);
+            bool downTraversable = this.IsTraversable(originIndexPosition + Vector2Int.up, new Vector2Int(rectDimensions.x, 1), traversableTerrain, traversableResistance);
 
             if (rightTraversable) 
-                returnTiles.Add(originIndices + Vector2Int.right);
+                returnTiles.Add(originIndexPosition + Vector2Int.right);
             if (upTraversable) 
-                returnTiles.Add(originIndices + Vector2Int.down);
+                returnTiles.Add(originIndexPosition + Vector2Int.down);
             if (leftTraversable) 
-                returnTiles.Add(originIndices + Vector2Int.left);
+                returnTiles.Add(originIndexPosition + Vector2Int.left);
             if (downTraversable) 
-                returnTiles.Add(originIndices + Vector2Int.up);
-            if (rightTraversable && upTraversable && IsTraversable(originIndices + Vector2Int.right + Vector2Int.down * rectDimensions.y, Vector2Int.one, traversableTerrain)) 
-                returnTiles.Add(originIndices + Vector2Int.right + Vector2Int.down);
-            if (upTraversable && leftTraversable && IsTraversable(originIndices + Vector2Int.down * rectDimensions.y + Vector2Int.left * rectDimensions.x, Vector2Int.one, traversableTerrain)) 
-                returnTiles.Add(originIndices + Vector2Int.down + Vector2Int.left);
-            if (leftTraversable && downTraversable && IsTraversable(originIndices + Vector2Int.left * rectDimensions.x + Vector2Int.up, Vector2Int.one, traversableTerrain))
-                returnTiles.Add(originIndices + Vector2Int.left + Vector2Int.up);
-            if (downTraversable && rightTraversable && IsTraversable(originIndices + Vector2Int.up + Vector2Int.right, Vector2Int.one, traversableTerrain)) 
-                returnTiles.Add(originIndices + Vector2Int.up + Vector2Int.right);
+                returnTiles.Add(originIndexPosition + Vector2Int.up);
+            if (rightTraversable && upTraversable && this.IsTraversable(originIndexPosition + Vector2Int.right + Vector2Int.down * rectDimensions.y, Vector2Int.one, traversableTerrain, traversableResistance)) 
+                returnTiles.Add(originIndexPosition + Vector2Int.right + Vector2Int.down);
+            if (upTraversable && leftTraversable && this.IsTraversable(originIndexPosition + Vector2Int.down * rectDimensions.y + Vector2Int.left * rectDimensions.x, Vector2Int.one, traversableTerrain, traversableResistance)) 
+                returnTiles.Add(originIndexPosition + Vector2Int.down + Vector2Int.left);
+            if (leftTraversable && downTraversable && this.IsTraversable(originIndexPosition + Vector2Int.left * rectDimensions.x + Vector2Int.up, Vector2Int.one, traversableTerrain, traversableResistance))
+                returnTiles.Add(originIndexPosition + Vector2Int.left + Vector2Int.up);
+            if (downTraversable && rightTraversable && this.IsTraversable(originIndexPosition + Vector2Int.up + Vector2Int.right, Vector2Int.one, traversableTerrain, traversableResistance)) 
+                returnTiles.Add(originIndexPosition + Vector2Int.up + Vector2Int.right);
 
             return returnTiles;
         }
 
-        public List<Vector2Int> FindReachableIndices(
-            Vector2Int originIndices,
+        public List<Vector2Int> FindReachableIndexPositions(
+            Vector2Int originIndexPosition,
             Vector2Int rectDimensions,
             TraversableTerrain traversableTerrain,
+            Resistance traversableResistance,
             float minPathCost = 0,
             float maxPathCost = int.MaxValue
             )
         {
-            List<Vector2Int> reachableTiles = new List<Vector2Int>();
+            List<Vector2Int> reachableTileIndexPositions = new List<Vector2Int>();
 
-            if (!IsTraversable(originIndices, rectDimensions, traversableTerrain))
+            if (!this.IsTraversable(originIndexPosition, rectDimensions, traversableTerrain, traversableResistance))
             {
-                return reachableTiles;
+                return reachableTileIndexPositions;
             }
 
             Dictionary<Vector2Int, float> pathCosts = new Dictionary<Vector2Int, float>();
-            Queue<Vector2Int> tileQueue = new Queue<Vector2Int>();
+            Queue<Vector2Int> nextTileIndexPositions = new Queue<Vector2Int>();
 
-            tileQueue.Enqueue(originIndices);
-            pathCosts.Add(originIndices, 0);
+            nextTileIndexPositions.Enqueue(originIndexPosition);
+            pathCosts.Add(originIndexPosition, 0);
 
-            while (tileQueue.Count != 0)
+            while (nextTileIndexPositions.Count != 0)
             {
-                Vector2Int currentIndices = tileQueue.Dequeue();
-                float currentPathCost = pathCosts[currentIndices];
+                Vector2Int currentIndexPosition = nextTileIndexPositions.Dequeue();
+                float currentPathCost = pathCosts[currentIndexPosition];
                 if (currentPathCost < maxPathCost)
                 {
-                    foreach (Vector2Int adjacentIndices in GetAdjacentTraversableIndices(currentIndices, rectDimensions, traversableTerrain))
+                    foreach (Vector2Int adjacentIndexPosition in this.GetAdjacentTraversableIndexPositions(currentIndexPosition, rectDimensions, traversableTerrain, traversableResistance))
                     {
-                        if (!pathCosts.ContainsKey(adjacentIndices))
+                        if (!pathCosts.ContainsKey(adjacentIndexPosition))
                         {
-                            tileQueue.Enqueue(adjacentIndices);
-                            pathCosts.Add(adjacentIndices, currentPathCost + Vector2Int.Distance(currentIndices, adjacentIndices));
+                            nextTileIndexPositions.Enqueue(adjacentIndexPosition);
+                            pathCosts.Add(adjacentIndexPosition, currentPathCost + Vector2Int.Distance(currentIndexPosition, adjacentIndexPosition));
                         }
                     }
                 }
 
                 if (currentPathCost <= maxPathCost && currentPathCost >= minPathCost)
                 {
-                    reachableTiles.Add(currentIndices);
+                    reachableTileIndexPositions.Add(currentIndexPosition);
                 }
             }
 
-            return reachableTiles;
+            return reachableTileIndexPositions;
         }
 
-        public List<Vector2Int> GetClosestTraversableIndices(Vector2Int originIndices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain)
+        public List<Vector2Int> GetClosestTraversableIndexPositions(Vector2Int originIndexPosition, Vector2Int rectDimensions, TraversableTerrain traversableTerrain, Resistance traversableResistance)
         {
             float lowestPathCost = float.MaxValue;
-            List<Vector2Int> closestIndices = new List<Vector2Int>();
-            Queue<Vector2Int> nextIndices = new Queue<Vector2Int>();
+            List<Vector2Int> closestIndexPositions = new List<Vector2Int>();
+            Queue<Vector2Int> nextIndexPositions = new Queue<Vector2Int>();
             Dictionary<Vector2Int, float> pathCosts = new Dictionary<Vector2Int, float>();
 
-            nextIndices.Enqueue(originIndices);
-            pathCosts.Add(originIndices, 0);
-            while (nextIndices.Count > 0)
+            nextIndexPositions.Enqueue(originIndexPosition);
+            pathCosts.Add(originIndexPosition, 0);
+            while (nextIndexPositions.Count > 0)
             {
-                Vector2Int currIndices = nextIndices.Dequeue();
-                float pathCost = pathCosts[currIndices];
+                Vector2Int currIndexPosition = nextIndexPositions.Dequeue();
+                float pathCost = pathCosts[currIndexPosition];
 
                 if (pathCost <= lowestPathCost + Mathf.Epsilon)
                 {
-                    if (IsTraversable(currIndices, rectDimensions, traversableTerrain))
+                    if (this.IsTraversable(currIndexPosition, rectDimensions, traversableTerrain, traversableResistance))
                     {
                         lowestPathCost = Mathf.Min(pathCost, lowestPathCost);
-                        closestIndices.Add(currIndices);
+                        closestIndexPositions.Add(currIndexPosition);
                     }
 
-                    foreach (Vector2Int adjacentIndices in GetAdjacentTraversableIndices(currIndices, rectDimensions, TraversableTerrain.All))
+                    foreach (Vector2Int adjacentIndexPosition in this.GetAdjacentTraversableIndexPositions(currIndexPosition, rectDimensions, TraversableTerrain.All, traversableResistance))
                     {
-                        if (!pathCosts.ContainsKey(adjacentIndices))
+                        if (!pathCosts.ContainsKey(adjacentIndexPosition))
                         {
-                            pathCosts.Add(adjacentIndices, pathCost + Vector2Int.Distance(currIndices, adjacentIndices));
-                            nextIndices.Enqueue(adjacentIndices);
+                            pathCosts.Add(adjacentIndexPosition, pathCost + Vector2Int.Distance(currIndexPosition, adjacentIndexPosition));
+                            nextIndexPositions.Enqueue(adjacentIndexPosition);
                         }
                     }
                 }
             }
 
-            return closestIndices;
+            return closestIndexPositions;
         }
 
-        public List<Vector2Int> FindPathIndices(Vector2Int startIndices, Vector2Int targetIndices, Vector2Int rectDimensions, TraversableTerrain traversableTerrain)
+        public List<Vector2Int> FindPathIndexPositions(Vector2Int startIndexPosition, Vector2Int targetIndexPosition, Vector2Int rectDimensions, TraversableTerrain traversableTerrain, Resistance traversableResistance)
         {
-            if (!IsTraversable(startIndices, rectDimensions, traversableTerrain))
+            if (!this.IsTraversable(startIndexPosition, rectDimensions, traversableTerrain, traversableResistance))
             {
                 return new List<Vector2Int>();
             }
 
-            Dictionary<Vector2Int, (float gCost, float fCost, Vector2Int? parentIndices)> nodes = new Dictionary<Vector2Int, (float gCost, float fCost, Vector2Int? parentIndices)>();
+            Dictionary<Vector2Int, (float gCost, float fCost, Vector2Int? parentIndexPosition)> nodes = new Dictionary<Vector2Int, (float gCost, float fCost, Vector2Int? parentIndexPosition)>();
 
-            List<Vector2Int> ConstructPath(Vector2Int endIndices)
+            List<Vector2Int> ConstructPath(Vector2Int endIndexPosition)
             {
-                List<Vector2Int> pathIndices = new List<Vector2Int>();
-                Vector2Int currIndices = endIndices;
-                while (nodes[currIndices].parentIndices.HasValue)
+                List<Vector2Int> pathIndexPositions = new List<Vector2Int>();
+                Vector2Int currIndexPosition = endIndexPosition;
+                while (nodes[currIndexPosition].parentIndexPosition.HasValue)
                 {
-                    pathIndices.Add(currIndices);
-                    currIndices = nodes[currIndices].parentIndices.Value;
+                    pathIndexPositions.Add(currIndexPosition);
+                    currIndexPosition = nodes[currIndexPosition].parentIndexPosition.Value;
                 }
-                pathIndices.Add(currIndices);
-                pathIndices.Reverse();
-                return pathIndices;
+                pathIndexPositions.Add(currIndexPosition);
+                pathIndexPositions.Reverse();
+                return pathIndexPositions;
             }
 
             HashSet<Vector2Int> openSet = new HashSet<Vector2Int>();
             HashSet<Vector2Int> closedSet = new HashSet<Vector2Int>();
 
-            float startToTargetDistance = Vector2Int.Distance(startIndices, targetIndices);
-            nodes.Add(startIndices, (0, startToTargetDistance, null));
+            float startToTargetDistance = Vector2Int.Distance(startIndexPosition, targetIndexPosition);
+            nodes.Add(startIndexPosition, (0, startToTargetDistance, null));
 
             float lowestDistanceToTarget = startToTargetDistance;
-            Vector2Int lowestDistanceToTargetIndices = startIndices;
+            Vector2Int lowestDistanceToTargetIndexPosition = startIndexPosition;
 
-            openSet.Add(startIndices);
+            openSet.Add(startIndexPosition);
 
             while (openSet.Count > 0)
             {
                 float lowestFCost = float.MaxValue;
-                Vector2Int currentIndices = startIndices;
-                foreach (Vector2Int openIndices in openSet)
+                Vector2Int currentIndexPosition = startIndexPosition;
+                foreach (Vector2Int openIndexPosition in openSet)
                 {
-                    if (nodes[openIndices].fCost < lowestFCost)
+                    if (nodes[openIndexPosition].fCost < lowestFCost)
                     {
-                        lowestFCost = nodes[openIndices].fCost;
-                        currentIndices = openIndices;
+                        lowestFCost = nodes[openIndexPosition].fCost;
+                        currentIndexPosition = openIndexPosition;
                     }
                 }
 
-                if (currentIndices == targetIndices)
+                if (currentIndexPosition == targetIndexPosition)
                 {
-                    return ConstructPath(targetIndices);
+                    return ConstructPath(targetIndexPosition);
                 }
 
-                openSet.Remove(currentIndices);
-                closedSet.Add(currentIndices);
+                openSet.Remove(currentIndexPosition);
+                closedSet.Add(currentIndexPosition);
 
-                foreach (Vector2Int adjacentIndices in GetAdjacentTraversableIndices(currentIndices, rectDimensions, traversableTerrain))
+                foreach (Vector2Int adjacentIndexPosition in this.GetAdjacentTraversableIndexPositions(currentIndexPosition, rectDimensions, traversableTerrain, traversableResistance))
                 {
-                    if (closedSet.Contains(adjacentIndices)) continue;
+                    if (closedSet.Contains(adjacentIndexPosition)) continue;
 
-                    float tentativeGCost = nodes[currentIndices].gCost + Vector2Int.Distance(currentIndices, adjacentIndices);
+                    float tentativeGCost = nodes[currentIndexPosition].gCost + Vector2Int.Distance(currentIndexPosition, adjacentIndexPosition);
 
-                    if (!nodes.ContainsKey(adjacentIndices) || tentativeGCost < nodes[adjacentIndices].gCost)
+                    if (!nodes.ContainsKey(adjacentIndexPosition) || tentativeGCost < nodes[adjacentIndexPosition].gCost)
                     {
-                        float distanceToTarget = Vector2Int.Distance(adjacentIndices, targetIndices);
-                        nodes[adjacentIndices] = (tentativeGCost, tentativeGCost + distanceToTarget, currentIndices);
+                        float distanceToTarget = Vector2Int.Distance(adjacentIndexPosition, targetIndexPosition);
+                        nodes[adjacentIndexPosition] = (tentativeGCost, tentativeGCost + distanceToTarget, currentIndexPosition);
 
                         if (distanceToTarget < lowestDistanceToTarget)
                         {
                             lowestDistanceToTarget = distanceToTarget;
-                            lowestDistanceToTargetIndices = adjacentIndices;
+                            lowestDistanceToTargetIndexPosition = adjacentIndexPosition;
                         }
 
-                        if (!openSet.Contains(adjacentIndices)) openSet.Add(adjacentIndices);
+                        if (!openSet.Contains(adjacentIndexPosition)) openSet.Add(adjacentIndexPosition);
                     }
                 }
             }
 
-            return ConstructPath(lowestDistanceToTargetIndices);
+            return ConstructPath(lowestDistanceToTargetIndexPosition);
         }
     }
 }

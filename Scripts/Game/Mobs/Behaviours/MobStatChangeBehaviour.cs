@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Game
             base.Enter();
             foreach(StatChange statChange in this.statChanges)
             {
-                this.Owner.SetStatAmount(statChange.StatChanged, this.Owner.GetStatAmount(statChange.StatChanged) + statChange.Value.ImmutableValue);
+                this.Owner.SetStatAmount(MobStatLayer.Primary, statChange.StatChanged, this.Owner.GetStatAmount(MobStatLayer.Primary, statChange.StatChanged) + statChange.Value.ImmutableValue);
             }
         }
 
@@ -25,7 +25,7 @@ namespace FrigidBlackwaters.Game
             base.Exit();
             foreach (StatChange statChange in this.statChanges)
             {
-                this.Owner.SetStatAmount(statChange.StatChanged, this.Owner.GetStatAmount(statChange.StatChanged) - statChange.Value.ImmutableValue);
+                this.Owner.SetStatAmount(MobStatLayer.Primary, statChange.StatChanged, this.Owner.GetStatAmount(MobStatLayer.Primary, statChange.StatChanged) - statChange.Value.ImmutableValue);
             }
         }
 

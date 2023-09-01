@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,12 +9,12 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Image cellImage;
 
-        public void FillCell(TiledArea tiledArea, bool isRevealed, float worldToMapScalingFactor)
+        public virtual void FillCell(TiledLevel level, TiledArea area, bool isRevealed, float worldToMapScalingFactor, Action onMapActionPerformed)
         {
-            this.cellImage.enabled = isRevealed;
+            this.cellImage.enabled = isRevealed && area.ContainedLevel == level;
             if (!isRevealed) return;
-            this.transform.localPosition = tiledArea.CenterPosition * worldToMapScalingFactor;
-            ((RectTransform)this.transform).sizeDelta = (Vector2)tiledArea.WallAreaDimensions * worldToMapScalingFactor;
+            this.transform.localPosition = area.CenterPosition * worldToMapScalingFactor;
+            ((RectTransform)this.transform).sizeDelta = (Vector2)area.WallAreaDimensions * worldToMapScalingFactor;
         }
 
 #if UNITY_EDITOR

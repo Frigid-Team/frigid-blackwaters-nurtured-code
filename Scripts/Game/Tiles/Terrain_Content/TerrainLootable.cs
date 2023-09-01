@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 using FrigidBlackwaters.Core;
@@ -20,20 +21,33 @@ namespace FrigidBlackwaters.Game
         private LootableAnimationSet chosenAnimations;
         private FrigidCoroutine detectionRoutine;
 
-        public override void Populated(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> allTileIndices)
+        public override void Preview(Vector2 orientationDirection)
         {
-            base.Populated(orientationDirection, navigationGrid, allTileIndices);
+            base.Preview(orientationDirection);
+            if (this.detectionRadius > 0)
+            {
+                this.AnimatorBody.Preview(this.lootableTiers.Entries.First().LootableAnimations[0].ClosedAnimationName, 0, orientationDirection);
+            }
+            else
+            {
+                this.AnimatorBody.Preview(this.lootableTiers.Entries.First().LootableAnimations[0].DefaultAnimationName, 0, orientationDirection);
+            }
+        }
+
+        public override void Populate(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> tileIndexPositions)
+        {
+            base.Populate(orientationDirection, navigationGrid, tileIndexPositions);
             this.chosenTier = this.lootableTiers.Retrieve();
             this.chosenAnimations = this.chosenTier.LootableAnimations[UnityEngine.Random.Range(0, this.chosenTier.LootableAnimations.Length)];
             this.itemStorage.SetStorageGridsFromContainers(this.chosenTier.ItemContainers);
             foreach (ItemStorageGrid itemStorageGrid in this.itemStorage.StorageGrids)
             {
-                itemStorageGrid.FillWithLootTable(this.chosenTier.ItemLootTable);
+                itemStorageGrid.FillWithLootTable(this.chosenTier.ItemLootTableByReference.MutableValue);
             }
             if (this.detectionRadius > 0)
             {
                 this.AnimatorBody.Play(this.chosenAnimations.ClosedAnimationName);
-                this.detectionRoutine = FrigidCoroutine.Run(DetectionLoop(), this.gameObject);
+                this.detectionRoutine = FrigidCoroutine.Run(this.DetectionLoop(), this.gameObject);
             }
             else
             {
@@ -103,11 +117,11 @@ namespace FrigidBlackwaters.Game
             [SerializeField]
             private LootableAnimationSet[] lootableAnimations;
 
-            public ItemLootTable ItemLootTable
+            public ItemLootTableSerializedReference ItemLootTableByReference
             {
                 get
                 {
-                    return this.itemLootTable.ImmutableValue;
+                    return this.itemLootTable;
                 }
             }
 

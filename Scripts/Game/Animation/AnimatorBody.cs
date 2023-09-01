@@ -38,21 +38,18 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         [ReadOnly]
         private AnimatorProperty rootProperty;
-        [SerializeField]
-        [ReadOnly]
-        private List<SubAnimatorBodyAnimatorProperty> subBodyProperties;
-        [SerializeField]
-        [ReadOnly]
-        private Nested2DList<SubAnimatorBodyAnimatorProperty> subBodyPropertiesPerAnimation;
+
+        private bool previewing;
 
         private float timeScale;
         private Action onTimeScaleChanged;
+        private Vector2 direction;
+        private Action onDirectionChanged;
 
         private bool playAnimationDirty;
         private int playedAnimationIndex;
-        private float selfElapsedDuration;
-        private Vector2 direction;
-
+        private float elapsedDuration;
+  
         private int currAnimationIndex;
         private Action<int, int> onAnimationUpdated;
         private int currFrameIndex;
@@ -60,7 +57,7 @@ namespace FrigidBlackwaters.Game
         private int currOrientationIndex;
         private Action<int, int> onOrientationUpdated;
 
-        private bool completedSelf = false;
+        private bool completed = false;
         private Action onComplete;
 
         public bool RotateToDirection
@@ -73,42 +70,21 @@ namespace FrigidBlackwaters.Game
             {
                 if (value != this.rotateToDirection)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.rotateToDirection = value;
                 }
             }
         }
 
-        public Vector2 Direction
+        public bool Previewing
         {
             get
             {
-                return this.direction;
+                return this.previewing;
             }
-            set
+            private set
             {
-                this.direction = value.normalized;
-                if (this.gameObject.activeInHierarchy)
-                {
-                    RefreshOrientation();
-                }
-                foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in GetSubBodyProperties())
-                {
-                    subBodyProperty.SubBody.direction = value;
-                }
-                UpdateLocalRotation();
-            }
-        }
-
-        public bool Active
-        {
-            get
-            {
-                return this.gameObject.activeSelf;
-            }
-            set
-            {
-                this.gameObject.SetActive(value);
+                this.previewing = value;
             }
         }
 
@@ -124,10 +100,6 @@ namespace FrigidBlackwaters.Game
                 {
                     this.timeScale = value;
                     this.onTimeScaleChanged?.Invoke();
-                    foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in GetSubBodyProperties())
-                    {
-                        subBodyProperty.SubBody.TimeScale = value;
-                    }
                 }
             }
         }
@@ -144,24 +116,66 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Bounds TotalAreaOccupied
+        public Vector2 Direction
+        {
+            get
+            {
+                return this.direction;
+            }
+            set
+            {
+                Vector2 newDirection = value.normalized;
+                if (newDirection != this.direction)
+                {
+                    this.direction = value.normalized;
+                    if (this.gameObject.activeInHierarchy)
+                    {
+                        this.RefreshOrientation();
+                    }
+                    this.UpdateLocalRotation();
+                    this.onDirectionChanged?.Invoke();
+                }
+            }
+        }
+
+        public Action OnDirectionChanged
+        {
+            get
+            {
+                return this.onDirectionChanged;
+            }
+            set
+            {
+                this.onDirectionChanged = value;
+            }
+        }
+
+        public bool Active
+        {
+            get
+            {
+                return this.gameObject.activeSelf;
+            }
+            set
+            {
+                this.gameObject.SetActive(value);
+            }
+        }
+
+        public Bounds AreaOccupied
         {
             get
             {
                 Bounds? totalAreaOccupied = this.RootProperty.GetAreaOccupied();
-                foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in GetCurrentSubBodyProperties())
-                {
-                    Bounds subBodyAreaOccupied = subBodyProperty.SubBody.TotalAreaOccupied;
-                    if (!totalAreaOccupied.HasValue)
-                    {
-                        totalAreaOccupied = subBodyAreaOccupied;
-                    }
-                    else
-                    {
-                        totalAreaOccupied.Value.Encapsulate(subBodyAreaOccupied);
-                    }
-                }
                 return totalAreaOccupied.HasValue ? totalAreaOccupied.Value : new Bounds(this.transform.position, Vector3.zero);
+            }
+        }
+
+        public bool IsLooping
+        {
+            get
+            {
+                return this.CurrAnimationIndex == -1 ? false : (this.GetLooping(this.CurrAnimationIndex) || this.RootProperty.GetLooped());
             }
         }
 
@@ -169,12 +183,11 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                float elapsedDuration = this.SelfElapsedDuration;
-                foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in GetCurrentSubBodyProperties())
-                {
-                    elapsedDuration = Mathf.Max(subBodyProperty.SubBody.ElapsedDuration, elapsedDuration);
-                }
-                return elapsedDuration;
+                return this.elapsedDuration;
+            }
+            private set
+            {
+                this.elapsedDuration = value;
             }
         }
 
@@ -182,12 +195,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                float remainingDuration = this.SelfRemainingDuration;
-                foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in GetCurrentSubBodyProperties())
-                {
-                    remainingDuration = Mathf.Max(subBodyProperty.SubBody.RemainingDuration, remainingDuration);
-                }
-                return remainingDuration;
+                return this.TotalDuration - this.ElapsedDuration;
             }
         }
 
@@ -195,12 +203,8 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                float totalDuration = this.SelfTotalDuration;
-                foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in GetCurrentSubBodyProperties())
-                {
-                    totalDuration = Mathf.Max(subBodyProperty.SubBody.SelfTotalDuration, totalDuration);
-                }
-                return totalDuration;
+                if (this.CurrAnimationIndex == -1 || this.GetLooping(this.CurrAnimationIndex)) return float.MaxValue;
+                return Mathf.Max(this.GetFrameCount(this.CurrAnimationIndex) / this.GetFrameRate(this.CurrAnimationIndex), this.RootProperty.GetDuration());
             }
         }
 
@@ -209,7 +213,7 @@ namespace FrigidBlackwaters.Game
             get
             {
                 if (this.CurrAnimationIndex == -1) return 0;
-                return Mathf.FloorToInt(this.SelfElapsedDuration / (GetFrameCount(this.CurrAnimationIndex) / GetFrameRate(this.CurrAnimationIndex)));
+                return Mathf.FloorToInt(this.ElapsedDuration / (this.GetFrameCount(this.CurrAnimationIndex) / this.GetFrameRate(this.CurrAnimationIndex)));
             }
         }
 
@@ -218,6 +222,10 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.currAnimationIndex;
+            }
+            private set
+            {
+                this.currAnimationIndex = value;
             }
         }
 
@@ -239,6 +247,10 @@ namespace FrigidBlackwaters.Game
             {
                 return this.currFrameIndex;
             }
+            private set
+            {
+                this.currFrameIndex = value;
+            }
         }
 
         public Action<int, int> OnFrameUpdated
@@ -258,6 +270,10 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.currOrientationIndex;
+            }
+            private set
+            {
+                this.currOrientationIndex = value;
             }
         }
 
@@ -281,40 +297,9 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public List<AnimatorProperty> Properties
+        public static AnimatorBody CreateBody(GameObject gameObject)
         {
-            get
-            {
-                List<AnimatorProperty> properties = new List<AnimatorProperty>();
-                void Visit(AnimatorProperty property)
-                {
-                    properties.Add(property);
-                    foreach (AnimatorProperty childProperty in property.ChildProperties) Visit(childProperty);
-                }
-                Visit(this.RootProperty);
-                return properties;
-            }
-        }
-
-        public int PropertyCount
-        {
-            get
-            {
-                return 1 + this.RootProperty.ChildPropertyCount;
-            }
-        }
-
-        public int PropertyDepth
-        {
-            get
-            {
-                return this.RootProperty.ChildHeight;
-            }
-        }
-
-        public static AnimatorBody SetupOn(GameObject gameObject)
-        {
-            AnimatorBody body = FrigidEditMode.AddComponent<AnimatorBody>(gameObject);
+            AnimatorBody body = FrigidEdit.AddComponent<AnimatorBody>(gameObject);
             if (body == null) return null;
             body.animationCount = 0;
             body.animationNames = new List<string>();
@@ -323,30 +308,34 @@ namespace FrigidBlackwaters.Game
             body.frameCounts = new List<int>();
             body.orientationCounts = new List<int>();
             body.orientationDirections = new Nested2DList<Vector2>();
-            body.rootProperty = AnimatorProperty.SetupOn<RootAnimatorProperty>(gameObject, body);
-            body.subBodyProperties = new List<SubAnimatorBodyAnimatorProperty>();
-            body.subBodyPropertiesPerAnimation = new Nested2DList<SubAnimatorBodyAnimatorProperty>();
+            body.rootProperty = AnimatorProperty.CreateProperty(body, body.transform, typeof(RootAnimatorProperty));
             return body;
+        }
+
+        public static void DestroyBody(AnimatorBody body)
+        {
+            AnimatorProperty.DestroyProperty(body.rootProperty);
+            FrigidEdit.DestroyGameObject(body.gameObject);
         }
 
         public bool Play(string animationName, Action onComplete = null)
         {
             int animationIndex = this.animationNames.IndexOf(animationName);
-            return Play(animationIndex, onComplete);
+            return this.Play(animationIndex, onComplete);
         }
 
-        public bool Play(int animationIndex, Action onComplete = null)
+        public bool Play(int playedAnimationIndex, Action onComplete = null)
         {
-            if (animationIndex != -1)
+            if (playedAnimationIndex != -1)
             {
                 this.playAnimationDirty = true;
-                this.playedAnimationIndex = animationIndex;
-                this.completedSelf = false;
+                this.playedAnimationIndex = playedAnimationIndex;
+                this.completed = false;
                 this.onComplete = onComplete;
-                this.selfElapsedDuration = 0;
+                this.ElapsedDuration = 0;
                 if (this.gameObject.activeInHierarchy)
                 {
-                    RefreshAnimation();
+                    this.RefreshAnimation();
                 }
                 this.playAnimationDirty = false;
                 return true;
@@ -358,16 +347,16 @@ namespace FrigidBlackwaters.Game
         {
             this.playedAnimationIndex = -1;
             this.onComplete = null;
-            this.selfElapsedDuration = 0;
+            this.ElapsedDuration = 0;
             if (this.gameObject.activeInHierarchy)
             {
-                RefreshAnimation();
+                this.RefreshAnimation();
             }
         }
 
-        public bool TryFindProperty<P>(string propertyName, out P property) where P : AnimatorProperty
+        public bool TryFindReferencedProperty<P>(string propertyName, out P property) where P : AnimatorProperty
         {
-            foreach (P searchProperty in GetProperties<P>())
+            foreach (P searchProperty in this.GetReferencedProperties<P>())
             {
                 if (searchProperty.PropertyName == propertyName)
                 {
@@ -379,182 +368,95 @@ namespace FrigidBlackwaters.Game
             return false;
         }
 
-        public bool TryFindCurrentProperty<P>(string propertyName, out P currentProperty) where P : AnimatorProperty
+        public bool TryFindCurrentReferencedProperty<P>(string propertyName, out P property) where P : AnimatorProperty
         {
-            return TryFindPropertyIn<P>(this.CurrAnimationIndex, propertyName, out currentProperty);
+            return this.TryFindReferencedPropertyIn(this.CurrAnimationIndex, propertyName, out property);
         }
 
-        public bool TryFindPropertyIn<P>(string animationName, string propertyName, out P currentProperty) where P : AnimatorProperty
+        public bool TryFindReferencedPropertyIn<P>(string animationName, string propertyName, out P property) where P : AnimatorProperty
         {
-            return TryFindPropertyIn<P>(this.animationNames.IndexOf(animationName), propertyName, out currentProperty);
+            return this.TryFindReferencedPropertyIn(this.animationNames.IndexOf(animationName), propertyName, out property);
         }
 
-        public bool TryFindPropertyIn<P>(int animationIndex, string propertyName, out P currentProperty) where P : AnimatorProperty
+        public bool TryFindReferencedPropertyIn<P>(int animationIndex, string propertyName, out P property) where P : AnimatorProperty
         {
-            foreach (P searchProperty in GetPropertiesIn<P>(animationIndex))
+            foreach (P searchProperty in this.GetReferencedPropertiesIn<P>(animationIndex))
             {
                 if (searchProperty.PropertyName == propertyName)
                 {
-                    currentProperty = searchProperty;
+                    property = searchProperty;
                     return true;
                 }
             }
-            currentProperty = null;
+            property = null;
             return false;
         }
 
-        public List<P> GetProperties<P>() where P : AnimatorProperty
+        public List<P> GetReferencedProperties<P>() where P : AnimatorProperty
         {
-            List<P> properties = new List<P>();
-            void Visit(AnimatorProperty baseProperty)
-            {
-                P property = baseProperty as P;
-                if (property) properties.Add(property);
-                foreach (AnimatorProperty childProperty in baseProperty.ChildProperties) Visit(childProperty);
-            }
-            Visit(this.rootProperty);
-            foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in this.subBodyProperties)
-            {
-                properties.AddRange(subBodyProperty.SubBody.GetProperties<P>());
-            }
-            return properties;
+            List<P> referencedProperties = new List<P>();
+            P rootProperty = this.RootProperty as P;
+            if (rootProperty) referencedProperties.Add(rootProperty);
+            referencedProperties.AddRange(this.RootProperty.GetReferencedProperties<P>());
+            return referencedProperties;
         }
 
-        public List<P> GetCurrentProperties<P>() where P : AnimatorProperty
+        public List<P> GetCurrentReferencedProperties<P>() where P : AnimatorProperty
         {
-            return GetPropertiesIn<P>(this.CurrAnimationIndex);
+            return this.GetReferencedPropertiesIn<P>(this.CurrAnimationIndex);
         }
 
-        public List<P> GetPropertiesIn<P>(string animationName) where P : AnimatorProperty
+        public List<P> GetReferencedPropertiesIn<P>(string animationName) where P : AnimatorProperty
         {
-            return GetPropertiesIn<P>(this.animationNames.IndexOf(animationName));
+            return this.GetReferencedPropertiesIn<P>(this.animationNames.IndexOf(animationName));
         }
  
-        public List<P> GetPropertiesIn<P>(int animationIndex) where P : AnimatorProperty
+        public List<P> GetReferencedPropertiesIn<P>(int animationIndex) where P : AnimatorProperty
         {
-            List<P> properties = new List<P>();
+            List<P> referencedProperties = new List<P>();
+            P rootProperty = this.RootProperty as P;
+            if (rootProperty) referencedProperties.Add(rootProperty);
+            referencedProperties.AddRange(this.RootProperty.GetReferencedPropertiesIn<P>(animationIndex));
+            return referencedProperties;
+        }
 
-            if (animationIndex == -1) return properties;
+        public int GetPropertyDepth()
+        {
+            return this.RootProperty.GetDescendentPropertyDepth() + 1;
+        }
 
-            void Visit(AnimatorProperty baseProperty, bool enabled)
+        public int GetPropertyDepthOf(AnimatorProperty property)
+        {
+            if (property == this.RootProperty)
             {
-                if (enabled)
+                return 0;
+            }
+            else
+            {
+                int rootDepth = this.RootProperty.GetDescendentPropertyDepthOf(property);
+                if (rootDepth != -1)
                 {
-                    P property = baseProperty as P;
-                    if (property) properties.Add(property);
-                    foreach (AnimatorProperty childProperty in baseProperty.ChildProperties) Visit(childProperty, childProperty.GetBinded(animationIndex));
+                    return rootDepth + 1;
                 }
             }
-            Visit(this.rootProperty, true);
-            foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in this.subBodyPropertiesPerAnimation[animationIndex])
-            {
-                properties.AddRange(subBodyProperty.SubBody.GetPropertiesIn<P>(subBodyProperty.GetSubAnimationIndex(animationIndex)));
-            }
+            return -1;
+        }
+
+        public int GetNumberProperties()
+        {
+            return this.RootProperty.GetNumberDescendentProperties() + 1;
+        }
+
+        public List<AnimatorProperty> GetProperties()
+        {
+            List<AnimatorProperty> properties = new List<AnimatorProperty>() { this.RootProperty };
+            properties.AddRange(this.RootProperty.GetDescendentProperties());
             return properties;
-        }
-
-        public void RegisterPropertyCreation(AnimatorProperty property)
-        {
-            FrigidEditMode.RecordPotentialChanges(this);
-            SubAnimatorBodyAnimatorProperty subBodyProperty = property as SubAnimatorBodyAnimatorProperty;
-            if (subBodyProperty)
-            {
-                this.subBodyProperties.Add(subBodyProperty);
-                for (int animationIndex = 0; animationIndex < GetAnimationCount(); animationIndex++)
-                {
-                    void Visit(AnimatorProperty property, bool enabled)
-                    {
-                        if (enabled)
-                        {
-                            if (property == subBodyProperty)
-                            {
-                                this.subBodyPropertiesPerAnimation[animationIndex].Add(subBodyProperty);
-                                return;
-                            }
-                            foreach (AnimatorProperty childProperty in property.ChildProperties) Visit(childProperty, childProperty.GetBinded(animationIndex));
-                        }
-                    }
-                    Visit(this.rootProperty, true);
-                }
-            }
-        }
-
-        public void RegisterPropertyDestruction(AnimatorProperty property)
-        {
-            FrigidEditMode.RecordPotentialChanges(this);
-            SubAnimatorBodyAnimatorProperty subBodyProperty = property as SubAnimatorBodyAnimatorProperty;
-            if (subBodyProperty)
-            {
-                this.subBodyProperties.Remove(subBodyProperty);
-                for (int animationIndex = 0; animationIndex < GetAnimationCount(); animationIndex++)
-                {
-                    void Visit(AnimatorProperty property, bool enabled)
-                    {
-                        if (enabled)
-                        {
-                            if (property == subBodyProperty)
-                            {
-                                this.subBodyPropertiesPerAnimation[animationIndex].Remove(subBodyProperty);
-                                return;
-                            }
-                            foreach (AnimatorProperty childProperty in property.ChildProperties) Visit(childProperty, childProperty.GetBinded(animationIndex));
-                        }
-                    }
-                    Visit(this.rootProperty, true);
-                }
-            }
-        }
-
-        public void PropertyBindChanged(int animationIndex)
-        {
-            FrigidEditMode.RecordPotentialChanges(this);
-            void Visit(AnimatorProperty property, bool enabled)
-            {
-                SubAnimatorBodyAnimatorProperty subBodyProperty = property as SubAnimatorBodyAnimatorProperty;
-                if (subBodyProperty)
-                {
-                    if (enabled)
-                    {
-                        if (!this.subBodyPropertiesPerAnimation[animationIndex].Contains(subBodyProperty))
-                        {
-                            this.subBodyPropertiesPerAnimation[animationIndex].Add(subBodyProperty);
-                        }
-                    }
-                    else
-                    {
-                        if (this.subBodyPropertiesPerAnimation[animationIndex].Contains(subBodyProperty))
-                        {
-                            this.subBodyPropertiesPerAnimation[animationIndex].Remove(subBodyProperty);
-                        }
-                    }
-                }
-                foreach (AnimatorProperty childProperty in property.ChildProperties) Visit(childProperty, enabled && childProperty.GetBinded(animationIndex));
-            }
-            Visit(this.rootProperty, true);
-        }
-
-        public int GetDepthOf(AnimatorProperty property)
-        {
-            int foundDepth = -1;
-            void Visit(AnimatorProperty currProperty, int depth)
-            {
-                if (property == currProperty)
-                {
-                    foundDepth = depth;
-                    return;
-                }
-                foreach (AnimatorProperty childProperty in currProperty.ChildProperties)
-                {
-                    Visit(childProperty, depth + 1);
-                }
-            }
-            Visit(this.rootProperty, 0);
-            return foundDepth;
         }
 
         public void AddAnimationAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.animationCount++;
             this.animationNames.Insert(animationIndex, NEW_ANIMATION_NAME);
             this.frameRates.Insert(animationIndex, NEW_FRAME_RATE);
@@ -563,12 +465,11 @@ namespace FrigidBlackwaters.Game
             this.orientationCounts.Insert(animationIndex, 0);
             this.orientationDirections.Insert(animationIndex, new Nested1DList<Vector2>());
             this.rootProperty.AnimationAddedAt(animationIndex);
-            this.subBodyPropertiesPerAnimation.Insert(animationIndex, new Nested1DList<SubAnimatorBodyAnimatorProperty>());
         }
 
         public void RemoveAnimationAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.animationCount--;
             this.animationNames.RemoveAt(animationIndex);
             this.frameRates.RemoveAt(animationIndex);
@@ -577,7 +478,6 @@ namespace FrigidBlackwaters.Game
             this.orientationCounts.RemoveAt(animationIndex);
             this.orientationDirections.RemoveAt(animationIndex);
             this.rootProperty.AnimationRemovedAt(animationIndex);
-            this.subBodyPropertiesPerAnimation.RemoveAt(animationIndex);
         }
 
         public int GetAnimationCount()
@@ -594,7 +494,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.animationNames[animationIndex] != animationName)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.animationNames[animationIndex] = animationName;
             }
         }
@@ -608,7 +508,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.loopings[animationIndex] != looping)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.loopings[animationIndex] = looping;
             }
         }
@@ -622,7 +522,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.frameRates[animationIndex] != frameRate)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.frameRates[animationIndex] = frameRate;
             }
         }
@@ -637,24 +537,24 @@ namespace FrigidBlackwaters.Game
             frameCount = Mathf.Max(0, frameCount);
             for (int frameIndex = this.frameCounts[animationIndex]; frameIndex < frameCount; frameIndex++)
             {
-                AddFrameAt(animationIndex, frameIndex);
+                this.AddFrameAt(animationIndex, frameIndex);
             }
             for (int frameIndex = this.frameCounts[animationIndex] - 1; frameIndex > frameCount - 1; frameIndex--)
             {
-                RemoveFrameAt(animationIndex, frameIndex);
+                this.RemoveFrameAt(animationIndex, frameIndex);
             }
         }
 
         public void AddFrameAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.frameCounts[animationIndex]++;
             this.rootProperty.FrameAddedAt(animationIndex, frameIndex);
         }
 
         public void RemoveFrameAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.frameCounts[animationIndex]--;
             this.rootProperty.FrameRemovedAt(animationIndex, frameIndex);
         }
@@ -669,20 +569,20 @@ namespace FrigidBlackwaters.Game
             orientationCount = Mathf.Max(0, orientationCount);
             for (int orientationIndex = this.orientationCounts[animationIndex]; orientationIndex < orientationCount; orientationIndex++)
             {
-                AddOrientationAt(animationIndex, orientationIndex);
+                this.AddOrientationAt(animationIndex, orientationIndex);
             }
             for (int orientationIndex = this.orientationCounts[animationIndex] - 1; orientationIndex > orientationCount - 1; orientationIndex--)
             {
-                RemoveOrientationAt(animationIndex, orientationIndex);
+                this.RemoveOrientationAt(animationIndex, orientationIndex);
             }
         }
 
         public void AddOrientationAt(int animationIndex, int orientationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.orientationCounts[animationIndex]++;
             this.orientationDirections[animationIndex].Insert(orientationIndex, Vector2.zero);
-            for (int frameIndex = 0; frameIndex < GetFrameCount(animationIndex); frameIndex++)
+            for (int frameIndex = 0; frameIndex < this.GetFrameCount(animationIndex); frameIndex++)
             {
                 this.rootProperty.OrientationAddedAt(animationIndex, frameIndex, orientationIndex);
             }
@@ -690,10 +590,10 @@ namespace FrigidBlackwaters.Game
 
         public void RemoveOrientationAt(int animationIndex, int orientationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.orientationCounts[animationIndex]--;
             this.orientationDirections[animationIndex].RemoveAt(orientationIndex);
-            for (int frameIndex = 0; frameIndex < GetFrameCount(animationIndex); frameIndex++)
+            for (int frameIndex = 0; frameIndex < this.GetFrameCount(animationIndex); frameIndex++)
             {
                 this.rootProperty.OrientationRemovedAt(animationIndex, frameIndex, orientationIndex);
             }
@@ -708,31 +608,31 @@ namespace FrigidBlackwaters.Game
         {
             if (this.orientationDirections[animationIndex][orientationIndex] != direction)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.orientationDirections[animationIndex][orientationIndex] = direction;
             }
         }
 
         public void CopyPasteAnimation(int fromAnimationIndex, int toAnimationIndex)
         {
-            SetAnimationName(toAnimationIndex, GetAnimationName(fromAnimationIndex));
-            SetOrientationCount(toAnimationIndex, GetOrientationCount(fromAnimationIndex));
-            for (int orientationIndex = 0; orientationIndex < GetOrientationCount(toAnimationIndex); orientationIndex++)
+            this.SetAnimationName(toAnimationIndex, this.GetAnimationName(fromAnimationIndex));
+            this.SetOrientationCount(toAnimationIndex, this.GetOrientationCount(fromAnimationIndex));
+            for (int orientationIndex = 0; orientationIndex < this.GetOrientationCount(toAnimationIndex); orientationIndex++)
             {
-                SetOrientationDirection(toAnimationIndex, orientationIndex, GetOrientationDirection(fromAnimationIndex, orientationIndex));
+                this.SetOrientationDirection(toAnimationIndex, orientationIndex, this.GetOrientationDirection(fromAnimationIndex, orientationIndex));
             }
-            SetFrameCount(toAnimationIndex, GetFrameCount(fromAnimationIndex));
-            SetLooping(toAnimationIndex, GetLooping(fromAnimationIndex));
-            SetFrameRate(toAnimationIndex, GetFrameRate(fromAnimationIndex));
+            this.SetFrameCount(toAnimationIndex, this.GetFrameCount(fromAnimationIndex));
+            this.SetLooping(toAnimationIndex, this.GetLooping(fromAnimationIndex));
+            this.SetFrameRate(toAnimationIndex, this.GetFrameRate(fromAnimationIndex));
 
-            List<AnimatorProperty> properties = this.Properties;
+            List<AnimatorProperty> properties = this.GetProperties();
             for (int propertyIndex = 0; propertyIndex < properties.Count; propertyIndex++)
             {
                 properties[propertyIndex].CopyPasteToAnotherAnimation(properties[propertyIndex], fromAnimationIndex, toAnimationIndex);
-                for (int frameIndex = 0; frameIndex < Mathf.Min(GetFrameCount(fromAnimationIndex), GetFrameCount(toAnimationIndex)); frameIndex++)
+                for (int frameIndex = 0; frameIndex < Mathf.Min(this.GetFrameCount(fromAnimationIndex), this.GetFrameCount(toAnimationIndex)); frameIndex++)
                 {
                     properties[propertyIndex].CopyPasteToAnotherFrame(properties[propertyIndex], fromAnimationIndex, toAnimationIndex, frameIndex, frameIndex);
-                    for (int orientationIndex = 0; orientationIndex < Mathf.Min(GetOrientationCount(fromAnimationIndex), GetOrientationCount(toAnimationIndex)); orientationIndex++)
+                    for (int orientationIndex = 0; orientationIndex < Mathf.Min(this.GetOrientationCount(fromAnimationIndex), this.GetOrientationCount(toAnimationIndex)); orientationIndex++)
                     {
                         properties[propertyIndex].CopyPasteToAnotherOrientation(properties[propertyIndex], fromAnimationIndex, toAnimationIndex, frameIndex, frameIndex, orientationIndex, orientationIndex);
                     }
@@ -742,14 +642,14 @@ namespace FrigidBlackwaters.Game
 
         public void CopyPasteAllFramesAndTheirOrientationsAcrossAllProperties(int fromAnimationIndex, int toAnimationIndex)
         {
-            List<AnimatorProperty> properties = this.Properties;
+            List<AnimatorProperty> properties = this.GetProperties();
             for (int propertyIndex = 0; propertyIndex < properties.Count; propertyIndex++)
             {
                 properties[propertyIndex].CopyPasteToAnotherAnimation(properties[propertyIndex], fromAnimationIndex, toAnimationIndex);
-                for (int frameIndex = 0; frameIndex < Mathf.Min(GetFrameCount(fromAnimationIndex), GetFrameCount(toAnimationIndex)); frameIndex++)
+                for (int frameIndex = 0; frameIndex < Mathf.Min(this.GetFrameCount(fromAnimationIndex), this.GetFrameCount(toAnimationIndex)); frameIndex++)
                 {
                     properties[propertyIndex].CopyPasteToAnotherFrame(properties[propertyIndex], fromAnimationIndex, toAnimationIndex, frameIndex, frameIndex);
-                    for (int orientationIndex = 0; orientationIndex < Mathf.Min(GetOrientationCount(fromAnimationIndex), GetOrientationCount(toAnimationIndex)); orientationIndex++)
+                    for (int orientationIndex = 0; orientationIndex < Mathf.Min(this.GetOrientationCount(fromAnimationIndex), this.GetOrientationCount(toAnimationIndex)); orientationIndex++)
                     {
                         properties[propertyIndex].CopyPasteToAnotherOrientation(properties[propertyIndex], fromAnimationIndex, toAnimationIndex, frameIndex, frameIndex, orientationIndex, orientationIndex);
                     }
@@ -759,11 +659,11 @@ namespace FrigidBlackwaters.Game
 
         public void CopyPasteFrameAndItsOrientationsAcrossAllProperties(int fromAnimationIndex, int toAnimationIndex, int fromFrameIndex, int toFrameIndex)
         {
-            List<AnimatorProperty> properties = this.Properties;
+            List<AnimatorProperty> properties = this.GetProperties();
             for (int propertyIndex = 0; propertyIndex < properties.Count; propertyIndex++)
             {
                 properties[propertyIndex].CopyPasteToAnotherFrame(properties[propertyIndex], fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
-                for (int orientationIndex = 0; orientationIndex < Mathf.Min(GetOrientationCount(fromAnimationIndex), GetOrientationCount(toAnimationIndex)); orientationIndex++)
+                for (int orientationIndex = 0; orientationIndex < Mathf.Min(this.GetOrientationCount(fromAnimationIndex), this.GetOrientationCount(toAnimationIndex)); orientationIndex++)
                 {
                     properties[propertyIndex].CopyPasteToAnotherOrientation(properties[propertyIndex], fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, orientationIndex, orientationIndex);
                 }
@@ -772,11 +672,11 @@ namespace FrigidBlackwaters.Game
 
         public void CopyPasteAllFramesAndTheirOrientations(int fromPropertyIndex, int toPropertyIndex, int fromAnimationIndex, int toAnimationIndex) 
         {
-            List<AnimatorProperty> properties = this.Properties;
-            for (int frameIndex = 0; frameIndex < Mathf.Min(GetFrameCount(fromAnimationIndex), GetFrameCount(toAnimationIndex)); frameIndex++)
+            List<AnimatorProperty> properties = this.GetProperties();
+            for (int frameIndex = 0; frameIndex < Mathf.Min(this.GetFrameCount(fromAnimationIndex), this.GetFrameCount(toAnimationIndex)); frameIndex++)
             {
                 properties[fromPropertyIndex].CopyPasteToAnotherFrame(properties[toPropertyIndex], fromAnimationIndex, toAnimationIndex, frameIndex, frameIndex);
-                for (int orientationIndex = 0; orientationIndex < Mathf.Min(GetOrientationCount(fromAnimationIndex), GetOrientationCount(toAnimationIndex)); orientationIndex++)
+                for (int orientationIndex = 0; orientationIndex < Mathf.Min(this.GetOrientationCount(fromAnimationIndex), this.GetOrientationCount(toAnimationIndex)); orientationIndex++)
                 {
                     properties[fromPropertyIndex].CopyPasteToAnotherOrientation(properties[toPropertyIndex], fromAnimationIndex, toAnimationIndex, frameIndex, frameIndex, orientationIndex, orientationIndex);
                 }
@@ -785,9 +685,9 @@ namespace FrigidBlackwaters.Game
 
         public void CopyPasteFrameAndItsOrientations(int fromPropertyIndex, int toPropertyIndex, int fromAnimationIndex, int toAnimationIndex, int fromFrameIndex, int toFrameIndex)
         {
-            List<AnimatorProperty> properties = this.Properties;
+            List<AnimatorProperty> properties = this.GetProperties();
             properties[fromPropertyIndex].CopyPasteToAnotherFrame(properties[toPropertyIndex], fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
-            for (int orientationIndex = 0; orientationIndex < Mathf.Min(GetOrientationCount(fromAnimationIndex), GetOrientationCount(toAnimationIndex)); orientationIndex++)
+            for (int orientationIndex = 0; orientationIndex < Mathf.Min(this.GetOrientationCount(fromAnimationIndex), this.GetOrientationCount(toAnimationIndex)); orientationIndex++)
             {
                 properties[fromPropertyIndex].CopyPasteToAnotherOrientation(properties[toPropertyIndex], fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, orientationIndex, orientationIndex);
             }
@@ -795,8 +695,8 @@ namespace FrigidBlackwaters.Game
 
         public void CopyPasteOrientationAcrossAllFrames(int fromPropertyIndex, int toPropertyIndex, int fromAnimationIndex, int toAnimationIndex, int fromOrientationIndex, int toOrientationIndex)
         {
-            List<AnimatorProperty> properties = this.Properties;
-            for (int frameIndex = 0; frameIndex < Mathf.Min(GetFrameCount(fromAnimationIndex), GetFrameCount(toAnimationIndex)); frameIndex++)
+            List<AnimatorProperty> properties = this.GetProperties();
+            for (int frameIndex = 0; frameIndex < Mathf.Min(this.GetFrameCount(fromAnimationIndex), this.GetFrameCount(toAnimationIndex)); frameIndex++)
             {
                 properties[fromPropertyIndex].CopyPasteToAnotherOrientation(properties[toPropertyIndex], fromAnimationIndex, toAnimationIndex, frameIndex, frameIndex, fromOrientationIndex, toOrientationIndex);
             }
@@ -804,35 +704,52 @@ namespace FrigidBlackwaters.Game
 
         public void CopyPasteOrientation(int fromPropertyIndex, int toPropertyIndex, int fromAnimationIndex, int toAnimationIndex, int fromFrameIndex, int toFrameIndex, int fromOrientationIndex, int toOrientationIndex)
         {
-            List<AnimatorProperty> properties = this.Properties;
+            List<AnimatorProperty> properties = this.GetProperties();
             properties[fromPropertyIndex].CopyPasteToAnotherOrientation(properties[toPropertyIndex], fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, fromOrientationIndex, toOrientationIndex);
         }
 
-#if UNITY_EDITOR
-        public void SetAssetPreviewsInProperties()
+        public void Preview(string animationName, float elapsedDuration, Vector2 direction)
         {
-            FrigidEditMode.RecordPotentialChangesToFullHierarchy(this.gameObject);
-            this.selfElapsedDuration = 0;
-            this.currAnimationIndex = 0;
-            this.currFrameIndex = 0;
-            this.currOrientationIndex = 0;
-            foreach (AnimatorProperty property in this.Properties)
+            this.Preview(this.animationNames.IndexOf(animationName), elapsedDuration, direction);
+        }
+
+        public void Preview(int playedAnimationIndex, float elapsedDuration, Vector2 direction)
+        {
+            FrigidEdit.RecordFullObjectHierarchy(this.gameObject);
+
+            int prevAnimationIndex = this.CurrAnimationIndex;
+            int prevFrameIndex = this.CurrFrameIndex;
+            int prevOrientationIndex = this.CurrOrientationIndex;
+            float prevElapsedDuration = this.ElapsedDuration;
+            Vector2 prevDirection = this.Direction;
+
+            this.CurrAnimationIndex = this.AnimationIndexFromPlayedAnimation(playedAnimationIndex);
+            this.CurrFrameIndex = this.FrameIndexFromElapsedDuration(this.currAnimationIndex, elapsedDuration);
+            this.CurrOrientationIndex = this.OrientationIndexFromDirection(this.currAnimationIndex, direction);
+            this.ElapsedDuration = elapsedDuration;
+            this.direction = direction;
+            this.Previewing = true;
+
+            if (this.CurrAnimationIndex != -1)
             {
-                if (GetAnimationCount() > 0)
+                this.RootProperty.AnimationEnter();
+                if (this.CurrFrameIndex != -1)
                 {
-                    property.AnimationEnter();
-                    if (GetFrameCount(0) > 0)
+                    this.RootProperty.FrameEnter();
+                    if (this.CurrOrientationIndex != -1)
                     {
-                        property.FrameEnter();
-                        if (GetOrientationCount(0) > 0)
-                        {
-                            property.OrientationEnter();
-                        }
+                        this.RootProperty.OrientationEnter();
                     }
                 }
             }
+
+            this.CurrAnimationIndex = prevAnimationIndex;
+            this.CurrFrameIndex = prevFrameIndex;
+            this.CurrOrientationIndex = prevOrientationIndex;
+            this.ElapsedDuration = prevElapsedDuration;
+            this.direction = prevDirection;
+            this.Previewing = false;
         }
-#endif
 
         protected override void Awake()
         {
@@ -841,11 +758,11 @@ namespace FrigidBlackwaters.Game
             this.timeScale = 1f;
 
             this.playedAnimationIndex = -1;
-            this.selfElapsedDuration = 0;
+            this.ElapsedDuration = 0;
 
-            this.currAnimationIndex = -1;
-            this.currFrameIndex = -1;
-            this.currOrientationIndex = -1;
+            this.CurrAnimationIndex = -1;
+            this.CurrFrameIndex = -1;
+            this.CurrOrientationIndex = -1;
 
             this.direction = Vector2.zero;
             this.RootProperty.Initialize();
@@ -854,33 +771,23 @@ namespace FrigidBlackwaters.Game
         protected override void OnEnable()
         {
             base.OnEnable();
-            RefreshAnimation();
-            RefreshFrame();
-            RefreshOrientation();
+            this.RefreshAnimation();
+            this.RefreshFrame();
+            this.RefreshOrientation();
         }
 
         protected override void Update()
         {
             base.Update();
 
-            this.selfElapsedDuration += Time.deltaTime * this.TimeScale;
-            RefreshFrame();
-            if (!this.completedSelf)
+            this.ElapsedDuration += Time.deltaTime * this.TimeScale;
+            this.RefreshFrame();
+            if (!this.completed)
             {
-                if (this.CurrAnimationIndex != -1 &&
-                    !GetLooping(this.CurrAnimationIndex) &&
-                    this.SelfRemainingDuration <= 0 &&
-                    this.RemainingDuration <= 0 &&
-                    this.RootProperty.IsCompletedAtEndOfAnimation())
+                if (this.CurrAnimationIndex != -1 && !this.IsLooping && this.RemainingDuration <= 0)
                 {
-                    bool subBodiesCompleted = true;
-                    foreach (SubAnimatorBodyAnimatorProperty subBodyProperty in GetSubBodyPropertiesIn(this.CurrAnimationIndex)) subBodiesCompleted &= subBodyProperty.SubBody.completedSelf;
-
-                    if (subBodiesCompleted)
-                    {
-                        this.completedSelf = true;
-                        this.onComplete?.Invoke();
-                    }
+                    this.completed = true;
+                    this.onComplete?.Invoke();
                 }
             }
         }
@@ -892,63 +799,28 @@ namespace FrigidBlackwaters.Game
         }
 #endif
 
-        private float SelfElapsedDuration
-        {
-            get
-            {
-                return this.selfElapsedDuration;
-            }
-        }
-
-        private float SelfRemainingDuration
-        {
-            get
-            {
-                return this.SelfTotalDuration - SelfElapsedDuration;
-            }
-        }
-
-        private float SelfTotalDuration
-        {
-            get
-            {
-                if (this.CurrAnimationIndex == -1 || GetLooping(this.CurrAnimationIndex)) return float.MaxValue;
-                return GetFrameCount(this.CurrAnimationIndex) / GetFrameRate(this.CurrAnimationIndex);
-            }
-        }
-
-        private List<SubAnimatorBodyAnimatorProperty> GetSubBodyProperties()
-        {
-            return this.subBodyProperties;
-        }
-
-        private List<SubAnimatorBodyAnimatorProperty> GetCurrentSubBodyProperties()
-        {
-            return GetSubBodyPropertiesIn(this.CurrAnimationIndex);
-        }
-
-        private List<SubAnimatorBodyAnimatorProperty> GetSubBodyPropertiesIn(int animationIndex)
-        {
-            if (animationIndex == -1) return new List<SubAnimatorBodyAnimatorProperty>();
-            return this.subBodyPropertiesPerAnimation[animationIndex].Items;
-        }
-
         private void UpdateLocalRotation()
         {
             if (this.RotateToDirection)
             {
-                float orientationAngle = 0;
+                float orientationAngleDeg = 0;
                 if (this.CurrAnimationIndex != -1 && this.CurrOrientationIndex != -1)
                 {
-                    orientationAngle = GetOrientationDirection(this.CurrAnimationIndex, this.CurrOrientationIndex).ComponentAngle0To2PI();
+                    orientationAngleDeg = this.GetOrientationDirection(this.CurrAnimationIndex, this.CurrOrientationIndex).ComponentAngle0To360();
                 }
-                this.transform.localRotation = Quaternion.Euler(0, 0, (this.Direction.ComponentAngle0To2PI() - orientationAngle) * Mathf.Rad2Deg);
+                this.transform.localRotation = Quaternion.Euler(0, 0, this.Direction.ComponentAngle0To360() - orientationAngleDeg);
             }
         }
 
         private void RefreshAnimation()
         {
-            UpdateAnimationIndex(HandleAnimationExit, HandleAnimationEnter);
+            this.UpdateAnimationIndex(this.HandleAnimationExit, this.HandleAnimationEnter);
+        }
+
+        private int AnimationIndexFromPlayedAnimation(int playedAnimationIndex) 
+        {
+            if (playedAnimationIndex < 0 || playedAnimationIndex >= this.GetAnimationCount()) return -1;
+            return playedAnimationIndex;
         }
 
         private void UpdateAnimationIndex(Action onUpdateBefore, Action onUpdateAfter)
@@ -957,12 +829,12 @@ namespace FrigidBlackwaters.Game
             {
                 onUpdateBefore?.Invoke();
                 int prevAnimationIndex = this.CurrAnimationIndex;
-                this.currAnimationIndex = this.playedAnimationIndex;
+                this.CurrAnimationIndex = this.AnimationIndexFromPlayedAnimation(this.playedAnimationIndex);
                 this.onAnimationUpdated?.Invoke(prevAnimationIndex, this.CurrAnimationIndex);
-                if (this.CurrAnimationIndex != -1) this.RootProperty.SetActive(true);
-                UpdateLocalRotation();
-                UpdateFrameIndex(null, null);
-                UpdateOrientationIndex(null, null);
+                this.RootProperty.Enable(this.CurrAnimationIndex != -1);
+                this.UpdateFrameIndex(null, null);
+                this.UpdateOrientationIndex(null, null);
+                this.UpdateLocalRotation();
                 onUpdateAfter?.Invoke();
             }
         }
@@ -972,7 +844,7 @@ namespace FrigidBlackwaters.Game
             if (this.CurrAnimationIndex != -1)
             {
                 this.RootProperty.AnimationEnter();
-                HandleFrameEnter();
+                this.HandleFrameEnter();
             }
         }
 
@@ -981,31 +853,37 @@ namespace FrigidBlackwaters.Game
             if (this.CurrAnimationIndex != -1)
             {
                 this.RootProperty.AnimationExit();
-                HandleFrameExit();
+                this.HandleFrameExit();
             }
         }
 
         private void RefreshFrame()
         {
-            UpdateFrameIndex(HandleFrameExit, HandleFrameEnter);
+            this.UpdateFrameIndex(this.HandleFrameExit, this.HandleFrameEnter);
+        }
+
+        private int FrameIndexFromElapsedDuration(int animationIndex, float elapsedDuration)
+        {
+            int frameIndex = -1;
+            if (animationIndex != -1 && this.GetFrameCount(animationIndex) > 0)
+            {
+                int framesElapsed = Mathf.FloorToInt(elapsedDuration * this.GetFrameRate(animationIndex));
+                frameIndex = this.GetLooping(animationIndex) ? (framesElapsed % this.GetFrameCount(animationIndex)) : Mathf.Min(framesElapsed, this.GetFrameCount(animationIndex) - 1);
+            }
+            return frameIndex;
         }
 
         private void UpdateFrameIndex(Action onUpdateBefore, Action onUpdateAfter)
         {
-            int newFrameIndex = -1;
-            if (this.CurrAnimationIndex != -1 && GetFrameCount(this.CurrAnimationIndex) > 0)
-            {
-                int framesElapsed = Mathf.FloorToInt(this.SelfElapsedDuration * GetFrameRate(this.CurrAnimationIndex));
-                newFrameIndex = GetLooping(this.CurrAnimationIndex) ? (framesElapsed % GetFrameCount(this.CurrAnimationIndex)) : Mathf.Min(framesElapsed, GetFrameCount(this.CurrAnimationIndex) - 1);
-            }
-
+            int newFrameIndex = this.FrameIndexFromElapsedDuration(this.CurrAnimationIndex, this.ElapsedDuration);
             if (newFrameIndex != this.CurrFrameIndex)
             {
                 onUpdateBefore?.Invoke();
                 int prevFrameIndex = this.CurrFrameIndex;
-                this.currFrameIndex = newFrameIndex;
+                this.CurrFrameIndex = newFrameIndex;
                 this.onFrameUpdated?.Invoke(prevFrameIndex, this.CurrFrameIndex);
-                UpdateOrientationIndex(null, null);
+                this.UpdateOrientationIndex(null, null);
+                this.UpdateLocalRotation();
                 onUpdateAfter?.Invoke();
             }
         }
@@ -1015,7 +893,7 @@ namespace FrigidBlackwaters.Game
             if (this.CurrAnimationIndex != -1 && this.CurrFrameIndex != -1)
             {
                 this.RootProperty.FrameEnter();
-                HandleOrientationEnter();
+                this.HandleOrientationEnter();
             }
         }
 
@@ -1024,39 +902,46 @@ namespace FrigidBlackwaters.Game
             if (this.CurrAnimationIndex != -1 && this.CurrFrameIndex != -1)
             {
                 this.RootProperty.FrameExit();
-                HandleOrientationExit();
+                this.HandleOrientationExit();
             }
         }
 
         private void RefreshOrientation()
         {
-            UpdateOrientationIndex(HandleOrientationExit, HandleOrientationEnter);
+            this.UpdateOrientationIndex(this.HandleOrientationExit, this.HandleOrientationEnter);
+        }
+
+        private int OrientationIndexFromDirection(int animationIndex, Vector2 direction)
+        {
+            int finalOrientationIndex = -1;
+            if (animationIndex != -1 && this.GetOrientationCount(animationIndex) > 0)
+            {
+                if (direction == Vector2.zero) return 0;
+
+                finalOrientationIndex = 0;
+                for (int orientationIndex = 1; orientationIndex < this.GetOrientationCount(animationIndex); orientationIndex++)
+                {
+                    float a1 = Vector2.Angle(direction, this.GetOrientationDirection(animationIndex, finalOrientationIndex));
+                    float a2 = Vector2.Angle(direction, this.GetOrientationDirection(animationIndex, orientationIndex));
+                    if (a2 < a1 + float.Epsilon)
+                    {
+                        finalOrientationIndex = orientationIndex;
+                    }
+                }
+            }
+            return finalOrientationIndex;
         }
 
         private void UpdateOrientationIndex(Action onUpdateBefore, Action onUpdateAfter)
         {
-            int newOrientationIndex = -1;
-            if (this.CurrAnimationIndex != -1 && GetOrientationCount(this.CurrAnimationIndex) > 0)
-            {
-                newOrientationIndex = 0;
-                for (int orientationIndex = 1; orientationIndex < GetOrientationCount(this.CurrAnimationIndex); orientationIndex++)
-                {
-                    float a1 = Vector2.Angle(this.direction, GetOrientationDirection(this.CurrAnimationIndex, newOrientationIndex));
-                    float a2 = Vector2.Angle(this.direction, GetOrientationDirection(this.CurrAnimationIndex, orientationIndex));
-                    if (a2 < a1 + float.Epsilon)
-                    {
-                        newOrientationIndex = orientationIndex;
-                    }
-                }
-            }
-
+            int newOrientationIndex = this.OrientationIndexFromDirection(this.CurrAnimationIndex, this.Direction);
             if (newOrientationIndex != this.CurrOrientationIndex)
             {
                 onUpdateBefore?.Invoke();
                 int prevOrientationIndex = this.CurrOrientationIndex;
-                this.currOrientationIndex = newOrientationIndex;
+                this.CurrOrientationIndex = newOrientationIndex;
                 this.onOrientationUpdated?.Invoke(prevOrientationIndex, this.CurrOrientationIndex);
-                UpdateLocalRotation();
+                this.UpdateLocalRotation();
                 onUpdateAfter?.Invoke();
             }
         }

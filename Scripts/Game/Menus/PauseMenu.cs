@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Audio;
 
+using FrigidBlackwaters.Core;
+
 namespace FrigidBlackwaters.Game
 {
     public class PauseMenu : Menu
@@ -27,24 +29,36 @@ namespace FrigidBlackwaters.Game
         private const string PLAYER_PREF_VOLUME_SETTING = "VolumeSetting";
         private const string PLAYER_PREF_QUALITY_SETTING = "QualityLevel";
 
-        protected override void Opened()
+        public override bool WantsToOpen()
         {
+            return InterfaceInput.ReturnPerformedThisFrame;
+        }
+
+        public override bool WantsToClose()
+        {
+            return InterfaceInput.ReturnPerformedThisFrame;
+        }
+
+        public override void Opened()
+        {
+            base.Opened();
             this.pauseContentTransform.gameObject.SetActive(true);
         }
 
-        protected override void Closed()
+        public override void Closed()
         {
+            base.Closed();
             this.pauseContentTransform.gameObject.SetActive(false);
         }
 
         protected override void Awake()
         {
             base.Awake();
-            this.exitButton.onClick.AddListener(ExitGame);
+            this.exitButton.onClick.AddListener(this.ExitGame);
             for (int i = 0; i < this.audioSliders.Count; i++)
             {
                 int sliderIndex = i;
-                this.audioSliders[sliderIndex].onValueChanged.AddListener((float slider01) => UpdateVolume(sliderIndex, slider01));
+                this.audioSliders[sliderIndex].onValueChanged.AddListener((float slider01) => this.UpdateVolume(sliderIndex, slider01));
             }
 
             this.pauseContentTransform.gameObject.SetActive(false);
@@ -55,7 +69,7 @@ namespace FrigidBlackwaters.Game
                 options.Add(new Dropdown.OptionData(QualitySettings.names[i]));
             }
             this.qualityDropdown.AddOptions(options);
-            this.qualityDropdown.onValueChanged.AddListener(UpdateQuality);
+            this.qualityDropdown.onValueChanged.AddListener(this.UpdateQuality);
         }
 
         protected override void Start()
@@ -67,13 +81,13 @@ namespace FrigidBlackwaters.Game
                 {
                     this.audioSliders[i].value = PlayerPrefs.GetFloat(PLAYER_PREF_VOLUME_SETTING + i);
                 }
-                UpdateVolume(i, this.audioSliders[i].value);
+                this.UpdateVolume(i, this.audioSliders[i].value);
             }
 
             if (PlayerPrefs.HasKey(PLAYER_PREF_QUALITY_SETTING))
             {
                 int qualityLevel = PlayerPrefs.GetInt(PLAYER_PREF_QUALITY_SETTING);
-                UpdateQuality(qualityLevel);
+                this.UpdateQuality(qualityLevel);
                 this.qualityDropdown.SetValueWithoutNotify(qualityLevel);
             }
             else

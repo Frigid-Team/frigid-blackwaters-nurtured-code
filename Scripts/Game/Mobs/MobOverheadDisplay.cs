@@ -8,12 +8,18 @@ namespace FrigidBlackwaters.Game
 {
     public class MobOverheadDisplay : FrigidMonoBehaviour
     {
+        private static SceneVariable<Dictionary<MobOverheadPopup, RecyclePool<MobOverheadPopup>>> popupPools;
+
+        [SerializeField]
+        private MobOverheadPopup popupPrefab;
+        [SerializeField]
+        private Transform popupsParent;
         [SerializeField]
         private float heightBuffer;
         [SerializeField]
         private float slideDuration;
         [SerializeField]
-        private List<AlignmentColoring> alignmentColorings;
+        private List<BarAlignmentSetting> barAlignmentSettings;
         [SerializeField]
         private SpriteRenderer outlineSpriteRenderer;
         [SerializeField]
@@ -33,7 +39,7 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private float increaseFillDuration;
         [SerializeField]
-        private SpriteRenderer stunBorderSpriteRenderer;
+        private SpriteRenderer stunIconSpriteRenderer;
         [SerializeField]
         private float fadeDuration;
 
@@ -41,17 +47,29 @@ namespace FrigidBlackwaters.Game
 
         private FrigidCoroutine barRoutine;
         private FrigidCoroutine fadeRoutine;
+
+        static MobOverheadDisplay()
+        {
+            popupPools = new SceneVariable<Dictionary<MobOverheadPopup, RecyclePool<MobOverheadPopup>>>(() => new Dictionary<MobOverheadPopup, RecyclePool<MobOverheadPopup>>());
+        }
         
         public void Spawn(Mob owner)
         {
             this.owner = owner;
 
-            foreach (AlignmentColoring groupColoring in this.alignmentColorings)
+            if (!popupPools.Current.ContainsKey(this.popupPrefab))
             {
-                if (groupColoring.Alignment == this.owner.Alignment)
+                popupPools.Current.Add(this.popupPrefab, new RecyclePool<MobOverheadPopup>(() => CreateInstance<MobOverheadPopup>(this.popupPrefab), (MobOverheadPopup popup) => DestroyInstance(popup)));
+            }
+
+            this.frontBarSpriteRenderer.color = Color.clear;
+            this.backBarSpriteRenderer.color = Color.clear;
+            foreach (BarAlignmentSetting barAlignmentSetting in this.barAlignmentSettings)
+            {
+                if (barAlignmentSetting.Alignment == this.owner.Alignment)
                 {
-                    this.frontBarSpriteRenderer.color = groupColoring.FrontBarColor;
-                    this.backBarSpriteRenderer.color = groupColoring.BackBarColor;
+                    this.frontBarSpriteRenderer.color = barAlignmentSetting.FrontBarColor;
+                    this.backBarSpriteRenderer.color = barAlignmentSetting.BackBarColor;
                     break;
                 }
             }
@@ -60,25 +78,41 @@ namespace FrigidBlackwaters.Game
                 (TiledArea previousTiledArea, TiledArea currentTiledArea) =>
                 {
                     this.transform.SetParent(this.owner.TiledArea.ContentsTransform);
-                    this.transform.position = this.owner.DisplayPosition + Vector2.up * (this.owner.Height + this.heightBuffer);
+                    this.transform.position = this.owner.Position + Vector2.up * (this.owner.Height + this.heightBuffer);
                 };
             this.transform.SetParent(this.owner.TiledArea.ContentsTransform);
-            FrigidCoroutine.Run(FollowOwner(), this.gameObject);
+            FrigidCoroutine.Run(this.FollowOwner(), this.gameObject);
 
-            FadeDisplayAlpha(0, 0);
+            this.FadeDisplayAlpha(0, 0);
 
-            this.owner.OnShowDisplaysChanged += ShowOrHideDisplay;
-            ShowOrHideDisplay();
+            this.owner.OnShowDisplaysChanged += this.ShowOrHideDisplay;
+            this.ShowOrHideDisplay();
             this.owner.OnActiveChanged += () => { this.gameObject.SetActive(this.owner.Active); };
             this.gameObject.SetActive(this.owner.Active);
-            this.owner.OnStunnedChanged += () => { this.stunBorderSpriteRenderer.enabled = this.owner.Stunned; };
-            this.stunBorderSpriteRenderer.enabled = this.owner.Stunned;
+            this.owner.OnStunnedChanged += () => { this.stunIconSpriteRenderer.enabled = this.owner.Stunned; };
+            this.stunIconSpriteRenderer.enabled = this.owner.Stunned;
+            this.owner.OnHealed +=
+                (int heal) =>
+                {
+                    if (!this.owner.ShowDisplays) return;
+                    MobOverheadPopup overheadPopup = popupPools.Current[this.popupPrefab].Retrieve();
+                    overheadPopup.transform.SetParent(this.popupsParent);
+                    overheadPopup.ShowHeal(heal, () => popupPools.Current[this.popupPrefab].Pool(overheadPopup));
+                };
+            this.owner.OnDamaged +=
+                (int damage) =>
+                {
+                    if (!this.owner.ShowDisplays) return;
+                    MobOverheadPopup overheadPopup = popupPools.Current[this.popupPrefab].Retrieve();
+                    overheadPopup.transform.SetParent(this.popupsParent);
+                    overheadPopup.ShowDamage(damage, () => popupPools.Current[this.popupPrefab].Pool(overheadPopup));
+                };
         }
 
         private void ShowOrHideDisplay()
         {
-            if (this.owner.ShowDisplays) Show();
-            else Hide();
+            if (this.owner.ShowDisplays) this.Show();
+            else this.Hide();
         }
 
         private void Show()
@@ -86,13 +120,13 @@ namespace FrigidBlackwaters.Game
             FrigidCoroutine.Kill(this.fadeRoutine);
             FrigidCoroutine.Kill(this.barRoutine);
 
-            SetBarSize();
-            SetBarFill(this.frontBarSpriteRenderer, (float)this.owner.RemainingHealth / this.owner.MaxHealth);
-            SetBarFill(this.backBarSpriteRenderer, (float)this.owner.RemainingHealth / this.owner.MaxHealth);
+            this.SetBarSize();
+            this.SetBarFill(this.frontBarSpriteRenderer, (float)this.owner.RemainingHealth / this.owner.MaxHealth);
+            this.SetBarFill(this.backBarSpriteRenderer, (float)this.owner.RemainingHealth / this.owner.MaxHealth);
 
-            this.owner.OnRemainingHealthChanged += ShowRemainingHealthChange;
-            this.owner.OnMaxHealthChanged += ShowMaxHealthChange;
-            FadeDisplayAlpha(1, this.fadeDuration);
+            this.owner.OnRemainingHealthChanged += this.ShowRemainingHealthChange;
+            this.owner.OnMaxHealthChanged += this.ShowMaxHealthChange;
+            this.FadeDisplayAlpha(1, this.fadeDuration);
         }
 
         private void Hide()
@@ -100,49 +134,49 @@ namespace FrigidBlackwaters.Game
             FrigidCoroutine.Kill(this.fadeRoutine);
             FrigidCoroutine.Kill(this.barRoutine);
 
-            this.owner.OnRemainingHealthChanged -= ShowRemainingHealthChange;
-            this.owner.OnMaxHealthChanged -= ShowMaxHealthChange;
-            FadeDisplayAlpha(0, this.fadeDuration);
+            this.owner.OnRemainingHealthChanged -= this.ShowRemainingHealthChange;
+            this.owner.OnMaxHealthChanged -= this.ShowMaxHealthChange;
+            this.FadeDisplayAlpha(0, this.fadeDuration);
         }
 
         private IEnumerator<FrigidCoroutine.Delay> FollowOwner()
         {
             while (true)
             {
-                this.transform.position = this.owner.DisplayPosition + Vector2.up * (this.owner.Height + this.heightBuffer);
+                this.transform.position = this.owner.Position + Vector2.up * (this.owner.Height + this.heightBuffer);
                 yield return null;
             }
         }
 
         private void SetBarSize()
         {
-            float borderXDiff = this.stunBorderSpriteRenderer.size.x - this.outlineSpriteRenderer.size.x;
-            float xSize = this.baseWidth * Mathf.Log(this.owner.MaxHealth) / Mathf.Log(this.widthScalingHealth);
+            float borderXDiff = this.stunIconSpriteRenderer.size.x - this.outlineSpriteRenderer.size.x;
+            float xSize = this.baseWidth * Mathf.Log(Mathf.Max((float)Math.E, this.owner.MaxHealth)) / Mathf.Log(this.widthScalingHealth);
             this.outlineSpriteRenderer.size = new Vector2(xSize, this.outlineSpriteRenderer.size.y);
-            this.stunBorderSpriteRenderer.size = new Vector2(xSize + borderXDiff, this.stunBorderSpriteRenderer.size.y);
+            this.stunIconSpriteRenderer.size = new Vector2(xSize + borderXDiff, this.stunIconSpriteRenderer.size.y);
             Vector2 newBarLocalPosition = new Vector2(-this.outlineSpriteRenderer.size.x / 2, 0);
             this.frontBarSpriteRenderer.transform.localPosition = newBarLocalPosition;
             this.backBarSpriteRenderer.transform.localPosition = newBarLocalPosition;
-            SetBarFill(this.frontBarSpriteRenderer, GetBarFill(this.frontBarSpriteRenderer));
-            SetBarFill(this.backBarSpriteRenderer, GetBarFill(this.backBarSpriteRenderer));
+            this.SetBarFill(this.frontBarSpriteRenderer, this.GetBarFill(this.frontBarSpriteRenderer));
+            this.SetBarFill(this.backBarSpriteRenderer, this.GetBarFill(this.backBarSpriteRenderer));
         }
 
         private void ShowRemainingHealthChange(int previousCurrentHealth, int currentHealth)
         {
             FrigidCoroutine.Kill(this.barRoutine);
             float targetFill = (float)this.owner.RemainingHealth / this.owner.MaxHealth;
-            SetBarFill(this.frontBarSpriteRenderer, targetFill);
+            this.SetBarFill(this.frontBarSpriteRenderer, targetFill);
             this.barRoutine = FrigidCoroutine.Run(
-                TweenCoroutine.DelayedCall(
+                Tween.Delay(
                     this.decreaseWaitDuration,
                     () =>
                     {
                         this.barRoutine = FrigidCoroutine.Run(
-                            TweenCoroutine.Value(
+                            Tween.Value(
                                 this.decreaseFillDuration,
-                                GetBarFill(this.backBarSpriteRenderer),
+                                this.GetBarFill(this.backBarSpriteRenderer),
                                 targetFill,
-                                onValueUpdated: (float progress01) => SetBarFill(this.backBarSpriteRenderer, progress01)
+                                onValueUpdated: (float progress01) => this.SetBarFill(this.backBarSpriteRenderer, progress01)
                                 ),
                             this.gameObject
                             );
@@ -154,11 +188,11 @@ namespace FrigidBlackwaters.Game
 
         private void ShowMaxHealthChange(int previousMaxHealth, int maxHealth)
         {
-            SetBarSize();
+            this.SetBarSize();
             FrigidCoroutine.Kill(this.barRoutine);
             float targetFill = (float)this.owner.RemainingHealth / this.owner.MaxHealth;
-            SetBarFill(this.frontBarSpriteRenderer, targetFill);
-            SetBarFill(this.backBarSpriteRenderer, targetFill);
+            this.SetBarFill(this.frontBarSpriteRenderer, targetFill);
+            this.SetBarFill(this.backBarSpriteRenderer, targetFill);
         }
 
         private void FadeDisplayAlpha(float toAlpha, float duration)
@@ -168,9 +202,9 @@ namespace FrigidBlackwaters.Game
             float origAccentsAlpha = this.accentsSpriteRenderer.color.a;
             float origFrontBarAlpha = this.frontBarSpriteRenderer.color.a;
             float origBackBarAlpha = this.backBarSpriteRenderer.color.a;
-            float stunIconAlpha = this.stunBorderSpriteRenderer.color.a;
+            float stunIconAlpha = this.stunIconSpriteRenderer.color.a;
             this.fadeRoutine = FrigidCoroutine.Run(
-                TweenCoroutine.Value(
+                Tween.Value(
                     duration,
                     0f,
                     1f,
@@ -180,7 +214,7 @@ namespace FrigidBlackwaters.Game
                         this.accentsSpriteRenderer.color = new Color(this.accentsSpriteRenderer.color.r, this.accentsSpriteRenderer.color.g, this.accentsSpriteRenderer.color.b, origAccentsAlpha + (toAlpha - origAccentsAlpha) * progress);
                         this.frontBarSpriteRenderer.color = new Color(this.frontBarSpriteRenderer.color.r, this.frontBarSpriteRenderer.color.g, this.frontBarSpriteRenderer.color.b, origFrontBarAlpha + (toAlpha - origFrontBarAlpha) * progress);
                         this.backBarSpriteRenderer.color = new Color(this.backBarSpriteRenderer.color.r, this.backBarSpriteRenderer.color.g, this.backBarSpriteRenderer.color.b, origBackBarAlpha + (toAlpha - origBackBarAlpha) * progress);
-                        this.stunBorderSpriteRenderer.color = new Color(this.stunBorderSpriteRenderer.color.r, this.stunBorderSpriteRenderer.color.g, this.stunBorderSpriteRenderer.color.b, stunIconAlpha + (toAlpha - stunIconAlpha) * progress);
+                        this.stunIconSpriteRenderer.color = new Color(this.stunIconSpriteRenderer.color.r, this.stunIconSpriteRenderer.color.g, this.stunIconSpriteRenderer.color.b, stunIconAlpha + (toAlpha - stunIconAlpha) * progress);
                     }
                     ),
                 this.gameObject
@@ -202,7 +236,7 @@ namespace FrigidBlackwaters.Game
 #endif
 
         [Serializable]
-        public struct AlignmentColoring
+        private struct BarAlignmentSetting
         {
             [SerializeField]
             private DamageAlignment alignment;

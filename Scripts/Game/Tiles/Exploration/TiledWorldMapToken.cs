@@ -10,12 +10,12 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Vector2 tokenPadding;
 
-        public void FillToken(TiledArea tiledArea, TiledWorldDiscovery tiledWorldDiscovery, int numberTokens, int tokenIndex, float worldToMapScalingFactor)
+        public void FillToken(TiledArea area, TiledWorldDiscovery discovery, int numberTokens, int tokenIndex, float worldToMapScalingFactor)
         {
             int squareWidth = Mathf.CeilToInt(Mathf.Sqrt(numberTokens));
             int squareHeight = Mathf.CeilToInt((float)numberTokens / squareWidth);
-            Vector2 topLeftPosition = tiledArea.CenterPosition * worldToMapScalingFactor + new Vector2(-(squareWidth - 1) / 2f, (squareHeight - 1) / 2f) * this.tokenPadding;
-            this.tokenImage.sprite = tiledWorldDiscovery.MapTokenSprite;
+            Vector2 topLeftPosition = area.CenterPosition * worldToMapScalingFactor + new Vector2(-(squareWidth - 1) / 2f, (squareHeight - 1) / 2f) * this.tokenPadding;
+            this.tokenImage.sprite = discovery.MapTokenSprite;
             this.transform.localPosition = topLeftPosition + new Vector2(tokenIndex % squareWidth, -tokenIndex / squareWidth) * this.tokenPadding;
         }
 

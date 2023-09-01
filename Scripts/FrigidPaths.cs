@@ -7,6 +7,7 @@ namespace FrigidBlackwaters
             public const string WINDOW = "Window/";
             public const string JOBS = "Jobs/";
             public const string EDIT_MODE = "Edit Mode/";
+            public const string HELP = "Help/";
         }
 
         public static class ProjectFolder
@@ -53,6 +54,12 @@ namespace FrigidBlackwaters
             public const string MENUS = "Menus/";
             public const string SCENE_CHANGE = "Scene Change/";
             public const string EXPEDITIONS = "Expeditions/";
+        }
+
+        public static class Scenes
+        {
+            public const string FIRST_DUNGEON_LEVEL = "Assets/Scenes/Build_Scenes/First_Dungeon_Level.unity";
+            public const string PORT_CITY = "Assets/Scenes/Build_Scenes/Port_City.unity";
         }
     }
 }

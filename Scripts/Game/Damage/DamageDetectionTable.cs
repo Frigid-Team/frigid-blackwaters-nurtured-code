@@ -39,6 +39,7 @@ namespace FrigidBlackwaters.Game
                 (DamageAlignment.Environment, DamageAlignment.Labyrinth),
                 (DamageAlignment.Environment, DamageAlignment.Voyagers),
                 (DamageAlignment.Environment, DamageAlignment.Neutrals),
+                (DamageAlignment.Environment, DamageAlignment.Environment),
                 (DamageAlignment.Labyrinth, DamageAlignment.Voyagers),
                 (DamageAlignment.Labyrinth, DamageAlignment.Neutrals),
                 (DamageAlignment.Voyagers, DamageAlignment.Neutrals)

@@ -8,8 +8,11 @@ namespace FrigidBlackwaters.Game
         private int maxPower;
         private int currentPower;
         private Action onCurrentPowerChanged;
-        private Action onUsePowerFailed;
+        private Action onCurrentPowerChangeFailed;
+        private Action onMaxPowerChanged;
+        private Action onMaxPowerChangeFailed;
         private Dictionary<Item, int> powerUsages;
+        private Dictionary<Item, int> maxPowerAdditions;
 
         public int MaxPower
         {
@@ -39,39 +42,63 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Action OnUsePowerFailed
+        public Action OnCurrentPowerChangeFailed
         {
             get
             {
-                return this.onUsePowerFailed;
+                return this.onCurrentPowerChangeFailed;
             }
             set
             {
-                this.onUsePowerFailed = value;
+                this.onCurrentPowerChangeFailed = value;
             }
         }
 
-        public ItemPowerBudget(int maxPower)
+        public Action OnMaxPowerChanged
         {
-            this.maxPower = maxPower;
-            this.currentPower = maxPower;
+            get
+            {
+                return this.onMaxPowerChanged;
+            }
+            set
+            {
+                this.onMaxPowerChanged = value;
+            }
+        }
+
+        public Action OnMaxPowerChangeFailed
+        {
+            get
+            {
+                return this.onMaxPowerChangeFailed;
+            }
+            set
+            {
+                this.onMaxPowerChangeFailed = value;
+            }
+        }
+
+        public ItemPowerBudget(int baseMaxPower)
+        {
+            this.maxPower = baseMaxPower;
+            this.currentPower = baseMaxPower;
             this.powerUsages = new Dictionary<Item, int>();
+            this.maxPowerAdditions = new Dictionary<Item, int>();
         }
 
         public bool TryUsePower(Item item, int power)
         {
-            TryReleasePower(item);
-            if (this.currentPower >= power)
+            if (!this.powerUsages.ContainsKey(item) && this.currentPower >= power && power >= 0)
             {
                 this.powerUsages.Add(item, power);
-                this.currentPower -= power;
                 if (power > 0)
                 {
+                    this.currentPower -= power;
                     this.onCurrentPowerChanged?.Invoke();
                 }
                 return true;
             }
-            this.onUsePowerFailed?.Invoke();
+            this.onCurrentPowerChangeFailed?.Invoke();
             return false;
         }
 
@@ -80,14 +107,57 @@ namespace FrigidBlackwaters.Game
             if (this.powerUsages.ContainsKey(item))
             {
                 int power = this.powerUsages[item];
-                this.currentPower += power;
                 this.powerUsages.Remove(item);
                 if (power > 0)
                 {
+                    this.currentPower += power;
                     this.onCurrentPowerChanged?.Invoke();
                 }
                 return true;
             }
+            this.onCurrentPowerChangeFailed?.Invoke();
+            return false;
+        }
+
+        public bool TryIncreaseMaxPower(Item item, int maxPower)
+        {
+            if (!this.maxPowerAdditions.ContainsKey(item) && maxPower >= 0)
+            {
+                this.maxPowerAdditions.Add(item, maxPower);
+                if (maxPower > 0)
+                {
+                    this.maxPower += maxPower;
+                    this.currentPower += maxPower;
+                    this.onCurrentPowerChanged?.Invoke();
+                    this.onMaxPowerChanged?.Invoke();
+                }
+                return true;
+            }
+            this.onCurrentPowerChangeFailed?.Invoke();
+            this.onMaxPowerChangeFailed?.Invoke();
+            return false;
+        }
+
+        public bool TryDecreaseMaxPower(Item item)
+        {
+            if (this.maxPowerAdditions.ContainsKey(item))
+            {
+                int maxPower = this.maxPowerAdditions[item];
+                if (this.currentPower >= maxPower)
+                {
+                    this.maxPowerAdditions.Remove(item);
+                    if (maxPower > 0)
+                    {
+                        this.currentPower -= maxPower;
+                        this.maxPower -= maxPower;
+                        this.onCurrentPowerChanged?.Invoke();
+                        this.onMaxPowerChanged?.Invoke();
+                    }
+                    return true;
+                }
+            }
+            this.onCurrentPowerChangeFailed?.Invoke();
+            this.onMaxPowerChangeFailed?.Invoke();
             return false;
         }
     }

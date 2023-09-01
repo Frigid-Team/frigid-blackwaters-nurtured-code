@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Linq;
 using System.Collections.Generic;
 
 using FrigidBlackwaters.Core;
@@ -10,55 +11,77 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Targeter originTargeter;
         [SerializeField]
-        private bool affectsOwner;
-        [SerializeField]
-        private bool affectsAllies;
+        private MobQuery affecteeQuery;
         [SerializeField]
         private FloatSerializedReference effectRadius;
         [SerializeField]
-        private List<MobBehaviour> auraBehaviourOriginals;
+        private List<MobBehaviour> childBehaviours;
 
-        private Dictionary<Mob, List<MobBehaviour>> inAuraMap;
+        private Dictionary<Mob, List<MobBehaviour>> affecteesAndBehaviours;
 
         public override void Enter()
         {
             base.Enter();
-            this.inAuraMap = new Dictionary<Mob, List<MobBehaviour>>();
+            this.affecteesAndBehaviours = new Dictionary<Mob, List<MobBehaviour>>();
+        }
+
+        public override void Exit()
+        {
+            base.Exit();
+            foreach (KeyValuePair<Mob, List<MobBehaviour>> affecteeAndBehaviours in this.affecteesAndBehaviours)
+            {
+                Mob affectee = affecteeAndBehaviours.Key;
+                List<MobBehaviour> behaviours = affecteeAndBehaviours.Value;
+                foreach (MobBehaviour behaviour in behaviours)
+                {
+                    affectee.RemoveBehaviour(behaviour);
+                    behaviour.transform.SetParent(this.transform);
+                }
+            }
+            this.affecteesAndBehaviours = null;
         }
 
         public override void Refresh()
         {
             base.Refresh();
-            
-            foreach (Mob affector in Mob.GetActiveMobsIn(this.Owner.TiledArea).ThatAreOfAlignments(this.affectsAllies ? this.Owner.PassiveAlignments : this.Owner.HostileAlignments).ThatAreNotDead())
+
+            List<Mob> potentialAffectees = this.affecteeQuery.Execute();
+            foreach (Mob potentialAffectee in potentialAffectees)
             {
-                if (Vector2.Distance(affector.Position, this.originTargeter.Calculate(Vector2.zero, 0, 0)) <= this.effectRadius.ImmutableValue && (this.affectsOwner || affector != this.Owner))
+                if (this.affecteesAndBehaviours.ContainsKey(potentialAffectee))
                 {
-                    if (!this.inAuraMap.ContainsKey(affector))
-                    {
-                        List<MobBehaviour> auraBehaviours = new List<MobBehaviour>();
-                        foreach (MobBehaviour auraBehaviourOriginal in this.auraBehaviourOriginals)
-                        {
-                            auraBehaviours.Add(FrigidInstancing.CreateInstance<MobBehaviour>(auraBehaviourOriginal));
-                        }
-                        foreach(MobBehaviour behaviour in auraBehaviours)
-                        {
-                            affector.AddBehaviour(behaviour, this.Owner.GetIsIgnoringTimeScale(this));
-                        }
-                        this.inAuraMap.Add(affector, auraBehaviours);
-                    }
+                    continue;
                 }
-                else
+
+                if (Vector2.Distance(potentialAffectee.Position, this.originTargeter.Retrieve(Vector2.zero, 0, 0)) <= this.effectRadius.ImmutableValue && potentialAffectee.Status != MobStatus.Dead)
                 {
-                    if (this.inAuraMap.ContainsKey(affector))
+                    List<MobBehaviour> auraBehaviours = new List<MobBehaviour>();
+                    foreach (MobBehaviour childBehaviour in this.childBehaviours)
                     {
-                        foreach (MobBehaviour behaviour in this.inAuraMap[affector])
-                        {
-                            affector.RemoveBehaviour(behaviour);
-                            FrigidInstancing.DestroyInstance(behaviour);
-                        }
-                        this.inAuraMap.Remove(affector);
+                        auraBehaviours.Add(CreateInstance<MobBehaviour>(childBehaviour));
                     }
+                    foreach(MobBehaviour behaviour in auraBehaviours)
+                    {
+                        behaviour.transform.SetParent(potentialAffectee.transform);
+                        behaviour.transform.localPosition = Vector3.zero;
+                        potentialAffectee.AddBehaviour(behaviour, this.Owner.GetIsIgnoringTimeScale(this));
+                    }
+                    this.affecteesAndBehaviours.Add(potentialAffectee, auraBehaviours);
+                }
+            }
+
+            List<Mob> affectees = this.affecteesAndBehaviours.Keys.ToList();
+            foreach (Mob affectee in affectees)
+            {
+                if (Vector2.Distance(affectee.Position, this.originTargeter.Retrieve(Vector2.zero, 0, 0)) > this.effectRadius.ImmutableValue || affectee.Status == MobStatus.Dead)
+                {
+                    foreach (MobBehaviour behaviour in this.affecteesAndBehaviours[affectee])
+                    {
+                        affectee.RemoveBehaviour(behaviour);
+                        behaviour.transform.SetParent(this.transform);
+                        DestroyInstance(behaviour);
+                    }
+                    this.affecteesAndBehaviours.Remove(affectee);
                 }
             }
         }

@@ -13,6 +13,8 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private ItemClassification classification;
         [SerializeField]
+        private ItemRarity rarity;
+        [SerializeField]
         private bool ignoreBuyCostModifiers;
         [SerializeField]
         private IntSerializedReference currencyValue;
@@ -25,7 +27,6 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private string displayName;
         [SerializeField]
-        [TextArea]
         private string powerDescription;
         [SerializeField]
         [TextArea]
@@ -38,15 +39,23 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private ColorSerializedReference accentColor;
         [SerializeField]
-        private AudioClip inEffectAudioClip;
+        private AudioClip inUseClip;
         [SerializeField]
-        private AudioClip notInEffectAudioClip;
+        private AudioClip notInUseClip;
 
         public ItemClassification Classification
         {
             get
             {
                 return this.classification;
+            }
+        }
+
+        public ItemRarity Rarity
+        {
+            get
+            {
+                return this.rarity;
             }
         }
 
@@ -130,25 +139,25 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public AudioClip InEffectAudioClip
+        public AudioClip InUseClip
         {
             get
             {
-                return this.inEffectAudioClip;
+                return this.inUseClip;
             }
         }
 
-        public AudioClip NotInEffectAudioClip
+        public AudioClip NotInUseClip
         {
             get
             {
-                return this.notInEffectAudioClip;
+                return this.notInUseClip;
             }
         }
 
         public Item CreateItem()
         {
-            return FrigidInstancing.CreateInstance<Item>(this.itemPrefab);
+            return FrigidMonoBehaviour.CreateInstance<Item>(this.itemPrefab);
         }
 
         public List<Item> CreateItems(int quantity)
@@ -156,9 +165,22 @@ namespace FrigidBlackwaters.Game
             List<Item> spawnedItems = new List<Item>();
             for (int i = 0; i < quantity; i++)
             {
-                spawnedItems.Add(CreateItem());
+                spawnedItems.Add(this.CreateItem());
             }
             return spawnedItems;
+        }
+
+        public static void DiscardItem(Item item)
+        {
+            FrigidMonoBehaviour.DestroyInstance(item);
+        }
+
+        public static void DiscardItems(List<Item> items)
+        {
+            foreach (Item item in items)
+            {
+                DiscardItem(item);
+            }
         }
     }
 }

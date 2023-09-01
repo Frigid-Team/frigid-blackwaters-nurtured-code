@@ -2,8 +2,6 @@
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEditor;
-using System.Collections.Generic;
-using System;
 
 using FrigidBlackwaters.Utility;
 using FrigidBlackwaters.Core;
@@ -44,14 +42,13 @@ namespace FrigidBlackwaters.Game
         public override void DrawFrameEditFields(int animationIndex, int frameIndex)
         {
             LightAnimatorProperty lightProperty = (LightAnimatorProperty)this.Property;
-            lightProperty.SetLightColorByReference(animationIndex, frameIndex, Core.GUILayoutHelper.ColorSerializedReferenceField("Light Color", lightProperty.GetLightColorByReference(animationIndex, frameIndex)));
+            lightProperty.SetLightColorByReference(animationIndex, frameIndex, CoreGUILayout.ColorSerializedReferenceField("Light Color", lightProperty.GetLightColorByReference(animationIndex, frameIndex)));
             base.DrawFrameEditFields(animationIndex, frameIndex);
         }
 
         public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)
         {
             LightAnimatorProperty lightProperty = (LightAnimatorProperty)this.Property;
-            lightProperty.SetLocalOffset(animationIndex, frameIndex, orientationIndex, EditorGUILayout.Vector2Field("Local Offset", lightProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex)));
             switch (lightProperty.LightType)
             {
                 case Light2D.LightType.Point:
@@ -66,12 +63,6 @@ namespace FrigidBlackwaters.Game
                         frameIndex,
                         orientationIndex,
                         EditorGUILayout.FloatField("Outer Radius", lightProperty.GetOuterRadius(animationIndex, frameIndex, orientationIndex))
-                        );
-                    lightProperty.SetNormalAngleRad(
-                        animationIndex,
-                        frameIndex,
-                        orientationIndex,
-                        EditorGUILayout.Slider("Normal Angle", lightProperty.GetNormalAngleRad(animationIndex, frameIndex, orientationIndex) * Mathf.Rad2Deg, 0, 360) * Mathf.Deg2Rad
                         );
                     lightProperty.SetInnerAngleRad(
                         animationIndex,
@@ -90,7 +81,7 @@ namespace FrigidBlackwaters.Game
                     using (new EditorGUILayout.HorizontalScope())
                     {
                         lightProperty.NumberFreeformPoints = EditorGUILayout.IntField("Number Freeform Points", lightProperty.NumberFreeformPoints);
-                        EditorGUILayout.LabelField("Points", GUIStyling.WordWrapAndCenter(EditorStyles.boldLabel));
+                        EditorGUILayout.LabelField("Points", UtilityStyles.WordWrapAndCenter(EditorStyles.boldLabel));
                     }
                     for (int pointIndex = 0; pointIndex < lightProperty.NumberFreeformPoints; pointIndex++)
                     {
@@ -101,33 +92,30 @@ namespace FrigidBlackwaters.Game
             base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
         }
 
-        public override Vector2 DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
+        public override void DrawPreview(Vector2 previewSize, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected)
         {
             LightAnimatorProperty lightProperty = (LightAnimatorProperty)this.Property;
-
-            dragRequests = new List<(Rect rect, Action onDrag)>();
 
             Vector2 handleSize = new Vector2(this.Config.HandleLength, this.Config.HandleLength);
             Vector2 grabSize = new Vector2(this.Config.HandleGrabLength, this.Config.HandleGrabLength);
 
-            Vector2 localPreviewOffset = lightProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1);
+            Vector2 drawPosition = previewSize / 2;
             switch (lightProperty.LightType)
             {
                 case Light2D.LightType.Point:
-                    Vector2 circleDrawCenter = previewSize / 2 + localPreviewOffset + previewOffset;
                     float outerCircleDrawRadius = lightProperty.GetOuterRadius(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
                     float innerCircleDrawRadius = lightProperty.GetInnerRadius(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
 
-                    using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                    using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                     {
-                        GUIHelper.DrawLineArc(circleDrawCenter, 0, Mathf.PI * 2, outerCircleDrawRadius);
-                        GUIHelper.DrawLineArc(circleDrawCenter, 0, Mathf.PI * 2, innerCircleDrawRadius);
+                        UtilityGUI.DrawLineArc(drawPosition, 0, Mathf.PI * 2, outerCircleDrawRadius);
+                        UtilityGUI.DrawLineArc(drawPosition, 0, Mathf.PI * 2, innerCircleDrawRadius);
                     }
 
                     if (propertySelected)
                     {
-                        Vector2 closestOuterPoint = Geometry.FindNearestPointOnCircle(circleDrawCenter, outerCircleDrawRadius, Event.current.mousePosition);
-                        Vector2 closestInnerPoint = Geometry.FindNearestPointOnCircle(circleDrawCenter, innerCircleDrawRadius, Event.current.mousePosition);
+                        Vector2 closestOuterPoint = Geometry.FindNearestPointOnCircle(drawPosition, outerCircleDrawRadius, Event.current.mousePosition);
+                        Vector2 closestInnerPoint = Geometry.FindNearestPointOnCircle(drawPosition, innerCircleDrawRadius, Event.current.mousePosition);
                         float outerDistanceToMouse = Vector2.Distance(closestOuterPoint, Event.current.mousePosition);
                         float innerDistanceToMouse = Vector2.Distance(closestInnerPoint, Event.current.mousePosition);
                         if (outerDistanceToMouse < innerDistanceToMouse)
@@ -136,12 +124,17 @@ namespace FrigidBlackwaters.Game
                             Rect handleRect = new Rect(closestOuterPoint - handleSize / 2, handleSize);
                             if (outerDistanceToMouse < this.Config.HandleGrabLength / 2)
                             {
-                                using (new GUIHelper.ColorScope(this.AccentColor))
+                                using (new UtilityGUI.ColorScope(this.AccentColor))
                                 {
-                                    GUIHelper.DrawSolidBox(handleRect);
+                                    UtilityGUI.DrawSolidBox(handleRect);
                                 }
                             }
-                            dragRequests.Add((grabRect, () => lightProperty.SetOuterRadius(animationIndex, frameIndex, orientationIndex, ((Event.current.mousePosition - circleDrawCenter) * new Vector2(1, -1)).magnitude / worldToWindowScalingFactor)));
+
+                            if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && grabRect.Contains(Event.current.mousePosition - Event.current.delta))
+                            {
+                                lightProperty.SetOuterRadius(animationIndex, frameIndex, orientationIndex, ((Event.current.mousePosition - drawPosition) * new Vector2(1, -1)).magnitude / worldToWindowScalingFactor);
+                                Event.current.Use();
+                            }
                         }
                         else
                         {
@@ -149,46 +142,49 @@ namespace FrigidBlackwaters.Game
                             Rect handleRect = new Rect(closestInnerPoint - handleSize / 2, handleSize);
                             if (innerDistanceToMouse < this.Config.HandleGrabLength / 2)
                             {
-                                using (new GUIHelper.ColorScope(this.AccentColor))
+                                using (new UtilityGUI.ColorScope(this.AccentColor))
                                 {
-                                    GUIHelper.DrawSolidBox(handleRect);
+                                    UtilityGUI.DrawSolidBox(handleRect);
                                 }
                             }
 
-                            dragRequests.Add((grabRect, () => lightProperty.SetInnerRadius(animationIndex, frameIndex, orientationIndex, ((Event.current.mousePosition - circleDrawCenter) * new Vector2(1, -1)).magnitude / worldToWindowScalingFactor)));
+                            if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && grabRect.Contains(Event.current.mousePosition - Event.current.delta))
+                            {
+                                lightProperty.SetInnerRadius(animationIndex, frameIndex, orientationIndex, ((Event.current.mousePosition - drawPosition) * new Vector2(1, -1)).magnitude / worldToWindowScalingFactor);
+                                Event.current.Use();
+                            }
                         }
-                        dragRequests.Add((new Rect(Vector2.zero, previewSize), () => lightProperty.SetLocalOffset(animationIndex, frameIndex, orientationIndex, lightProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor)));
                     }
 
                     float arcDrawRadius = lightProperty.GetOuterRadius(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor + this.Config.HandleGrabLength / 2;
-                    float normalAngleRad = lightProperty.GetNormalAngleRad(animationIndex, frameIndex, orientationIndex);
+                    float normalAngleRad = Mathf.PI / 2;
                     float innerHalfAngleRad = lightProperty.GetInnerAngleRad(animationIndex, frameIndex, orientationIndex) / 2;
                     float outerHalfAngleRad = lightProperty.GetOuterAngleRad(animationIndex, frameIndex, orientationIndex) / 2;
 
-                    Vector2 innerHandlePosMin = circleDrawCenter + new Vector2(Mathf.Cos(-normalAngleRad - innerHalfAngleRad), Mathf.Sin(-normalAngleRad - innerHalfAngleRad)) * arcDrawRadius;
-                    Vector2 innerHandlePosMax = circleDrawCenter + new Vector2(Mathf.Cos(-normalAngleRad + innerHalfAngleRad), Mathf.Sin(-normalAngleRad + innerHalfAngleRad)) * arcDrawRadius;
-                    Vector2 outerHandlePosMin = circleDrawCenter + new Vector2(Mathf.Cos(-normalAngleRad - outerHalfAngleRad), Mathf.Sin(-normalAngleRad - outerHalfAngleRad)) * arcDrawRadius;
-                    Vector2 outerHandlePosMax = circleDrawCenter + new Vector2(Mathf.Cos(-normalAngleRad + outerHalfAngleRad), Mathf.Sin(-normalAngleRad + outerHalfAngleRad)) * arcDrawRadius;
+                    Vector2 innerHandlePosMin = drawPosition + new Vector2(Mathf.Cos(-normalAngleRad - innerHalfAngleRad), Mathf.Sin(-normalAngleRad - innerHalfAngleRad)) * arcDrawRadius;
+                    Vector2 innerHandlePosMax = drawPosition + new Vector2(Mathf.Cos(-normalAngleRad + innerHalfAngleRad), Mathf.Sin(-normalAngleRad + innerHalfAngleRad)) * arcDrawRadius;
+                    Vector2 outerHandlePosMin = drawPosition + new Vector2(Mathf.Cos(-normalAngleRad - outerHalfAngleRad), Mathf.Sin(-normalAngleRad - outerHalfAngleRad)) * arcDrawRadius;
+                    Vector2 outerHandlePosMax = drawPosition + new Vector2(Mathf.Cos(-normalAngleRad + outerHalfAngleRad), Mathf.Sin(-normalAngleRad + outerHalfAngleRad)) * arcDrawRadius;
 
-                    using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                    using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                     {
-                        GUIHelper.DrawLine(circleDrawCenter, innerHandlePosMin);
-                        GUIHelper.DrawLine(circleDrawCenter, innerHandlePosMax);
-                        GUIHelper.DrawLine(circleDrawCenter, outerHandlePosMin);
-                        GUIHelper.DrawLine(circleDrawCenter, outerHandlePosMax);
+                        UtilityGUI.DrawLine(drawPosition, innerHandlePosMin);
+                        UtilityGUI.DrawLine(drawPosition, innerHandlePosMax);
+                        UtilityGUI.DrawLine(drawPosition, outerHandlePosMin);
+                        UtilityGUI.DrawLine(drawPosition, outerHandlePosMax);
 
-                        GUIHelper.DrawLineArc(circleDrawCenter, -normalAngleRad - outerHalfAngleRad, -normalAngleRad + outerHalfAngleRad, arcDrawRadius);
+                        UtilityGUI.DrawLineArc(drawPosition, -normalAngleRad - outerHalfAngleRad, -normalAngleRad + outerHalfAngleRad, arcDrawRadius);
                     }
                     break;
                 case Light2D.LightType.Freeform:
                     Vector2[] drawPoints = new Vector2[lightProperty.NumberFreeformPoints];
                     for (int pointIndex = 0; pointIndex < lightProperty.NumberFreeformPoints; pointIndex++)
                     {
-                        drawPoints[pointIndex] = localPreviewOffset + lightProperty.GetFreeformPointAt(animationIndex, pointIndex) * worldToWindowScalingFactor * new Vector2(1, -1) + previewSize / 2 + previewOffset;
+                        drawPoints[pointIndex] = drawPosition + lightProperty.GetFreeformPointAt(animationIndex, pointIndex) * worldToWindowScalingFactor * new Vector2(1, -1);
                     }
-                    using (new GUIHelper.ColorScope(this.AccentColor))
+                    using (new UtilityGUI.ColorScope(this.AccentColor))
                     {
-                        GUIHelper.DrawLinePolygon(drawPoints);
+                        UtilityGUI.DrawLinePolygon(drawPoints);
                     }
 
                     if (propertySelected)
@@ -197,24 +193,29 @@ namespace FrigidBlackwaters.Game
                         {
                             Rect handleRect = new Rect(drawPoints[pointIndex] - handleSize / 2, handleSize);
                             Rect grabRect = new Rect(drawPoints[pointIndex] - grabSize / 2, grabSize);
-                            using (new GUIHelper.ColorScope(grabRect.Contains(Event.current.mousePosition) ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                            using (new UtilityGUI.ColorScope(grabRect.Contains(Event.current.mousePosition) ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                             {
-                                GUIHelper.DrawSolidBox(handleRect);
+                                UtilityGUI.DrawSolidBox(handleRect);
                             }
                             int savedPointIndex = pointIndex;
-                            dragRequests.Add((grabRect, () => lightProperty.SetFreeformPointAt(animationIndex, savedPointIndex, lightProperty.GetFreeformPointAt(animationIndex, savedPointIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor)));
+
+                            if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && grabRect.Contains(Event.current.mousePosition - Event.current.delta))
+                            {
+                                lightProperty.SetFreeformPointAt(animationIndex, savedPointIndex, lightProperty.GetFreeformPointAt(animationIndex, savedPointIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor);
+                                Event.current.Use();
+                            }
                         }
                     }
                     break;
             }
-            return localPreviewOffset;
+            base.DrawPreview(previewSize, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected);
         }
 
         public override void DrawFrameCellPreview(Vector2 cellSize, int animationIndex, int frameIndex)
         {
             LightAnimatorProperty lightProperty = (LightAnimatorProperty)this.Property;
 
-            using (new GUIHelper.ColorScope(lightProperty.GetLightColorByReference(animationIndex, frameIndex).ImmutableValue))
+            using (new UtilityGUI.ColorScope(lightProperty.GetLightColorByReference(animationIndex, frameIndex).ImmutableValue))
             {
                 GUI.DrawTexture(new Rect(Vector2.zero, cellSize), this.Config.CellPreviewSquareTexture);
             }
@@ -234,12 +235,12 @@ namespace FrigidBlackwaters.Game
                     float outerCircleDrawRadius = Mathf.Min(drawSize.x, drawSize.y) / 2;
                     float innerCircleDrawRadius = outerCircleDrawRadius * lightProperty.GetInnerRadius(animationIndex, frameIndex, orientationIndex) / lightProperty.GetOuterRadius(animationIndex, frameIndex, orientationIndex);
 
-                    using (new GUIHelper.ColorScope(this.AccentColor))
+                    using (new UtilityGUI.ColorScope(this.AccentColor))
                     {
-                        GUIHelper.DrawLineArc(cellSize / 2, 0, Mathf.PI * 2, outerCircleDrawRadius);
-                        GUIHelper.DrawLineArc(cellSize / 2, 0, Mathf.PI * 2, innerCircleDrawRadius);
+                        UtilityGUI.DrawLineArc(cellSize / 2, 0, Mathf.PI * 2, outerCircleDrawRadius);
+                        UtilityGUI.DrawLineArc(cellSize / 2, 0, Mathf.PI * 2, innerCircleDrawRadius);
 
-                        float normalAngleRad = lightProperty.GetNormalAngleRad(animationIndex, frameIndex, orientationIndex);
+                        float normalAngleRad = Mathf.PI / 2;
                         float innerHalfAngleRad = lightProperty.GetInnerAngleRad(animationIndex, frameIndex, orientationIndex) / 2;
                         float outerHalfAngleRad = lightProperty.GetOuterAngleRad(animationIndex, frameIndex, orientationIndex) / 2;
 
@@ -248,10 +249,10 @@ namespace FrigidBlackwaters.Game
                         Vector2 outerHandlePosMin = cellSize / 2 + new Vector2(Mathf.Cos(-normalAngleRad - outerHalfAngleRad), Mathf.Sin(-normalAngleRad - outerHalfAngleRad)) * outerCircleDrawRadius;
                         Vector2 outerHandlePosMax = cellSize / 2 + new Vector2(Mathf.Cos(-normalAngleRad + outerHalfAngleRad), Mathf.Sin(-normalAngleRad + outerHalfAngleRad)) * outerCircleDrawRadius;
 
-                        GUIHelper.DrawLine(cellSize / 2, innerHandlePosMin);
-                        GUIHelper.DrawLine(cellSize / 2, innerHandlePosMax);
-                        GUIHelper.DrawLine(cellSize / 2, outerHandlePosMin);
-                        GUIHelper.DrawLine(cellSize / 2, outerHandlePosMax);
+                        UtilityGUI.DrawLine(cellSize / 2, innerHandlePosMin);
+                        UtilityGUI.DrawLine(cellSize / 2, innerHandlePosMax);
+                        UtilityGUI.DrawLine(cellSize / 2, outerHandlePosMin);
+                        UtilityGUI.DrawLine(cellSize / 2, outerHandlePosMax);
                     }
                     break;
                 case Light2D.LightType.Freeform:
@@ -278,9 +279,9 @@ namespace FrigidBlackwaters.Game
                             drawPoints[pointIndex] = cellSize / 2 + (drawPoints[pointIndex] - (Vector2)bounds.center) * scalingFactor;
                         }
 
-                        using (new GUIHelper.ColorScope(this.AccentColor))
+                        using (new UtilityGUI.ColorScope(this.AccentColor))
                         {
-                            GUIHelper.DrawLinePolygon(drawPoints);
+                            UtilityGUI.DrawLinePolygon(drawPoints);
                         }
                     }
                     break;

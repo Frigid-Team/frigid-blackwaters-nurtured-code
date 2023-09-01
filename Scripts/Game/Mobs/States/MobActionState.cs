@@ -5,6 +5,7 @@ namespace FrigidBlackwaters.Game
 {
     public class MobActionState : MobState
     {
+        [Space]
         [SerializeField]
         private string actionAnimationName;
         [SerializeField]
@@ -50,7 +51,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.chosenState == this)
                 {
-                    return this.actionAnimationCompleted;
+                    return !this.OwnerAnimatorBody.IsLooping && this.actionAnimationCompleted;
                 }
                 else
                 {
@@ -63,7 +64,14 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.chosenState == this || this.chosenState.ShouldEnter;
+                if (this.chosenState == this)
+                {
+                    return true;
+                }
+                else
+                {
+                    return this.chosenState.ShouldEnter;
+                }
             }
         }
 
@@ -71,23 +79,22 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.chosenState == this || this.chosenState.ShouldExit;
+                if (this.chosenState == this)
+                {
+                    return this.OwnerAnimatorBody.IsLooping || this.actionAnimationCompleted;
+                }
+                else
+                {
+                    return this.chosenState.ShouldExit;
+                }
             }
         }
 
-        public sealed override bool Dead
+        public sealed override MobStatus Status
         {
             get
             {
-                return false;
-            }
-        }
-
-        public sealed override bool Waiting
-        {
-            get
-            {
-                return false;
+                return MobStatus.Acting;
             }
         }
 
@@ -98,49 +105,49 @@ namespace FrigidBlackwaters.Game
             this.enteredSelf = false;
         }
 
-        public override void Switch()
+        public override void Move()
         {
-            base.Switch();
+            base.Move();
             this.chosenState = this;
         }
 
         public sealed override void Enter()
         {
             base.Enter();
-            this.Owner.OnRemainingHealthChanged += CheckTransitions;
-            this.Owner.TiledArea.OnTransitionStarted += CheckTransitions;
-            this.Owner.TiledArea.OnTransitionFinished += CheckTransitions;
-            this.Owner.TiledArea.OnClosed += CheckTransitions;
-            this.Owner.TiledArea.OnOpened += CheckTransitions;
-            this.Owner.OnTiledAreaChanged += SetTiledAreaCallbacks;
+            this.Owner.OnRemainingHealthChanged += this.CheckTransitions;
+            this.Owner.TiledArea.OnTransitionStarted += this.CheckTransitions;
+            this.Owner.TiledArea.OnTransitionFinished += this.CheckTransitions;
+            this.Owner.TiledArea.OnClosed += this.CheckTransitions;
+            this.Owner.TiledArea.OnOpened += this.CheckTransitions;
+            this.Owner.OnTiledAreaChanged += this.SetTiledAreaCallbacks;
             if (this.chosenState == this)
             {
-                EnterSelf();
+                this.EnterSelf();
             }
             else
             {
-                this.chosenState.OnCurrentStateChanged += SetCurrentStateFromChosenState;
+                this.chosenState.OnCurrentStateChanged += this.SetCurrentStateFromChosenState;
                 this.chosenState.Enter();
             }
-            CheckTransitions();
+            this.CheckTransitions();
         }
 
         public sealed override void Exit()
         {
             base.Exit();
-            this.Owner.OnRemainingHealthChanged -= CheckTransitions;
-            this.Owner.TiledArea.OnTransitionStarted -= CheckTransitions;
-            this.Owner.TiledArea.OnTransitionFinished -= CheckTransitions;
-            this.Owner.TiledArea.OnClosed -= CheckTransitions;
-            this.Owner.TiledArea.OnOpened -= CheckTransitions;
-            this.Owner.OnTiledAreaChanged -= SetTiledAreaCallbacks;
+            this.Owner.OnRemainingHealthChanged -= this.CheckTransitions;
+            this.Owner.TiledArea.OnTransitionStarted -= this.CheckTransitions;
+            this.Owner.TiledArea.OnTransitionFinished -= this.CheckTransitions;
+            this.Owner.TiledArea.OnClosed -= this.CheckTransitions;
+            this.Owner.TiledArea.OnOpened -= this.CheckTransitions;
+            this.Owner.OnTiledAreaChanged -= this.SetTiledAreaCallbacks;
             if (this.chosenState == this)
             {
-                ExitSelf();
+                this.ExitSelf();
             }
             else
             {
-                this.chosenState.OnCurrentStateChanged -= SetCurrentStateFromChosenState;
+                this.chosenState.OnCurrentStateChanged -= this.SetCurrentStateFromChosenState;
                 this.chosenState.Exit();
             }
         }
@@ -148,10 +155,10 @@ namespace FrigidBlackwaters.Game
         public sealed override void Refresh()
         {
             base.Refresh();
-            CheckTransitions();
+            this.CheckTransitions();
             if (this.chosenState == this)
             {
-                RefreshSelf();
+                this.RefreshSelf();
             }
             else
             {
@@ -187,9 +194,9 @@ namespace FrigidBlackwaters.Game
         {
             this.enteredSelf = true;
             this.selfEnterDuration = 0;
-            if (this.Owner.CanAct)
+            if (this.Owner.IsActingAndNotStunned)
             {
-                Vector2 directionToFace = this.facingDirection.Calculate(this.OwnerAnimatorBody.Direction, this.SelfEnterDuration, this.SelfEnterDurationDelta);
+                Vector2 directionToFace = this.facingDirection.Retrieve(this.OwnerAnimatorBody.Direction, this.SelfEnterDuration, this.SelfEnterDurationDelta);
                 if (directionToFace.magnitude > 0) this.OwnerAnimatorBody.Direction = directionToFace;
             }
             this.actionAnimationCompleted = false;
@@ -205,9 +212,9 @@ namespace FrigidBlackwaters.Game
         {
             this.selfEnterDurationDelta = Time.deltaTime * this.Owner.RequestedTimeScale;
             this.selfEnterDuration += this.selfEnterDurationDelta;
-            if (this.Owner.CanAct)
+            if (this.Owner.IsActingAndNotStunned)
             {
-                Vector2 directionToFace = this.facingDirection.Calculate(this.OwnerAnimatorBody.Direction, this.SelfEnterDuration, this.SelfEnterDurationDelta);
+                Vector2 directionToFace = this.facingDirection.Retrieve(this.OwnerAnimatorBody.Direction, this.SelfEnterDuration, this.SelfEnterDurationDelta);
                 if (directionToFace.magnitude > 0) this.OwnerAnimatorBody.Direction = directionToFace;
             }
         }
@@ -216,80 +223,80 @@ namespace FrigidBlackwaters.Game
         {
             if (this.chosenState == this && this.waitState.ShouldEnter && this.waitState.AutoEnter)
             {
-                SetChosenState(this.waitState);
+                this.SetChosenState(this.waitState);
             }
 
             if (this.chosenState == this.waitState && this.waitState.ShouldExit && this.waitState.AutoExit)
             {
-                SetChosenState(this);
+                this.SetChosenState(this);
             }
 
             if (this.chosenState == this && this.deathState.ShouldEnter && this.deathState.AutoEnter)
             {
-                SetChosenState(this.deathState);
+                this.SetChosenState(this.deathState);
             }
 
             if (this.chosenState == this.deathState && this.deathState.ShouldExit && this.deathState.AutoExit)
             {
-                SetChosenState(this);
+                this.SetChosenState(this);
             }
         }
 
         private void CheckTransitions(int previousCurrentHealth, int currentHealth)
         {
-            CheckTransitions();
+            this.CheckTransitions();
         }
 
         private void SetTiledAreaCallbacks(TiledArea previousTiledArea, TiledArea currentTiledArea)
         {
-            previousTiledArea.OnTransitionStarted -= CheckTransitions;
-            previousTiledArea.OnTransitionFinished -= CheckTransitions;
-            previousTiledArea.OnClosed -= CheckTransitions;
-            previousTiledArea.OnOpened -= CheckTransitions;
+            previousTiledArea.OnTransitionStarted -= this.CheckTransitions;
+            previousTiledArea.OnTransitionFinished -= this.CheckTransitions;
+            previousTiledArea.OnClosed -= this.CheckTransitions;
+            previousTiledArea.OnOpened -= this.CheckTransitions;
 
-            currentTiledArea.OnTransitionStarted += CheckTransitions;
-            currentTiledArea.OnTransitionFinished += CheckTransitions;
-            currentTiledArea.OnClosed += CheckTransitions;
-            currentTiledArea.OnOpened += CheckTransitions;
+            currentTiledArea.OnTransitionStarted += this.CheckTransitions;
+            currentTiledArea.OnTransitionFinished += this.CheckTransitions;
+            currentTiledArea.OnClosed += this.CheckTransitions;
+            currentTiledArea.OnOpened += this.CheckTransitions;
 
-            CheckTransitions();
+            this.CheckTransitions();
         }
 
         private bool CanSetChosenState(MobState chosenState)
         {
-            if (chosenState == this) return CanSetCurrentState(this);
-            else return CanSetCurrentState(chosenState.CurrentState);
+            if (chosenState == this) return this.CanSetCurrentState(this);
+            else return this.CanSetCurrentState(chosenState.CurrentState);
         }
 
         private void SetChosenState(MobState chosenState)
         {
-            if (CanSetChosenState(chosenState) && chosenState != this.chosenState)
+            if (this.CanSetChosenState(chosenState) && chosenState != this.chosenState)
             {
                 if (this.Entered)
                 {
                     if (this.chosenState == this)
                     {
-                        ExitSelf();
+                        this.ExitSelf();
                     }
                     else
                     {
                         this.chosenState.Exit();
-                        this.chosenState.OnCurrentStateChanged -= SetCurrentStateFromChosenState;
+                        this.chosenState.OnCurrentStateChanged -= this.SetCurrentStateFromChosenState;
                     }
                 }
 
                 this.chosenState = chosenState;
-                SetCurrentStateFromChosenState();
+                this.SetCurrentStateFromChosenState();
 
                 if (this.Entered)
                 {
                     if (this.chosenState == this)
                     {
-                        EnterSelf();
+                        this.EnterSelf();
                     }
                     else
                     {
-                        this.chosenState.OnCurrentStateChanged += SetCurrentStateFromChosenState;
+                        this.chosenState.OnCurrentStateChanged += this.SetCurrentStateFromChosenState;
                         this.chosenState.Enter();
                     }
                 }
@@ -298,13 +305,13 @@ namespace FrigidBlackwaters.Game
 
         private void SetCurrentStateFromChosenState(MobState previousState, MobState newState)
         {
-            SetCurrentStateFromChosenState();
+            this.SetCurrentStateFromChosenState();
         }
 
         private void SetCurrentStateFromChosenState()
         {
-            if (this.chosenState == this) SetCurrentState(this);
-            else SetCurrentState(this.chosenState.CurrentState);
+            if (this.chosenState == this) this.SetCurrentState(this);
+            else this.SetCurrentState(this.chosenState.CurrentState);
         }
     }
 }

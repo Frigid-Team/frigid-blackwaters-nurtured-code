@@ -5,28 +5,31 @@ namespace FrigidBlackwaters.Game
 {
     public class GameCamera : FrigidMonoBehaviour
     {
-        private const int CAMERA_TILED_AREA_X_LENGTH_COVERAGE = 22;
-        private const int CAMERA_TILED_AREA_Y_LENGTH_COVERAGE = 14;
         private const float CAMERA_SLIDE_SPEED = 10f;
+
+        [SerializeField]
+        private Camera camera;
+        [SerializeField]
+        private Vector2 wallViewportPadding;
 
         private FrigidCoroutine currentFollowRoutine;
 
         protected override void OnEnable()
         {
             base.OnEnable();
-            PlayerMob.OnExists += Startup;
-            PlayerMob.OnUnexists += Teardown;
-            TiledArea.OnFocusedTiledAreaChanged += RenewFollowRoutine;
-            Startup();
+            PlayerMob.OnExists += this.Startup;
+            PlayerMob.OnUnexists += this.Teardown;
+            TiledArea.OnFocusedAreaChanged += this.RenewFollowRoutine;
+            this.Startup();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            PlayerMob.OnExists -= Startup;
-            PlayerMob.OnUnexists -= Teardown;
-            TiledArea.OnFocusedTiledAreaChanged -= RenewFollowRoutine;
-            Teardown();
+            PlayerMob.OnExists -= this.Startup;
+            PlayerMob.OnUnexists -= this.Teardown;
+            TiledArea.OnFocusedAreaChanged -= this.RenewFollowRoutine;
+            this.Teardown();
         }
 
 #if UNITY_EDITOR
@@ -37,9 +40,9 @@ namespace FrigidBlackwaters.Game
         {
             if (PlayerMob.TryGet(out PlayerMob player))
             {
-                this.transform.position = CalculateCameraPosition();
-                player.OnTiledAreaChanged += RenewFollowRoutine;
-                BeginFollowRoutine();
+                this.transform.position = this.CalculateCameraPosition();
+                player.OnTiledAreaChanged += this.RenewFollowRoutine;
+                this.BeginFollowRoutine();
             }
         }
 
@@ -47,32 +50,26 @@ namespace FrigidBlackwaters.Game
         {
             if (PlayerMob.TryGet(out PlayerMob player))
             {
-                player.OnTiledAreaChanged -= RenewFollowRoutine;
-                FinishFollowRoutine();
+                player.OnTiledAreaChanged -= this.RenewFollowRoutine;
+                this.FinishFollowRoutine();
             }
         }
 
         private void RenewFollowRoutine(TiledArea previousTiledArea, TiledArea currentTiledArea)
         {
-            RenewFollowRoutine();
+            this.RenewFollowRoutine();
         }
 
         private void RenewFollowRoutine()
         {
-            FinishFollowRoutine();
-            this.transform.position = CalculateCameraPosition();
-            BeginFollowRoutine();
+            this.FinishFollowRoutine();
+            this.transform.position = this.CalculateCameraPosition();
+            this.BeginFollowRoutine();
         }
 
         private void BeginFollowRoutine()
         {
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && PlayerMob.TryGet(out PlayerMob player))
-            {
-                if (player.TiledArea == focusedTiledArea)
-                {
-                    this.currentFollowRoutine = FrigidCoroutine.Run(FollowPlayerInTiledArea(), this.gameObject);
-                }
-            }
+            this.currentFollowRoutine = FrigidCoroutine.Run(this.FollowPlayerInTiledArea(), this.gameObject);
         }
 
         private void FinishFollowRoutine()
@@ -84,10 +81,10 @@ namespace FrigidBlackwaters.Game
         {
             while (true)
             {
-                Vector3 target = CalculateCameraPosition();
+                Vector3 target = this.CalculateCameraPosition();
                 Vector3 delta = (target - this.transform.position).normalized * Mathf.Min(FrigidCoroutine.DeltaTime * CAMERA_SLIDE_SPEED, Vector2.Distance(this.transform.position, target));
 
-                if (delta.magnitude < GameConstants.SMALLEST_WORLD_SIZE) this.transform.position = target;
+                if (delta.magnitude < FrigidConstants.SMALLEST_WORLD_SIZE) this.transform.position = target;
                 else this.transform.position += delta;
 
                 yield return null;
@@ -96,13 +93,14 @@ namespace FrigidBlackwaters.Game
 
         private Vector3 CalculateCameraPosition()
         {
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea) && PlayerMob.TryGet(out PlayerMob player) && player.TiledArea == focusedTiledArea)
+            if (TiledArea.TryGetFocusedArea(out TiledArea focusedTiledArea) && PlayerMob.TryGet(out PlayerMob player) && player.TiledArea == focusedTiledArea)
             {
-                Vector2 extent =
-                    new Vector2(
-                        GameConstants.UNIT_WORLD_SIZE * Mathf.Max(focusedTiledArea.MainAreaDimensions.x - CAMERA_TILED_AREA_X_LENGTH_COVERAGE, 0) / 2f,
-                        GameConstants.UNIT_WORLD_SIZE * Mathf.Max(focusedTiledArea.MainAreaDimensions.y - CAMERA_TILED_AREA_Y_LENGTH_COVERAGE, 0) / 2f
-                        );
+                Vector2 coverageSize = new Vector2(this.camera.orthographicSize * 2 * this.camera.aspect, this.camera.orthographicSize * 2);
+                Vector2 viewportSize = 
+                    focusedTiledArea.HasVisibleWalls ? 
+                    (FrigidConstants.UNIT_WORLD_SIZE * (Vector2)focusedTiledArea.WallAreaDimensions + this.wallViewportPadding) : 
+                    (FrigidConstants.UNIT_WORLD_SIZE * (Vector2)focusedTiledArea.MainAreaDimensions);
+                Vector2 extent = new Vector2(Mathf.Max((viewportSize.x - coverageSize.x) / 2f, 0f), Mathf.Max((viewportSize.y - coverageSize.y) / 2f, 0f));
                 Vector3 target =
                     new Vector3(
                         Mathf.Clamp(player.Position.x, focusedTiledArea.CenterPosition.x - extent.x, focusedTiledArea.CenterPosition.x + extent.x),

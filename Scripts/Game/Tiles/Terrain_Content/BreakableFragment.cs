@@ -25,7 +25,7 @@ namespace FrigidBlackwaters.Game
 
         public void LaunchFragment(Vector2 impactForce)
         {
-            FrigidCoroutine.Run(FragmentLifetime(impactForce), this.gameObject);
+            FrigidCoroutine.Run(this.FragmentLifetime(impactForce), this.gameObject);
         }
 
         private IEnumerator<FrigidCoroutine.Delay> FragmentLifetime(Vector2 impactForce)
@@ -41,7 +41,7 @@ namespace FrigidBlackwaters.Game
             if (this.alignStraight)
             {
                 FrigidCoroutine.Run(
-                    TweenCoroutine.Value(
+                    Tween.Value(
                         this.totalDuration,
                         this.transform.rotation.eulerAngles.z,
                         (UnityEngine.Random.Range(0, 2) == 1 ? UnityEngine.Random.Range(-4, -2) : UnityEngine.Random.Range(3, 5)) * 360,

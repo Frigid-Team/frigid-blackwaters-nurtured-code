@@ -10,13 +10,7 @@ namespace FrigidBlackwaters.Game
     {
         [Header("Menus")]
         [SerializeField]
-        private Menu onReturnMenu;
-        [SerializeField]
-        private List<Menu> onAccessMenus;
-        [SerializeField]
-        private List<Menu> onExpandMenus;
-        [SerializeField]
-        private Transform menusTransform;
+        private List<Menu> menus;
 
         [Header("Backdrop")]
         [SerializeField]
@@ -42,149 +36,88 @@ namespace FrigidBlackwaters.Game
         protected override void OnEnable()
         {
             base.OnEnable();
-            InterfaceInput.OnReturn += ReturnMenus;
-            InterfaceInput.OnAccess += ToggleOnAccessMenus;
-            InterfaceInput.OnExpand += ToggleOnExpandMenus;
             if (this.currentMenu != null)
             {
                 CharacterInput.Disabled.Request();
                 TimePauser.Paused.Request();
             }
+            LoadingOverlay.OnLoadStart += this.CloseCurrentMenu;
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            InterfaceInput.OnReturn -= ReturnMenus;
-            InterfaceInput.OnAccess -= ToggleOnAccessMenus;
-            InterfaceInput.OnExpand -= ToggleOnExpandMenus;
             if (this.currentMenu != null)
             {
                 CharacterInput.Disabled.Release();
                 TimePauser.Paused.Release();
             }
+            LoadingOverlay.OnLoadStart -= this.CloseCurrentMenu;
         }
 
         protected override void Update()
         {
             base.Update();
             this.pointerImage.transform.position = InterfaceInput.PointPosition;
-        }
-
-        private void ReturnMenus()
-        {
-            if (this.currentMenu != null)
+            if (this.currentMenu == null)
             {
-                if (this.currentMenu.IsClosable())
+                foreach (Menu menu in this.menus)
                 {
-                    CloseMenu(this.currentMenu);
-                }
-            }
-            else
-            {
-                if (this.onReturnMenu.IsOpenable())
-                {
-                    OpenMenu(this.onReturnMenu);
-                }
-            }
-        }
-
-        private void ToggleOnAccessMenus()
-        {
-            ToggleMenuOnShortcut(this.onAccessMenus);
-        }
-
-        private void ToggleOnExpandMenus()
-        {
-            ToggleMenuOnShortcut(this.onExpandMenus);
-        }
-
-        private void ToggleMenuOnShortcut(List<Menu> menus)
-        {
-            Menu chosenMenu = null;
-            if (menus.Contains(this.currentMenu))
-            {
-                chosenMenu = this.currentMenu;
-            }
-            else
-            {
-                foreach (Menu menu in menus)
-                {
-                    if (menu.IsOpenable())
+                    if (menu.WantsToOpen())
                     {
-                        chosenMenu = menu;
-                        break;
-                    }
-                }
-            }
-            ToggleMenu(chosenMenu);
-        }
-
-        private void ToggleMenu(Menu newMenu)
-        {
-            if (newMenu == null) return;
-
-            if (newMenu == this.currentMenu)
-            {
-                if (this.currentMenu.IsClosable())
-                {
-                    CloseMenu(this.currentMenu);
-                }
-                return;
-            }
-
-            if (newMenu.IsOpenable())
-            {
-                if (this.currentMenu != null)
-                {
-                    if (this.currentMenu.IsClosable())
-                    {
-                        CloseMenu(this.currentMenu);
-                    }
-                    else
-                    {
+                        this.OpenMenu(menu);
                         return;
                     }
                 }
-                OpenMenu(newMenu);
+            }
+            else
+            {
+                if (this.currentMenu.WantsToClose())
+                {
+                    this.CloseCurrentMenu();
+                }
             }
         }
 
-        private void OpenMenu(Menu targetMenu)
+        private void OpenMenu(Menu menu)
         {
-            targetMenu.Open();
-            targetMenu.transform.SetParent(this.menusTransform);
-            targetMenu.transform.SetAsLastSibling();
-            this.currentMenu = targetMenu;
+            if (menu == null) return;
+            this.CloseCurrentMenu();
+
+            menu.Opened();
+            menu.transform.SetAsLastSibling();
+            this.currentMenu = menu;
 
             TimePauser.Paused.Request();
             CharacterInput.Disabled.Request();
             FrigidCoroutine.Kill(this.backdropRoutine);
             this.backdropRoutine = FrigidCoroutine.Run(
-                TweenCoroutine.Value(
+                Tween.Value(
                     this.backdropFadeDuration * (this.backdropFadeAlpha - this.backdropImage.color.a),
                     this.backdropImage.color.a,
                     this.backdropFadeAlpha,
                     EasingType.EaseOutSine,
                     useRealTime: true,
                     onValueUpdated: (float alpha) => this.backdropImage.color = new Color(this.backdropImage.color.r, this.backdropImage.color.g, this.backdropImage.color.b, alpha)
-                    ), 
+                    ),
                 this.gameObject
                 );
             this.pointerImage.enabled = true;
             CursorDisplay.Hidden.Request();
         }
 
-        private void CloseMenu(Menu targetMenu)
+        private void CloseCurrentMenu()
         {
-            targetMenu.Close();
+            if (this.currentMenu == null) return;
+
+            this.currentMenu.Closed();
             this.currentMenu = null;
 
             TimePauser.Paused.Release();
             CharacterInput.Disabled.Release();
             FrigidCoroutine.Kill(this.backdropRoutine);
             this.backdropRoutine = FrigidCoroutine.Run(
-                TweenCoroutine.Value(
+                Tween.Value(
                     this.backdropFadeDuration * this.backdropImage.color.a,
                     this.backdropImage.color.a,
                     0,

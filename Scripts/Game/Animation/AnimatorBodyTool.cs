@@ -1,7 +1,6 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEditorInternal;
@@ -41,10 +40,6 @@ namespace FrigidBlackwaters.Game
         private bool isDraggingPreview;
         [SerializeField]
         private Vector2 previewOffset;
-        [SerializeField]
-        private int dragPropertyIndex;
-        [SerializeField]
-        private int dragRequestIndex;
 
         [SerializeField]
         private int copyPropertyIndex;
@@ -57,6 +52,8 @@ namespace FrigidBlackwaters.Game
 
         [SerializeField]
         private Vector2 cellsScrollPos;
+        [SerializeField]
+        private int framePageIndex;
 
         [SerializeField]
         private Vector2 orientationBarScrollPos;
@@ -99,19 +96,13 @@ namespace FrigidBlackwaters.Game
         {
             base.Opened();
 
-            string[] configGuids = AssetDatabase.FindAssets("t:" + typeof(AnimatorBodyToolConfig).Name);
-            if (configGuids.Length > 0)
+            if (!AssetDatabaseUpdater.TryFindAsset<AnimatorBodyToolConfig>(out this.config))
             {
-                this.config = AssetDatabase.LoadAssetAtPath<AnimatorBodyToolConfig>(AssetDatabase.GUIDToAssetPath(configGuids[0]));
-            }
-            else
-            {
-                Debug.LogError("Could not find a " + typeof(AnimatorBodyToolConfig).Name + " asset!");
+                Debug.LogError("Could not find a AnimatorBodyToolConfig asset!");
+                return;
             }
 
             this.isDraggingPreview = false;
-            this.dragPropertyIndex = -1;
-            this.dragRequestIndex = -1;
             this.isDraggingOrientation = false;
 
             this.copyPropertyIndex = -1;
@@ -119,13 +110,15 @@ namespace FrigidBlackwaters.Game
             this.copyFrameIndex = -1;
             this.copyOrientationIndex = -1;
 
-            Undo.undoRedoPerformed += HandleUndoRedo;
+            this.framePageIndex = 0;
+
+            Undo.undoRedoPerformed += this.HandleUndoRedo;
         }
 
         protected override void Closed()
         {
             base.Closed();
-            Undo.undoRedoPerformed -= HandleUndoRedo;
+            Undo.undoRedoPerformed -= this.HandleUndoRedo;
         }
 
         protected override void Draw()
@@ -134,7 +127,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (!Selection.activeGameObject)
                 {
-                    GUILayout.Label("No GameObject Selected", GUIStyling.WordWrapAndCenter(EditorStyles.label));
+                    GUILayout.Label("No GameObject Selected", UtilityStyles.WordWrapAndCenter(EditorStyles.label));
                     return;
                 }
 
@@ -144,24 +137,24 @@ namespace FrigidBlackwaters.Game
                     this.body = newBody;
                     if (this.body != null)
                     {
-                        UpdateEditPropertyIndex(this.editPropertyIndex);
-                        UpdateEditAnimationIndex(this.editAnimationIndex);
+                        this.UpdateEditPropertyIndex(this.editPropertyIndex);
+                        this.UpdateEditAnimationIndex(this.editAnimationIndex);
                     }
                 }
 
                 if (this.body == null)
                 {
-                    GUILayout.Label("No AnimatorBody Selected", GUIStyling.WordWrapAndCenter(EditorStyles.label));
+                    GUILayout.Label("No AnimatorBody Selected", UtilityStyles.WordWrapAndCenter(EditorStyles.label));
                     if (GUILayout.Button("Create Animator Body", EditorStyles.toolbarButton))
                     {
-                        AnimatorBody.SetupOn(Selection.activeGameObject);
+                        AnimatorBody.CreateBody(Selection.activeGameObject);
                     }
                     return;
                 }
 
                 if (PrefabUtility.IsPartOfAnyPrefab(this.body))
                 {
-                    GUILayout.Label("Open The Prefab To Edit", GUIStyling.WordWrapAndCenter(EditorStyles.label));
+                    GUILayout.Label("Open The Prefab To Edit", UtilityStyles.WordWrapAndCenter(EditorStyles.label));
                     return;
                 }
             }
@@ -169,14 +162,14 @@ namespace FrigidBlackwaters.Game
             using (EditorGUILayout.ScrollViewScope scrollViewScope = new EditorGUILayout.ScrollViewScope(this.windowScrollPos))
             {
                 this.windowScrollPos = scrollViewScope.scrollPosition;
-                DrawAnimationSelectionArea();
-                DrawPreviewArea();
-                DrawTimelineArea();
+                this.DrawAnimationSelectionArea();
+                this.DrawPreviewArea();
+                this.DrawTimelineArea();
             }
         }
 
         [MenuItem(FrigidPaths.MenuItem.WINDOW + "Animator Body")]
-        private static void ShowAnimatorBodyWindow()
+        private static void ShowAnimatorBodyTool()
         {
             Show<AnimatorBodyTool>();
         }
@@ -198,26 +191,23 @@ namespace FrigidBlackwaters.Game
         private void HandleUndoRedo()
         {
             this.isDraggingPreview = false;
-            this.dragPropertyIndex = -1;
-            this.dragRequestIndex = -1;
             this.isDraggingOrientation = false;
 
             if (this.body != null)
             {
-                UpdateEditAnimationIndex(this.editAnimationIndex);
-                UpdateEditFrameIndex(this.editFrameIndex);
-                UpdateEditOrientationIndex(this.editOrientationIndex);
+                this.UpdateEditPropertyIndex(this.editPropertyIndex);
+                this.UpdateEditAnimationIndex(this.editAnimationIndex);
             }
         }
 
         private void UpdateEditPropertyIndex(int newPropertyIndex)
         {
-            if (this.body.PropertyCount == 0)
+            if (this.body.GetNumberProperties() == 0)
             {
                 this.editPropertyIndex = -1;
                 return;
             }
-            this.editPropertyIndex = Mathf.Clamp(newPropertyIndex, 0, this.body.PropertyCount - 1);
+            this.editPropertyIndex = Mathf.Clamp(newPropertyIndex, 0, this.body.GetNumberProperties() - 1);
         }
 
         private void UpdateEditAnimationIndex(int newAnimationIndex)
@@ -231,8 +221,8 @@ namespace FrigidBlackwaters.Game
                 this.editAnimationIndex = Mathf.Clamp(newAnimationIndex, 0, this.body.GetAnimationCount() - 1);
             }
 
-            UpdateEditFrameIndex(this.editFrameIndex);
-            UpdateEditOrientationIndex(this.editOrientationIndex);
+            this.UpdateEditFrameIndex(this.editFrameIndex);
+            this.UpdateEditOrientationIndex(this.editOrientationIndex);
         }
 
         private void UpdateEditFrameIndex(int newFrameIndex)
@@ -283,7 +273,7 @@ namespace FrigidBlackwaters.Game
                         }
                         using (new EditorGUI.DisabledScope(Event.current.control))
                         {
-                            UpdateEditAnimationIndex(EditorGUI.Popup(popupRect, this.editAnimationIndex, popupNames, EditorStyles.toolbarDropDown));
+                            this.UpdateEditAnimationIndex(EditorGUI.Popup(popupRect, this.editAnimationIndex, popupNames, EditorStyles.toolbarDropDown));
                         }
 
                         this.body.SetAnimationName(this.editAnimationIndex, EditorGUILayout.TextField(this.body.GetAnimationName(this.editAnimationIndex), EditorStyles.toolbarTextField));
@@ -301,6 +291,7 @@ namespace FrigidBlackwaters.Game
                                         this.editAnimationIndex != -1)
                                     {
                                         this.body.CopyPasteAnimation(this.copyAnimationIndex, this.editAnimationIndex);
+                                        Event.current.Use();
                                     }
                                 }
                                 else if (Event.current.button == 1)
@@ -309,11 +300,12 @@ namespace FrigidBlackwaters.Game
                                     this.copyAnimationIndex = this.editAnimationIndex;
                                     this.copyFrameIndex = -1;
                                     this.copyOrientationIndex = -1;
+                                    Event.current.Use();
                                 }
                             }
-                            using (new GUIHelper.ColorScope(this.config.LightColor))
+                            using (new UtilityGUI.ColorScope(this.config.LightColor))
                             {
-                                GUIHelper.DrawOutlineBox(popupRect, this.config.CopyPasteOutlineThickness);
+                                UtilityGUI.DrawOutlineBox(popupRect, this.config.CopyPasteOutlineThickness);
                             }
                         }
                     }
@@ -323,14 +315,14 @@ namespace FrigidBlackwaters.Game
                 if (GUILayout.Button("+", EditorStyles.toolbarButton, GUILayout.MaxWidth(addRemoveMaxWidth)))
                 {
                     this.body.AddAnimationAt(this.editAnimationIndex + 1);
-                    UpdateEditAnimationIndex(this.editAnimationIndex);
+                    this.UpdateEditAnimationIndex(this.editAnimationIndex);
                 }
                 using (new EditorGUI.DisabledScope(this.editAnimationIndex == -1))
                 {
                     if (GUILayout.Button("-", EditorStyles.toolbarButton, GUILayout.MaxWidth(addRemoveMaxWidth)))
                     {
                         this.body.RemoveAnimationAt(this.editAnimationIndex);
-                        UpdateEditAnimationIndex(this.editAnimationIndex);
+                        this.UpdateEditAnimationIndex(this.editAnimationIndex);
                     }
                 }
 
@@ -338,7 +330,7 @@ namespace FrigidBlackwaters.Game
                 {
                     if (GUILayout.Button("Set Asset Preview", EditorStyles.toolbarButton))
                     {
-                        this.body.SetAssetPreviewsInProperties();
+                        this.body.Preview(0, 0f, Vector2.zero);
                     }
                 }
             }
@@ -346,12 +338,12 @@ namespace FrigidBlackwaters.Game
 
         private void DrawPreviewArea()
         {
-            DrawPreviewBar();
+            this.DrawPreviewBar();
             using (new EditorGUILayout.HorizontalScope())
             {
-                DrawPropertyEditFields();
-                DrawPreviewSquare();
-                DrawOrientationBar();
+                this.DrawPropertyEditFields();
+                this.DrawPreviewSquare();
+                this.DrawOrientationBar();
             }
         }
 
@@ -371,32 +363,32 @@ namespace FrigidBlackwaters.Game
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.MaxWidth((EditorGUIUtility.currentViewWidth - this.config.PreviewLength) / 2), GUILayout.MaxHeight(this.config.PreviewLength)))
             {
-                if (this.editPropertyIndex < this.body.PropertyCount)
+                if (this.editPropertyIndex < this.body.GetNumberProperties())
                 {
-                    AnimatorProperty currentProperty = this.body.Properties[this.editPropertyIndex];
-                    AnimatorToolPropertyDrawer propertyDrawer = CreatePropertyDrawerForProperty(currentProperty);
+                    AnimatorProperty currentProperty = this.body.GetProperties()[this.editPropertyIndex];
+                    AnimatorToolPropertyDrawer propertyDrawer = this.CreatePropertyDrawerForProperty(currentProperty);
                     using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                     {
-                        EditorGUILayout.LabelField("Edit in Animation", GUIStyling.WordWrapAndCenter(EditorStyles.boldLabel));
+                        EditorGUILayout.LabelField("Edit in Animation", UtilityStyles.WordWrapAndCenter(EditorStyles.boldLabel));
                     }
                     using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                     {
                         using (EditorGUILayout.ScrollViewScope scrollViewScope = new EditorGUILayout.ScrollViewScope(this.editFieldsScrollPos))
                         {
-                            GUILayout.Box("General Fields", GUIStyling.WordWrapAndCenter(EditorStyles.helpBox));
+                            GUILayout.Box("General Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
                             this.editFieldsScrollPos = scrollViewScope.scrollPosition;
                             propertyDrawer.DrawGeneralEditFields();
                             if (this.editAnimationIndex != -1)
                             {
-                                GUILayout.Box("Animation Fields", GUIStyling.WordWrapAndCenter(EditorStyles.helpBox));
+                                GUILayout.Box("Animation Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
                                 propertyDrawer.DrawAnimationEditFields(this.editAnimationIndex);
                                 if (this.editFrameIndex != -1)
                                 {
-                                    GUILayout.Box("Frame Fields", GUIStyling.WordWrapAndCenter(EditorStyles.helpBox));
+                                    GUILayout.Box("Frame Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
                                     propertyDrawer.DrawFrameEditFields(this.editAnimationIndex, this.editFrameIndex);
                                     if (this.editOrientationIndex != -1)
                                     {
-                                        GUILayout.Box("Orientation Fields", GUIStyling.WordWrapAndCenter(EditorStyles.helpBox));
+                                        GUILayout.Box("Orientation Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
                                         propertyDrawer.DrawOrientationEditFields(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
                                     }
                                 }
@@ -438,69 +430,88 @@ namespace FrigidBlackwaters.Game
                     }
                 }
 
-                using (new GUIHelper.ColorScope(Color.red))
+                using (new UtilityGUI.ColorScope(Color.red))
                 {
-                    GUIHelper.DrawLine(previewRect.size / 2 + new Vector2(-this.config.PreviewLength / 2, this.previewOffset.y), previewRect.size / 2 + new Vector2(this.config.PreviewLength / 2, this.previewOffset.y));
+                    UtilityGUI.DrawLine(previewRect.size / 2 + new Vector2(-this.config.PreviewLength / 2, this.previewOffset.y), previewRect.size / 2 + new Vector2(this.config.PreviewLength / 2, this.previewOffset.y));
                 }
-                using (new GUIHelper.ColorScope(Color.blue))
+                using (new UtilityGUI.ColorScope(Color.blue))
                 {
-                    GUIHelper.DrawLine(previewRect.size / 2 + new Vector2(this.previewOffset.x, -this.config.PreviewLength / 2), previewRect.size / 2 + new Vector2(this.previewOffset.x, this.config.PreviewLength / 2));
+                    UtilityGUI.DrawLine(previewRect.size / 2 + new Vector2(this.previewOffset.x, -this.config.PreviewLength / 2), previewRect.size / 2 + new Vector2(this.previewOffset.x, this.config.PreviewLength / 2));
                 }
 
-                List<AnimatorProperty> properties = this.body.Properties;
+                List<AnimatorProperty> properties = this.body.GetProperties();
                 List<(Rect rect, Action onDrag)>[] dragRequestsPerProperty = new List<(Rect rect, Action onDrag)>[properties.Count];
 
                 if (this.editAnimationIndex != -1 && this.editFrameIndex != -1 && this.editOrientationIndex != -1)
                 {
-                    void DrawPropertiesAtLevel(Vector2 parentPreviewOffset, List<AnimatorProperty> currentProperties)
+                    void DrawPropertiesAtLevel(AnimatorProperty[] currentProperties)
                     {
                         List<(AnimatorProperty property, AnimatorToolPropertyDrawer drawer)> drawersAndProperties = new List<(AnimatorProperty property, AnimatorToolPropertyDrawer drawer)>();
                         foreach (AnimatorProperty currentProperty in currentProperties)
                         {
-                            drawersAndProperties.Add((currentProperty, CreatePropertyDrawerForProperty(currentProperty)));
+                            drawersAndProperties.Add((currentProperty, this.CreatePropertyDrawerForProperty(currentProperty)));
                         }
                         drawersAndProperties.Sort(
                             ((AnimatorProperty property, AnimatorToolPropertyDrawer drawer) l, (AnimatorProperty property, AnimatorToolPropertyDrawer drawer) r) =>
                             {
-                                float[] lOrders = l.drawer.CalculateChildPreviewOrders(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
-                                float[] rOrders = r.drawer.CalculateChildPreviewOrders(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
-                                int count = Mathf.Min(lOrders.Length, rOrders.Length);
-                                for (int i = 0; i < count; i++)
-                                {
-                                    if (Mathf.Abs(lOrders[i] - rOrders[i]) <= Mathf.Epsilon) continue;
-                                    float diff = lOrders[i] - rOrders[i];
-                                    if (diff > 0) return Mathf.CeilToInt(diff);
-                                    else return Mathf.FloorToInt(diff);
-                                }
-
                                 int lIndex = properties.IndexOf(l.property);
                                 int rIndex = properties.IndexOf(r.property);
-
-                                return (lIndex == this.editPropertyIndex ? 1 : 0) - (rIndex == this.editPropertyIndex ? 1 : 0);
+                                int lOrder = lIndex == this.editPropertyIndex ? 1 : 0;
+                                int rOrder = rIndex == this.editPropertyIndex ? 1 : 0;
+                                if (lOrder == rOrder)
+                                {
+                                    float[] lOrders = l.drawer.CalculateChildPreviewOrders(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
+                                    float[] rOrders = r.drawer.CalculateChildPreviewOrders(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
+                                    int count = Mathf.Min(lOrders.Length, rOrders.Length);
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        if (Mathf.Abs(lOrders[i] - rOrders[i]) <= Mathf.Epsilon) continue;
+                                        float diff = lOrders[i] - rOrders[i];
+                                        if (diff > 0) return Mathf.CeilToInt(diff);
+                                        else return Mathf.FloorToInt(diff);
+                                    }
+                                }
+                                return lOrder - rOrder;
                             }
                             );
+
                         foreach ((AnimatorProperty property, AnimatorToolPropertyDrawer drawer) drawerAndProperty in drawersAndProperties)
                         {
-                            Vector2 localPreviewOffset = Vector2.zero;
-                            if (drawerAndProperty.property.GetBinded(this.editAnimationIndex))
+                            AnimatorProperty property = drawerAndProperty.property;
+                            AnimatorToolPropertyDrawer drawer = drawerAndProperty.drawer;
+
+                            Vector2 translation = property.GetLocalPosition(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex) * new Vector2(1, -1) * tileWindowLength;
+                            float rotation = -property.GetLocalRotation(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
+
+                            Matrix4x4 prevMatrix = GUI.matrix;
+                            // Workaround to use GUIUtility.RotateAroundPivot. Using Matrix4x4.Rotate has this weird offsetting issue that only Unity knows how to handle it seems.
+                            GUI.matrix = Matrix4x4.identity;
+                            GUIUtility.RotateAroundPivot(rotation, previewRect.size / 2 + translation);
+                            Matrix4x4 rotationMatrix = GUI.matrix;
+                            Matrix4x4 translationMatrix = Matrix4x4.Translate(translation);
+                            GUI.matrix = prevMatrix * rotationMatrix * translationMatrix;
+
+                            if (property.GetBinded(this.editAnimationIndex))
                             {
-                                int propertyIndex = properties.IndexOf(drawerAndProperty.property);
-                                localPreviewOffset = drawerAndProperty.drawer.DrawPreview(
-                                    previewRect.size,
-                                    parentPreviewOffset,
-                                    tileWindowLength,
-                                    this.editAnimationIndex,
-                                    this.editFrameIndex,
-                                    this.editOrientationIndex,
-                                    propertyIndex == this.editPropertyIndex,
-                                    out List<(Rect rect, Action onDrag)> dragRequests
-                                    );
-                                dragRequestsPerProperty[propertyIndex] = dragRequests;
+                                int propertyIndex = properties.IndexOf(property);
+                                drawer.DrawPreview(previewRect.size, tileWindowLength, this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex, propertyIndex == this.editPropertyIndex);
                             }
-                            DrawPropertiesAtLevel(parentPreviewOffset + localPreviewOffset, drawerAndProperty.property.ChildProperties);
+
+                            AnimatorProperty[] nextLevelProperties = new AnimatorProperty[property.GetNumberChildProperties()];
+                            for (int childIndex = 0; childIndex < property.GetNumberChildProperties(); childIndex++)
+                            {
+                                nextLevelProperties[childIndex] = property.GetChildPropertyAt(childIndex);
+                            }
+
+                            DrawPropertiesAtLevel(nextLevelProperties);
+
+                            GUI.matrix = prevMatrix;
                         }
                     }
-                    DrawPropertiesAtLevel(this.previewOffset, new List<AnimatorProperty>() { this.body.RootProperty });
+                    Matrix4x4 prevMatrix = GUI.matrix;
+                    GUI.matrix = Matrix4x4.Translate(this.previewOffset);
+                    DrawPropertiesAtLevel(new AnimatorProperty[] { this.body.RootProperty });
+                    GUI.matrix = prevMatrix;
                 }
 
                 if (Event.current.type == EventType.MouseDown)
@@ -512,24 +523,7 @@ namespace FrigidBlackwaters.Game
                             if (!this.isDraggingPreview)
                             {
                                 this.isDraggingPreview = true;
-                            }
-                        }
-                        else if (Event.current.button == 0)
-                        {
-                            if (this.dragPropertyIndex == -1 && this.dragRequestIndex == -1)
-                            {
-                                for (int propertyIndex = 0; propertyIndex < dragRequestsPerProperty.Length && this.dragPropertyIndex == -1; propertyIndex++)
-                                {
-                                    if (dragRequestsPerProperty[propertyIndex] == null) continue;
-                                    for (int requestIndex = 0; requestIndex < dragRequestsPerProperty[propertyIndex].Count && this.dragRequestIndex == -1; requestIndex++)
-                                    {
-                                        if (dragRequestsPerProperty[propertyIndex][requestIndex].rect.Contains(Event.current.mousePosition))
-                                        {
-                                            this.dragPropertyIndex = propertyIndex;
-                                            this.dragRequestIndex = requestIndex;
-                                        }
-                                    }
-                                }
+                                Event.current.Use();
                             }
                         }
                     }
@@ -541,26 +535,16 @@ namespace FrigidBlackwaters.Game
                         if (this.isDraggingPreview)
                         {
                             this.previewOffset += Event.current.delta;
-                        }
-                    }
-                    else if (Event.current.button == 0)
-                    {
-                        if (this.dragPropertyIndex != -1 && this.dragRequestIndex != -1 && this.dragRequestIndex < dragRequestsPerProperty[this.dragPropertyIndex].Count)
-                        {
-                            dragRequestsPerProperty[this.dragPropertyIndex][this.dragRequestIndex].onDrag?.Invoke();
+                            Event.current.Use();
                         }
                     }
                 }
-                else if (Event.current.type == EventType.MouseUp)
+                else if (Event.current.type == EventType.MouseUp && this.isDraggingPreview)
                 {
                     if (Event.current.button == 2)
                     {
                         this.isDraggingPreview = false;
-                    }
-                    else if (Event.current.button == 0)
-                    {
-                        this.dragPropertyIndex = -1;
-                        this.dragRequestIndex = -1;
+                        Event.current.Use();
                     }
                 }
             }
@@ -575,9 +559,9 @@ namespace FrigidBlackwaters.Game
                     GUILayout.FlexibleSpace();
 
                     Rect dragAreaRect = GUILayoutUtility.GetRect(this.config.OrientationBarLength, this.config.OrientationBarLength, GUILayout.Width(this.config.OrientationBarLength), GUILayout.Height(this.config.OrientationBarLength));
-                    using (new GUIHelper.ColorScope(this.config.LightColor))
+                    using (new UtilityGUI.ColorScope(this.config.LightColor))
                     {
-                        GUIHelper.DrawSolidBox(dragAreaRect);
+                        UtilityGUI.DrawSolidBox(dragAreaRect);
                     }
 
                     Rect innerBorderRect = new Rect(dragAreaRect);
@@ -585,9 +569,9 @@ namespace FrigidBlackwaters.Game
                     innerBorderRect.xMax -= this.config.BorderLength;
                     innerBorderRect.yMin += this.config.BorderLength;
                     innerBorderRect.yMax -= this.config.BorderLength;
-                    using (new GUIHelper.ColorScope(this.config.DarkColor))
+                    using (new UtilityGUI.ColorScope(this.config.DarkColor))
                     {
-                        GUIHelper.DrawSolidBox(innerBorderRect);
+                        UtilityGUI.DrawSolidBox(innerBorderRect);
                     }
 
                     if (this.editAnimationIndex != -1)
@@ -608,18 +592,18 @@ namespace FrigidBlackwaters.Game
                             buttonRects[orientationIndex] = buttonRect;
                             if (orientationIndex != this.editOrientationIndex)
                             {
-                                if (GUI.Button(buttonRect, "", GUIStyling.EmptyStyle))
+                                if (GUI.Button(buttonRect, "", UtilityStyles.EmptyStyle))
                                 {
-                                    UpdateEditOrientationIndex(orientationIndex);
+                                    this.UpdateEditOrientationIndex(orientationIndex);
                                 }
-                                using (new GUIHelper.ColorScope(this.config.MediumColor))
+                                using (new UtilityGUI.ColorScope(this.config.MediumColor))
                                 {
                                     GUI.DrawTexture(buttonRect, this.config.OrientationButtonTexture);
                                 }
                             }
                             else
                             {
-                                using (new GUIHelper.ColorScope(this.config.LightColor))
+                                using (new UtilityGUI.ColorScope(this.config.LightColor))
                                 {
                                     GUI.DrawTexture(buttonRect, this.config.OrientationButtonTexture);
                                 }
@@ -634,6 +618,7 @@ namespace FrigidBlackwaters.Game
                             if (buttonRects[this.editOrientationIndex].Contains(Event.current.mousePosition))
                             {
                                 this.isDraggingOrientation = true;
+                                Event.current.Use();
                             }
                         }
                         else if (Event.current.type == EventType.MouseDrag && this.isDraggingOrientation)
@@ -656,10 +641,12 @@ namespace FrigidBlackwaters.Game
                                 Undo.RecordObject(this.body, "Dragged Orientation Direction");
                                 this.body.SetOrientationDirection(this.editAnimationIndex, this.editOrientationIndex, newOrientationDirection);
                             }
+                            Event.current.Use();
                         }
-                        else if (Event.current.type == EventType.MouseUp)
+                        else if (Event.current.type == EventType.MouseUp && this.isDraggingOrientation)
                         {
                             this.isDraggingOrientation = false;
+                            Event.current.Use();
                         }
                     }
 
@@ -671,7 +658,7 @@ namespace FrigidBlackwaters.Game
                     this.body.RotateToDirection = EditorGUILayout.Toggle("Rotate To Direction", this.body.RotateToDirection);
 
                     this.orientationBarScrollPos = scrollViewScope.scrollPosition;
-                    using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+                    using (new EditorGUILayout.HorizontalScope())
                     {
                         using (new EditorGUI.DisabledScope(this.editAnimationIndex == -1))
                         {
@@ -680,28 +667,28 @@ namespace FrigidBlackwaters.Game
                                 this.body.SetOrientationCount(this.editAnimationIndex, EditorGUILayout.IntField("Orientation Count", this.body.GetOrientationCount(this.editAnimationIndex)));
                             }
 
-                            if (GUILayout.Button("+", EditorStyles.toolbarButton))
+                            if (GUILayout.Button("+"))
                             {
                                 this.body.AddOrientationAt(this.editAnimationIndex, this.editOrientationIndex + 1);
-                                UpdateEditOrientationIndex(this.editOrientationIndex);
+                                this.UpdateEditOrientationIndex(this.editOrientationIndex);
                             }
 
                             using (new EditorGUI.DisabledScope(this.editOrientationIndex == -1))
                             {
-                                if (GUILayout.Button("-", EditorStyles.toolbarButton))
+                                if (GUILayout.Button("-"))
                                 {
                                     this.body.RemoveOrientationAt(this.editAnimationIndex, this.editOrientationIndex);
-                                    UpdateEditOrientationIndex(this.editOrientationIndex);
+                                    this.UpdateEditOrientationIndex(this.editOrientationIndex);
                                 }
                             }
                         }
                     }
 
-                    using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+                    using (new EditorGUILayout.HorizontalScope())
                     {
                         using (new EditorGUI.DisabledScope(this.editAnimationIndex == -1))
                         {
-                            if (GUILayout.Button("Distribute Evenly", EditorStyles.toolbarButton))
+                            if (GUILayout.Button("Distribute Evenly"))
                             {
                                 float divisionAngleRad = Mathf.PI * 2 / this.body.GetOrientationCount(this.editAnimationIndex);
                                 for (int orientationIndex = 0; orientationIndex < this.body.GetOrientationCount(this.editAnimationIndex); orientationIndex++)
@@ -711,7 +698,7 @@ namespace FrigidBlackwaters.Game
                                 }
                             }
 
-                            if (GUILayout.Button("Zero All", EditorStyles.toolbarButton))
+                            if (GUILayout.Button("Zero All"))
                             {
                                 for (int orientationIndex = 0; orientationIndex < this.body.GetOrientationCount(this.editAnimationIndex); orientationIndex++)
                                 {
@@ -745,8 +732,8 @@ namespace FrigidBlackwaters.Game
         {
             using (new EditorGUILayout.VerticalScope())
             {
-                DrawFrameBar();
-                DrawCells();
+                this.DrawFrameBar();
+                this.DrawCells();
             }
         }
 
@@ -759,25 +746,39 @@ namespace FrigidBlackwaters.Game
                     this.body.SetFrameCount(this.editAnimationIndex, EditorGUILayout.IntField("Frame Count", this.body.GetFrameCount(this.editAnimationIndex)));
                     using (new EditorGUILayout.HorizontalScope(GUILayout.MaxWidth(EditorGUIUtility.currentViewWidth - this.config.OrientationBarLength)))
                     {
+                        using (new EditorGUI.DisabledScope(this.framePageIndex == 0))
+                        {
+                            if (GUILayout.Button("Previous Page", EditorStyles.toolbarButton))
+                            {
+                                this.framePageIndex--;
+                            }
+                        }
+                        using (new EditorGUI.DisabledScope((this.framePageIndex + 1) * this.config.NumberFramesPerPage - this.body.GetFrameCount(this.editAnimationIndex) >= 0))
+                        {
+                            if (GUILayout.Button("Next Page", EditorStyles.toolbarButton))
+                            {
+                                this.framePageIndex++;
+                            }
+                        }
                         using (new EditorGUI.DisabledScope(this.editFrameIndex == -1))
                         {
                             if (GUILayout.Button("Add Frame Left", EditorStyles.toolbarButton))
                             {
                                 this.body.AddFrameAt(this.editAnimationIndex, this.editFrameIndex);
-                                UpdateEditFrameIndex(this.editFrameIndex + 1);
+                                this.UpdateEditFrameIndex(this.editFrameIndex + 1);
                             }
                         }
                         if (GUILayout.Button("Add Frame Right", EditorStyles.toolbarButton))
                         {
                             this.body.AddFrameAt(this.editAnimationIndex, this.editFrameIndex + 1);
-                            UpdateEditFrameIndex(this.editFrameIndex);
+                            this.UpdateEditFrameIndex(this.editFrameIndex);
                         }
                         using (new EditorGUI.DisabledScope(this.editFrameIndex == -1))
                         {
                             if (GUILayout.Button("Delete Frame", EditorStyles.toolbarButton))
                             {
                                 this.body.RemoveFrameAt(this.editAnimationIndex, this.editFrameIndex);
-                                UpdateEditFrameIndex(this.editFrameIndex);
+                                this.UpdateEditFrameIndex(this.editFrameIndex);
                             }
                         }
                     }
@@ -801,14 +802,22 @@ namespace FrigidBlackwaters.Game
                 using (new EditorGUILayout.HorizontalScope(GUILayout.Height(this.config.BorderLength)))
                 {
                     Rect dividerRect = GUILayoutUtility.GetRect(0, this.config.BorderLength);
-                    using (new GUIHelper.ColorScope(this.config.DarkColor))
+                    using (new UtilityGUI.ColorScope(this.config.DarkColor))
                     {
-                        GUIHelper.DrawSolidBox(dividerRect);
+                        UtilityGUI.DrawSolidBox(dividerRect);
                     }
                 }
 
-                int totalIndentLevel = this.body.PropertyDepth;
-                using (new EditorGUILayout.VerticalScope(GUILayout.Width(totalIndentLevel * this.config.IndentWidth + this.config.PropertyNameWidth + this.config.PropertyBindWidth + ((this.editAnimationIndex != -1 ? this.body.GetFrameCount(this.editAnimationIndex) : 0) + 1) * this.config.CellLength)))
+                int pageStartIndex = 0;
+                int pageEndIndex = 0;
+                if (this.editAnimationIndex != -1)
+                {
+                    pageStartIndex = this.framePageIndex * this.config.NumberFramesPerPage;
+                    pageEndIndex = Mathf.Min(this.body.GetFrameCount(this.editAnimationIndex), pageStartIndex + this.config.NumberFramesPerPage);
+                }
+
+                int totalIndentLevel = this.body.GetPropertyDepth();
+                using (new EditorGUILayout.VerticalScope(GUILayout.Width(totalIndentLevel * this.config.IndentWidth + this.config.PropertyNameWidth + this.config.PropertyBindWidth + (pageEndIndex - pageStartIndex + 1) * this.config.CellLength)))
                 {
                     void DrawCellRow(int indentLevel, Action<Rect> onDrawIndent, Action<Rect> onDrawControls, Action<Rect> onDrawPropertyCell, Action<Rect, int> onDrawFrameCell, Color emptyCellsColor)
                     {
@@ -825,16 +834,16 @@ namespace FrigidBlackwaters.Game
 
                             float filledIndentLength = (totalIndentLevel - indentLevel) * this.config.IndentWidth;
                             Rect filledIndentRect = GUILayoutUtility.GetRect(filledIndentLength, this.config.CellLength, GUILayout.Width(filledIndentLength), GUILayout.Height(this.config.CellLength));
-                            using (new GUIHelper.ColorScope(this.config.DarkColor))
+                            using (new UtilityGUI.ColorScope(this.config.DarkColor))
                             {
-                                GUIHelper.DrawSolidBox(filledIndentRect);
+                                UtilityGUI.DrawSolidBox(filledIndentRect);
                             }
 
                             float controlsLength = this.config.PropertyNameWidth + this.config.PropertyBindWidth;
                             Rect controlsRect = GUILayoutUtility.GetRect(controlsLength, this.config.CellLength, GUILayout.Width(controlsLength), GUILayout.Height(this.config.CellLength));
-                            using (new GUIHelper.ColorScope(this.config.DarkColor))
+                            using (new UtilityGUI.ColorScope(this.config.DarkColor))
                             {
-                                GUIHelper.DrawSolidBox(controlsRect);
+                                UtilityGUI.DrawSolidBox(controlsRect);
                             }
                             onDrawControls.Invoke(controlsRect);
 
@@ -842,21 +851,19 @@ namespace FrigidBlackwaters.Game
                             onDrawPropertyCell?.Invoke(propertyCellRect);
 
                             float emptyRectLength = EditorGUIUtility.currentViewWidth - this.config.OrientationBarLength;
-                            if (this.editAnimationIndex != -1)
+                            for (int frameIndex = pageStartIndex; frameIndex < pageEndIndex; frameIndex++)
                             {
-                                for (int frameIndex = 0; frameIndex < this.body.GetFrameCount(this.editAnimationIndex); frameIndex++)
+                                using (new EditorGUILayout.VerticalScope(GUILayout.Width(this.config.CellLength)))
                                 {
-                                    using (new EditorGUILayout.VerticalScope(GUILayout.Width(this.config.CellLength)))
-                                    {
-                                        Rect frameCellRect = GUILayoutUtility.GetRect(this.config.CellLength, this.config.CellLength, GUILayout.Width(this.config.CellLength), GUILayout.Height(this.config.CellLength));
-                                        onDrawFrameCell?.Invoke(frameCellRect, frameIndex);
-                                    }
-                                    emptyRectLength -= this.config.CellLength;
+                                    Rect frameCellRect = GUILayoutUtility.GetRect(this.config.CellLength, this.config.CellLength, GUILayout.Width(this.config.CellLength), GUILayout.Height(this.config.CellLength));
+                                    onDrawFrameCell?.Invoke(frameCellRect, frameIndex);
                                 }
+                                emptyRectLength -= this.config.CellLength;
                             }
 
+
                             Rect emptyRect = GUILayoutUtility.GetRect(emptyRectLength, this.config.CellLength);
-                            using (new GUIHelper.ColorScope(emptyCellsColor))
+                            using (new UtilityGUI.ColorScope(emptyCellsColor))
                             {
                                 GUI.DrawTexture(emptyRect, this.config.EmptyCellTexture);
                             }
@@ -864,7 +871,16 @@ namespace FrigidBlackwaters.Game
                     }
 
                     List<Rect> copyPasteOutlineRects = new List<Rect>();
-                    List<AnimatorProperty> properties = this.body.Properties;
+                    List<AnimatorProperty> properties = this.body.GetProperties();
+
+                    int numExpandedProperties = 0;
+                    foreach (AnimatorProperty property in properties)
+                    {
+                        if (InternalEditorUtility.GetIsInspectorExpanded(property))
+                        {
+                            numExpandedProperties++;
+                        }
+                    }
 
                     DrawCellRow(
                         0,
@@ -872,7 +888,7 @@ namespace FrigidBlackwaters.Game
                         (Rect controlsRect) => { },
                         (Rect propertyCellRect) =>
                         {
-                            using (new GUIHelper.ColorScope(this.config.MediumColor))
+                            using (new UtilityGUI.ColorScope(this.config.MediumColor))
                             {
                                 GUI.DrawTexture(propertyCellRect, this.config.CornerCellTexture);
                             }
@@ -889,6 +905,7 @@ namespace FrigidBlackwaters.Game
                                             this.editAnimationIndex != -1)
                                         {
                                             this.body.CopyPasteAllFramesAndTheirOrientationsAcrossAllProperties(this.copyAnimationIndex, this.editAnimationIndex);
+                                            Event.current.Use();
                                         }
                                     }
                                     else if (Event.current.button == 1)
@@ -897,29 +914,22 @@ namespace FrigidBlackwaters.Game
                                         this.copyAnimationIndex = this.editAnimationIndex;
                                         this.copyFrameIndex = -1;
                                         this.copyOrientationIndex = -1;
+                                        Event.current.Use();
                                     }
                                 }
                                 Rect copyPasteOutlineRect = new Rect(propertyCellRect);
-                                int numExpandedProperties = 0;
-                                foreach (AnimatorProperty property in properties)
-                                {
-                                    if (InternalEditorUtility.GetIsInspectorExpanded(property))
-                                    {
-                                        numExpandedProperties++;
-                                    }
-                                }
-                                copyPasteOutlineRect.height += (this.body.PropertyCount + numExpandedProperties * (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex))) * this.config.CellLength;
+                                copyPasteOutlineRect.height += (this.body.GetNumberProperties() + numExpandedProperties * (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex))) * this.config.CellLength;
                                 copyPasteOutlineRect.width += this.config.CellLength * (this.editAnimationIndex == -1 ? 0 : this.body.GetFrameCount(this.editAnimationIndex));
                                 copyPasteOutlineRects.Add(copyPasteOutlineRect);
                             }
                         },
                         (Rect frameCellRect, int frameIndex) =>
                         {
-                            if (!Event.current.control && GUI.Button(frameCellRect, "", GUIStyling.EmptyStyle))
+                            if (!Event.current.control && GUI.Button(frameCellRect, "", UtilityStyles.EmptyStyle))
                             {
-                                UpdateEditFrameIndex(frameIndex);
+                                this.UpdateEditFrameIndex(frameIndex);
                             }
-                            using (new GUIHelper.ColorScope(this.editFrameIndex == frameIndex ? this.config.LightColor : this.config.MediumColor))
+                            using (new UtilityGUI.ColorScope(this.editFrameIndex == frameIndex ? this.config.LightColor : this.config.MediumColor))
                             {
                                 GUI.DrawTexture(frameCellRect, this.config.ColumnMarkerCellTexture);
                             }
@@ -936,6 +946,7 @@ namespace FrigidBlackwaters.Game
                                             this.editAnimationIndex != -1)
                                         {
                                             this.body.CopyPasteFrameAndItsOrientationsAcrossAllProperties(this.copyAnimationIndex, this.editAnimationIndex, this.copyFrameIndex, frameIndex);
+                                            Event.current.Use();
                                         }
                                     }
                                     else if (Event.current.button == 1)
@@ -944,10 +955,11 @@ namespace FrigidBlackwaters.Game
                                         this.copyAnimationIndex = this.editAnimationIndex;
                                         this.copyFrameIndex = frameIndex;
                                         this.copyOrientationIndex = -1;
+                                        Event.current.Use();
                                     }
                                 }
                                 Rect copyPasteOutlineRect = new Rect(frameCellRect);
-                                copyPasteOutlineRect.height += (this.body.PropertyCount + (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex))) * this.config.CellLength;
+                                copyPasteOutlineRect.height += (this.body.GetNumberProperties() + numExpandedProperties * (this.editAnimationIndex == -1 ? 0 : this.body.GetOrientationCount(this.editAnimationIndex))) * this.config.CellLength;
                                 copyPasteOutlineRects.Add(copyPasteOutlineRect);
                             }
                             GUIStyle labelStyle = new GUIStyle(EditorStyles.label);
@@ -959,11 +971,11 @@ namespace FrigidBlackwaters.Game
                         this.config.MediumColor
                         );
 
-                    for (int propertyIndex = 0; propertyIndex < this.body.PropertyCount; propertyIndex++)
+                    for (int propertyIndex = 0; propertyIndex < this.body.GetNumberProperties(); propertyIndex++)
                     {
                         AnimatorProperty property = properties[propertyIndex];
 
-                        AnimatorToolPropertyDrawer propertyDrawer = CreatePropertyDrawerForProperty(property);
+                        AnimatorToolPropertyDrawer propertyDrawer = this.CreatePropertyDrawerForProperty(property);
 
                         Color GetSelectColor(bool useLighterShade)
                         {
@@ -983,10 +995,10 @@ namespace FrigidBlackwaters.Game
                         }
 
                         DrawCellRow(
-                            this.body.GetDepthOf(property),
+                            this.body.GetPropertyDepthOf(property),
                             (Rect indentRect) =>
                             {
-                                using (new GUIHelper.ColorScope(this.config.DarkColor))
+                                using (new UtilityGUI.ColorScope(this.config.DarkColor))
                                 {
                                     GUI.DrawTexture(indentRect, this.config.IndentArrowTexture);
                                 }
@@ -997,17 +1009,17 @@ namespace FrigidBlackwaters.Game
                                 Rect labelRect = new Rect(controlsRect);
                                 labelRect.width = this.config.PropertyNameWidth;
                                 labelRect.height = this.config.CellLength / 2;
-                                InternalEditorUtility.SetIsInspectorExpanded(property, GUI.Toggle(labelRect, InternalEditorUtility.GetIsInspectorExpanded(property), "", GUIStyling.EmptyStyle));
-                                using (new GUIHelper.ColorScope(GUIStyling.Darken(propertyDrawer.AccentColor, InternalEditorUtility.GetIsInspectorExpanded(property) ? 1 : 2)))
+                                InternalEditorUtility.SetIsInspectorExpanded(property, GUI.Toggle(labelRect, InternalEditorUtility.GetIsInspectorExpanded(property), "", UtilityStyles.EmptyStyle));
+                                using (new UtilityGUI.ColorScope(UtilityGUIUtility.Darken(propertyDrawer.AccentColor, InternalEditorUtility.GetIsInspectorExpanded(property) ? 1 : 2)))
                                 {
-                                    GUIHelper.DrawSolidBox(labelRect);
+                                    UtilityGUI.DrawSolidBox(labelRect);
                                 }
-                                GUI.Label(labelRect, propertyDrawer.LabelName, GUIStyling.WordWrapAndCenter(EditorStyles.boldLabel));
+                                GUI.Label(labelRect, propertyDrawer.LabelName, UtilityStyles.WordWrapAndCenter(EditorStyles.boldLabel));
 
                                 // Draw Name
                                 Rect nameRect = new Rect(labelRect);
                                 nameRect.position += Vector2.up * this.config.CellLength / 2;
-                                property.PropertyName = GUI.TextField(nameRect, property.PropertyName, GUIStyling.WordWrapAndCenter(EditorStyles.textField));
+                                property.PropertyName = GUI.TextField(nameRect, property.PropertyName, UtilityStyles.WordWrapAndCenter(EditorStyles.textField));
 
                                 // Draw Bind
                                 Rect bindRect = new Rect(labelRect);
@@ -1016,30 +1028,30 @@ namespace FrigidBlackwaters.Game
                                 bindRect.width = this.config.PropertyBindWidth;
                                 if (property != this.body.RootProperty)
                                 {
-                                    if (this.editAnimationIndex != -1 && GUI.Button(bindRect, "", GUIStyling.EmptyStyle))
+                                    if (this.editAnimationIndex != -1 && GUI.Button(bindRect, "", UtilityStyles.EmptyStyle))
                                     {
                                         property.SetBinded(this.editAnimationIndex, !property.GetBinded(this.editAnimationIndex));
                                     }
-                                    using (new GUIHelper.ColorScope(GetSelectColor(false)))
+                                    using (new UtilityGUI.ColorScope(GetSelectColor(false)))
                                     {
                                         GUI.DrawTexture(bindRect, this.config.PropertyBindTexture);
                                     }
                                 }
                                 else
                                 {
-                                    using (new GUIHelper.ColorScope(GetSelectColor(false)))
+                                    using (new UtilityGUI.ColorScope(GetSelectColor(false)))
                                     {
-                                        GUIHelper.DrawSolidBox(bindRect);
+                                        UtilityGUI.DrawSolidBox(bindRect);
                                     }
                                 }
                             },
                             (Rect propertyCellRect) =>
                             {
-                                if (!Event.current.control && GUI.Button(propertyCellRect, "", GUIStyling.EmptyStyle))
+                                if (!Event.current.control && GUI.Button(propertyCellRect, "", UtilityStyles.EmptyStyle))
                                 {
-                                    UpdateEditPropertyIndex(propertyIndex);
+                                    this.UpdateEditPropertyIndex(propertyIndex);
                                 }
-                                using (new GUIHelper.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex)))
+                                using (new UtilityGUI.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex)))
                                 {
                                     GUI.DrawTexture(propertyCellRect, this.config.FrameRowMarkerCellTexture);
                                 }
@@ -1049,13 +1061,14 @@ namespace FrigidBlackwaters.Game
                                     {
                                         if (Event.current.button == 0)
                                         {
-                                            if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.PropertyCount &&
+                                            if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.GetNumberProperties() &&
                                                 this.copyAnimationIndex >= 0 && this.copyAnimationIndex < this.body.GetAnimationCount() &&
                                                 this.copyFrameIndex == -1 &&
                                                 this.copyOrientationIndex == -1 &&
                                                 this.editAnimationIndex != -1)
                                             {
                                                 this.body.CopyPasteAllFramesAndTheirOrientations(this.copyPropertyIndex, propertyIndex, this.copyAnimationIndex, this.editAnimationIndex);
+                                                Event.current.Use();
                                             }
                                         }
                                         else if (Event.current.button == 1)
@@ -1064,6 +1077,7 @@ namespace FrigidBlackwaters.Game
                                             this.copyAnimationIndex = this.editAnimationIndex;
                                             this.copyFrameIndex = -1;
                                             this.copyOrientationIndex = -1;
+                                            Event.current.Use();
                                         }
                                     }
                                     Rect copyPasteOutlineRect = new Rect(propertyCellRect);
@@ -1074,12 +1088,12 @@ namespace FrigidBlackwaters.Game
                             },
                             (Rect frameCellRect, int frameIndex) =>
                             {
-                                if (!Event.current.control && GUI.Button(frameCellRect, "", GUIStyling.EmptyStyle))
+                                if (!Event.current.control && GUI.Button(frameCellRect, "", UtilityStyles.EmptyStyle))
                                 {
-                                    UpdateEditFrameIndex(frameIndex);
-                                    UpdateEditPropertyIndex(propertyIndex);
+                                    this.UpdateEditFrameIndex(frameIndex);
+                                    this.UpdateEditPropertyIndex(propertyIndex);
                                 }
-                                using (new GUIHelper.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex && this.editFrameIndex == frameIndex)))
+                                using (new UtilityGUI.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex && this.editFrameIndex == frameIndex)))
                                 {
                                     GUI.DrawTexture(frameCellRect, this.config.MainCellTexture);
                                 }
@@ -1089,13 +1103,14 @@ namespace FrigidBlackwaters.Game
                                     {
                                         if (Event.current.button == 0)
                                         {
-                                            if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.PropertyCount &&
+                                            if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.GetNumberProperties() &&
                                                 this.copyAnimationIndex >= 0 && this.copyAnimationIndex < this.body.GetAnimationCount() &&
                                                 this.copyFrameIndex >= 0 && this.copyFrameIndex < this.body.GetFrameCount(this.copyAnimationIndex) &&
                                                 this.copyOrientationIndex == -1 &&
                                                 this.editAnimationIndex != -1)
                                             {
                                                 this.body.CopyPasteFrameAndItsOrientations(this.copyPropertyIndex, propertyIndex, this.copyAnimationIndex, this.editAnimationIndex, this.copyFrameIndex, frameIndex);
+                                                Event.current.Use();
                                             }
                                         }
                                         else if (Event.current.button == 1)
@@ -1104,6 +1119,7 @@ namespace FrigidBlackwaters.Game
                                             this.copyAnimationIndex = this.editAnimationIndex;
                                             this.copyFrameIndex = frameIndex;
                                             this.copyOrientationIndex = -1;
+                                            Event.current.Use();
                                         }
                                     }
                                     Rect copyPasteOutlineRect = new Rect(frameCellRect);
@@ -1132,13 +1148,13 @@ namespace FrigidBlackwaters.Game
                             for (int orientationIndex = 0; orientationIndex < this.body.GetOrientationCount(this.editAnimationIndex); orientationIndex++)
                             {
                                 DrawCellRow(
-                                    this.body.GetDepthOf(property),
+                                    this.body.GetPropertyDepthOf(property),
                                     (Rect indentRect) =>
                                     {
                                         indentRect.xMin += this.config.IndentWidth / 2;
-                                        using (new GUIHelper.ColorScope(this.config.DarkColor))
+                                        using (new UtilityGUI.ColorScope(this.config.DarkColor))
                                         {
-                                            GUIHelper.DrawSolidBox(indentRect);
+                                            UtilityGUI.DrawSolidBox(indentRect);
                                         }
                                     },
                                     (Rect controlsRect) => 
@@ -1146,18 +1162,18 @@ namespace FrigidBlackwaters.Game
                                         Rect bindRect = new Rect(controlsRect);
                                         bindRect.x += this.config.PropertyNameWidth;
                                         bindRect.width = this.config.PropertyBindWidth;
-                                        using (new GUIHelper.ColorScope(GetSelectColor(false)))
+                                        using (new UtilityGUI.ColorScope(GetSelectColor(false)))
                                         {
-                                            GUIHelper.DrawSolidBox(bindRect);
+                                            UtilityGUI.DrawSolidBox(bindRect);
                                         }
                                     },
                                     (Rect propertyCellRect) =>
                                     {
-                                        if (!Event.current.control && GUI.Button(propertyCellRect, "", GUIStyling.EmptyStyle))
+                                        if (!Event.current.control && GUI.Button(propertyCellRect, "", UtilityStyles.EmptyStyle))
                                         {
-                                            UpdateEditPropertyIndex(propertyIndex);
+                                            this.UpdateEditPropertyIndex(propertyIndex);
                                         }
-                                        using (new GUIHelper.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex)))
+                                        using (new UtilityGUI.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex)))
                                         {
                                             GUI.DrawTexture(propertyCellRect, this.config.OrientationRowMarkerCellTexture);
                                         }
@@ -1167,13 +1183,14 @@ namespace FrigidBlackwaters.Game
                                             {
                                                 if (Event.current.button == 0)
                                                 {
-                                                    if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.PropertyCount &&
+                                                    if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.GetNumberProperties() &&
                                                         this.copyAnimationIndex >= 0 && this.copyAnimationIndex < this.body.GetAnimationCount() &&
                                                         this.copyFrameIndex == -1 &&
                                                         this.copyOrientationIndex >= 0 && this.copyOrientationIndex < this.body.GetOrientationCount(this.copyAnimationIndex) &&
                                                         this.editAnimationIndex != -1)
                                                     {
                                                         this.body.CopyPasteOrientationAcrossAllFrames(this.copyPropertyIndex, propertyIndex, this.copyAnimationIndex, this.editAnimationIndex, this.copyOrientationIndex, orientationIndex);
+                                                        Event.current.Use();
                                                     }
                                                 }
                                                 else if (Event.current.button == 1)
@@ -1182,6 +1199,7 @@ namespace FrigidBlackwaters.Game
                                                     this.copyAnimationIndex = this.editAnimationIndex;
                                                     this.copyFrameIndex = -1;
                                                     this.copyOrientationIndex = orientationIndex;
+                                                    Event.current.Use();
                                                 }
                                             }
                                             Rect copyPasteRowRect = new Rect(propertyCellRect);
@@ -1191,13 +1209,13 @@ namespace FrigidBlackwaters.Game
                                     },
                                     (Rect frameCellRect, int frameIndex) =>
                                     {
-                                        if (!Event.current.control && GUI.Button(frameCellRect, "", GUIStyling.EmptyStyle))
+                                        if (!Event.current.control && GUI.Button(frameCellRect, "", UtilityStyles.EmptyStyle))
                                         {
-                                            UpdateEditFrameIndex(frameIndex);
-                                            UpdateEditPropertyIndex(propertyIndex);
-                                            UpdateEditOrientationIndex(orientationIndex);
+                                            this.UpdateEditFrameIndex(frameIndex);
+                                            this.UpdateEditPropertyIndex(propertyIndex);
+                                            this.UpdateEditOrientationIndex(orientationIndex);
                                         }
-                                        using (new GUIHelper.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex && this.editFrameIndex == frameIndex && this.editOrientationIndex == orientationIndex)))
+                                        using (new UtilityGUI.ColorScope(GetSelectColor(this.editPropertyIndex == propertyIndex && this.editFrameIndex == frameIndex && this.editOrientationIndex == orientationIndex)))
                                         {
                                             GUI.DrawTexture(frameCellRect, this.config.MainCellTexture);
                                         }
@@ -1207,13 +1225,14 @@ namespace FrigidBlackwaters.Game
                                             {
                                                 if (Event.current.button == 0)
                                                 {
-                                                    if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.PropertyCount &&
+                                                    if (this.copyPropertyIndex >= 0 && this.copyPropertyIndex < this.body.GetNumberProperties() &&
                                                         this.copyAnimationIndex >= 0 && this.copyAnimationIndex < this.body.GetAnimationCount() &&
                                                         this.copyFrameIndex >= 0 && this.copyFrameIndex < this.body.GetFrameCount(this.copyAnimationIndex) &&
                                                         this.copyOrientationIndex >= 0 && this.copyOrientationIndex < this.body.GetOrientationCount(this.copyAnimationIndex) &&
                                                         this.editAnimationIndex != -1)
                                                     {
                                                         this.body.CopyPasteOrientation(this.copyPropertyIndex, propertyIndex, this.copyAnimationIndex, this.editAnimationIndex, this.copyFrameIndex, frameIndex, this.copyOrientationIndex, orientationIndex);
+                                                        Event.current.Use();
                                                     }
                                                 }
                                                 else if (Event.current.button == 1)
@@ -1222,6 +1241,7 @@ namespace FrigidBlackwaters.Game
                                                     this.copyAnimationIndex = this.editAnimationIndex;
                                                     this.copyFrameIndex = frameIndex;
                                                     this.copyOrientationIndex = orientationIndex;
+                                                    Event.current.Use();
                                                 }
                                             }
                                             copyPasteOutlineRects.Add(frameCellRect);
@@ -1248,9 +1268,9 @@ namespace FrigidBlackwaters.Game
 
                     foreach (Rect copyPasteOutlineRect in copyPasteOutlineRects)
                     {
-                        using (new GUIHelper.ColorScope(this.config.LightColor))
-                        { 
-                            GUIHelper.DrawOutlineBox(copyPasteOutlineRect, this.config.CopyPasteOutlineThickness);
+                        using (new UtilityGUI.ColorScope(this.config.LightColor))
+                        {
+                            UtilityGUI.DrawOutlineBox(copyPasteOutlineRect, this.config.CopyPasteOutlineThickness);
                         }
                     }
                 }
@@ -1258,9 +1278,9 @@ namespace FrigidBlackwaters.Game
                 using (new EditorGUILayout.HorizontalScope(GUILayout.Height(this.config.BorderLength)))
                 {
                     Rect dividerRect = GUILayoutUtility.GetRect(0, this.config.BorderLength);
-                    using (new GUIHelper.ColorScope(this.config.DarkColor))
+                    using (new UtilityGUI.ColorScope(this.config.DarkColor))
                     {
-                        GUIHelper.DrawSolidBox(dividerRect);
+                        UtilityGUI.DrawSolidBox(dividerRect);
                     }
                 }
             }

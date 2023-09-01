@@ -21,7 +21,7 @@ namespace FrigidBlackwaters.Game
         {
             if (!this.isPlaying)
             {
-                Played(animatorBody);
+                this.Played(animatorBody);
                 this.isPlaying = true;
             }
         }
@@ -30,7 +30,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.isPlaying)
             {
-                Stopped();
+                this.Stopped();
                 this.isPlaying = false;
             }
         }

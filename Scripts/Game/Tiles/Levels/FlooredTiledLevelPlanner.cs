@@ -13,16 +13,17 @@ namespace FrigidBlackwaters.Game
 
         private SceneVariable<int> numFloorsCreated;
 
-        protected override void Init()
+        protected override void OnBegin()
         {
-            base.Init();
+            base.OnBegin();
             this.numFloorsCreated = new SceneVariable<int>(() => 0);
         }
 
-        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledAreaEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
+        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
         {
-            TiledLevelPlanner chosenFloorPlanner = this.plannersPerFloor[this.numFloorsCreated.Current].Retrieve();
-            this.numFloorsCreated.Current = Mathf.Min(this.numFloorsCreated.Current + 1, this.plannersPerFloor.Count);
+            if (this.numFloorsCreated.Current >= this.plannersPerFloor.Count) Debug.LogWarning("FlooredTiledLevelPlanner " + this.name + " is exceeding the number of floors.");
+            TiledLevelPlanner chosenFloorPlanner = this.plannersPerFloor[Mathf.Min(this.numFloorsCreated.Current, this.plannersPerFloor.Count - 1)].Retrieve();
+            this.numFloorsCreated.Current++;
             return chosenFloorPlanner.CreateLevelPlan(subLevelEntrancesAndContainedAreas);
         }
     }

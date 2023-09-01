@@ -2,53 +2,89 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+using FrigidBlackwaters.Utility;
+
 namespace FrigidBlackwaters.Game
 {
     public class MobDockState : MobState
     {
         [Space]
         [SerializeField]
-        private List<DockPreset> dockPresets;
-        [SerializeField]
-        private List<DockSequence> dockSequences;
+        private List<MobStatusTag> statusTagsWhileDocking;
         [SerializeField]
         private List<MobBehaviour> behavioursWhileDocking;
+        [Space]
+        [SerializeField]
+        private string positionInterpPropertyName;
+        [SerializeField]
+        private List<DockTransition> dockTransitions;
         [SerializeField]
         private Direction dockingDirection;
         [SerializeField]
-        private ConditionalClause dockConditions;
+        private Conditional dockCondition;
         [SerializeField]
+        private bool hasDockDisplay;
+        [SerializeField]
+        [ShowIfBool("hasDockDisplay", true)]
         private MobDockDisplay dockDisplayPrefab;
 
-        private Vector2 currDockDirection;
+        private Vector2 dockTryDirection;
+
         private bool isDocking;
-        private bool moveFlag;
-        private AnimatorBody currFromAnimatorBody;
-        private AnimatorBody currToAnimatorBody;
+        private Action onDockStarted;
+        private Action onDockEnded;
+
+        private bool preparingDock;
         private MobStateNode dockedStateNode;
         private MobStateNode chosenStateNode;
+
+        public Action OnDockStarted
+        {
+            get
+            {
+                return this.onDockStarted;
+            }
+            set
+            {
+                this.onDockStarted = value;
+            }
+        }
+
+        public Action OnDockEnded
+        {
+            get
+            {
+                return this.onDockEnded;
+            }
+            set
+            {
+                this.onDockEnded = value;
+            }
+        }
 
         public override HashSet<MobState> InitialStates
         {
             get
             {
                 HashSet<MobState> initialStates = new HashSet<MobState>();
-                foreach (DockPreset dockPreset in this.dockPresets)
+                foreach (DockTransition dockTransition in this.dockTransitions)
                 {
-                    initialStates.UnionWith(dockPreset.StateNode.InitialStates);
+                    initialStates.UnionWith(dockTransition.FromStateNode.InitialStates);
+                    initialStates.UnionWith(dockTransition.ToStateNode.InitialStates);
                 }
                 return initialStates;
             }
         }
 
-        public override HashSet<MobState> SwitchableStates
+        public override HashSet<MobState> MoveStates
         {
             get
             {
                 HashSet<MobState> switchableStates = new HashSet<MobState>();
-                foreach (DockPreset dockPreset in this.dockPresets)
+                foreach (DockTransition dockTransition in this.dockTransitions)
                 {
-                    switchableStates.UnionWith(dockPreset.StateNode.SwitchableStates);
+                    switchableStates.UnionWith(dockTransition.FromStateNode.MoveStates);
+                    switchableStates.UnionWith(dockTransition.ToStateNode.MoveStates);
                 }
                 return switchableStates;
             }
@@ -59,20 +95,12 @@ namespace FrigidBlackwaters.Game
             get
             {
                 HashSet<MobStateNode> referencedStateNodes = new HashSet<MobStateNode>();
-                foreach (DockPreset dockPreset in this.dockPresets)
+                foreach (DockTransition dockTransition in this.dockTransitions)
                 {
-                    referencedStateNodes.Add(dockPreset.StateNode);
+                    referencedStateNodes.Add(dockTransition.FromStateNode);
+                    referencedStateNodes.Add(dockTransition.ToStateNode);
                 }
                 return referencedStateNodes;
-            }
-        }
-
-        public override Vector2 DisplayPosition
-        {
-            get
-            {
-                if (!this.isDocking) return base.DisplayPosition;
-                return this.currFromAnimatorBody.transform.position;
             }
         }
 
@@ -80,14 +108,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                if (this.chosenStateNode == this)
-                {
-                    return false;
-                }
-                else
-                {
-                    return this.chosenStateNode.AutoEnter;
-                }
+                return false;
             }
         }
 
@@ -95,14 +116,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                if (this.chosenStateNode == this)
-                {
-                    return false;
-                }
-                else
-                {
-                    return this.chosenStateNode.AutoExit;
-                }
+                return false;
             }
         }
 
@@ -122,35 +136,27 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override bool CanSetPosition
+        public override bool MovePositionSafe
         {
             get
             {
-                return (this.chosenStateNode == this && this.moveFlag) || (this.chosenStateNode != this && this.chosenStateNode.CurrentState.CanSetPosition);
+                return (this.chosenStateNode == this && this.preparingDock) || (this.chosenStateNode != this && this.chosenStateNode.CurrentState.MovePositionSafe);
             }
         }
 
-        public override bool CanSetTiledArea
+        public override bool MoveTiledAreaSafe
         {
             get
             {
-                return this.chosenStateNode != this && this.chosenStateNode.CurrentState.CanSetTiledArea;
+                return this.chosenStateNode != this && this.chosenStateNode.CurrentState.MoveTiledAreaSafe;
             }
         }
 
-        public override bool Dead
+        public sealed override MobStatus Status
         {
             get
             {
-                return false;
-            }
-        }
-
-        public override bool Waiting
-        {
-            get
-            {
-                return false;
+                return MobStatus.Acting;
             }
         }
 
@@ -158,45 +164,55 @@ namespace FrigidBlackwaters.Game
         {
             base.Init();
             this.isDocking = false;
-            this.moveFlag = false;
-            foreach (DockPreset dockPreset in this.dockPresets)
+            this.preparingDock = false;
+            foreach (DockTransition dockTransition in this.dockTransitions)
             {
-                if (dockPreset.StateNode.InitialStates.Contains(this.CurrentState))
+                if (dockTransition.FromStateNode.InitialStates.Contains(this.CurrentState))
                 {
-                    this.dockedStateNode = dockPreset.StateNode;
-                    this.chosenStateNode = this.dockedStateNode;
+                    this.dockedStateNode = dockTransition.FromStateNode;
+                    break;
+                }
+                if (dockTransition.ToStateNode.InitialStates.Contains(this.CurrentState))
+                {
+                    this.dockedStateNode = dockTransition.ToStateNode;
                     break;
                 }
             }
-            FrigidInstancing.CreateInstance<MobDockDisplay>(this.dockDisplayPrefab).Spawn(this.Owner, this);
+            this.chosenStateNode = this.dockedStateNode;
+            if (this.hasDockDisplay) CreateInstance<MobDockDisplay>(this.dockDisplayPrefab).Spawn(this.Owner, this);
         }
 
-        public override void Switch()
+        public override void Move()
         {
-            base.Switch();
-            foreach (DockPreset dockPreset in this.dockPresets)
+            base.Move();
+            foreach (DockTransition dockTransition in this.dockTransitions)
             {
-                if (dockPreset.StateNode.SwitchableStates.Contains(this.CurrentState))
+                if (dockTransition.FromStateNode.MoveStates.Contains(this.CurrentState))
                 {
-                    this.dockedStateNode = dockPreset.StateNode;
-                    this.chosenStateNode = this.dockedStateNode;
+                    this.dockedStateNode = dockTransition.FromStateNode;
+                    break;
+                }
+                if (dockTransition.ToStateNode.MoveStates.Contains(this.CurrentState))
+                {
+                    this.dockedStateNode = dockTransition.ToStateNode;
                     break;
                 }
             }
+            this.chosenStateNode = this.dockedStateNode;
         }
 
         public override void Enter()
         {
-            SetChosenStateNode(this.dockedStateNode);
+            this.SetChosenStateNode(this.dockedStateNode);
             base.Enter();
             if (this.chosenStateNode != this)
             {
-                this.chosenStateNode.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
+                this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
                 this.chosenStateNode.Enter();
             }
             else
             {
-                EnterDock();
+                this.EnterDock();
             }
         }
 
@@ -206,11 +222,11 @@ namespace FrigidBlackwaters.Game
             if (this.chosenStateNode != this)
             {
                 this.chosenStateNode.Exit();
-                this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
+                this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
             }
             else
             {
-                ExitDock();
+                this.ExitDock();
             }
         }
 
@@ -219,226 +235,185 @@ namespace FrigidBlackwaters.Game
             base.Refresh();
             if (this.chosenStateNode != this)
             {
-                this.currDockDirection = this.dockingDirection.Calculate(this.currDockDirection, this.EnterDuration, this.EnterDurationDelta);
                 this.chosenStateNode.Refresh();
+                this.dockTryDirection = this.dockingDirection.Retrieve(Vector2.zero, this.EnterDuration, this.EnterDurationDelta);
             }
-            CheckTransitions();
+            this.CheckTransitions();
         }
 
-        public bool TryGetPositionOfNextDockState(out Vector2 dockPosition, out MobState nextDockState)
+        public bool TryGetDockingPosition(out Vector2 dockPosition)
         {
-            bool dockTry = TryDock(out dockPosition, out DockSequence dockSequence);
-            if (dockTry)
-            {
-                nextDockState = this.dockPresets[dockSequence.ToDockPresetIndex].StateNode.CurrentState;
-                return true;
-            }
-            else
-            {
-                nextDockState = null;
-                return false;
-            }
+            return this.TryDock(out dockPosition, out _);
         }
 
         private void CheckTransitions()
         {
             if (this.chosenStateNode != this)
             {
-                this.chosenStateNode.Refresh();
-                if (TryDock(out _, out _) && this.Owner.CanAct && this.dockConditions.Evaluate(this.EnterDuration, this.EnterDurationDelta))
+                if (this.TryDock(out _, out _) && this.Owner.IsActingAndNotStunned && this.dockCondition.Evaluate(this.EnterDuration, this.EnterDurationDelta))
                 {
-                    SetChosenStateNode(this);
+                    this.SetChosenStateNode(this);
                 }
             }
             else
             {
                 if (!this.isDocking)
                 {
-                    SetChosenStateNode(this.dockedStateNode);
+                    this.SetChosenStateNode(this.dockedStateNode);
                 }
             }
         }
 
         private void EnterDock()
         {
-            if (TryDock(out Vector2 dockPosition, out DockSequence dockSequence))
+            if (this.TryDock(out Vector2 dockPosition, out DockTransition dockTransition))
             {
-                DockPreset fromDockPreset = this.dockPresets[dockSequence.FromDockPresetIndex];
-                DockPreset toDockPreset = this.dockPresets[dockSequence.ToDockPresetIndex];
-
-                this.moveFlag = true;
-                this.Owner.StopVelocities.Request();
-                this.Owner.RequestPushMode(MobPushMode.IgnoreMobsAndTerrain);
-
+                this.preparingDock = true;
                 if (this.Owner.CanMoveTo(dockPosition))
                 {
                     Vector2 originalPosition = this.Owner.Position;
                     this.Owner.MoveTo(dockPosition);
                     this.OwnerAnimatorBody.Direction = dockPosition - originalPosition;
 
-                    if (CanSetChosenStateNode(toDockPreset.StateNode))
+                    if (this.CanSetChosenStateNode(dockTransition.ToStateNode))
                     {
-                        Vector2 fromStartPosition = originalPosition;
-                        Vector2 fromEndPosition = originalPosition;
-                        Vector2 toStartPosition = dockPosition;
-                        Vector2 toEndPosition = dockPosition;
-                        if (fromDockPreset.DoMoveOver)
+                        if (!this.OwnerAnimatorBody.TryFindReferencedPropertyIn<LocalPositionInterpAnimatorProperty>(dockTransition.AnimationName, this.positionInterpPropertyName, out LocalPositionInterpAnimatorProperty interpProperty))
                         {
-                            fromEndPosition = toEndPosition;
-                        }
-                        if (toDockPreset.DoMoveOver)
-                        {
-                            toStartPosition = fromStartPosition;
-                        }
+                            Debug.LogWarning("MobDockState " + this.name + " could not find the interp property.");
 
-                        if (this.OwnerAnimatorBody.TryFindPropertyIn<SubAnimatorBodyAnimatorProperty>(dockSequence.AnimationName, fromDockPreset.AnimatorBodyPropertyName, out SubAnimatorBodyAnimatorProperty fromAnimatorBodyProperty) &&
-                            this.OwnerAnimatorBody.TryFindPropertyIn<SubAnimatorBodyAnimatorProperty>(dockSequence.AnimationName, toDockPreset.AnimatorBodyPropertyName, out SubAnimatorBodyAnimatorProperty toAnimatorBodyProperty))
-                        {
-                            this.isDocking = true;
-                            this.dockedStateNode = toDockPreset.StateNode;
+                            this.Owner.MoveTo(originalPosition);
+                            this.preparingDock = false;
 
-                            this.currFromAnimatorBody = fromAnimatorBodyProperty.SubBody;
-                            this.currToAnimatorBody = toAnimatorBodyProperty.SubBody;
-                            this.currFromAnimatorBody.transform.position = fromStartPosition;
-                            this.currToAnimatorBody.transform.position = toStartPosition;
-
-                            foreach (MobBehaviour behaviourWhileDocking in this.behavioursWhileDocking) this.Owner.AddBehaviour(behaviourWhileDocking, false);
-
-                            IEnumerator<FrigidCoroutine.Delay> MoveOver()
-                            {
-                                while (true)
-                                {
-                                    float progress01 = Mathf.Clamp01(this.OwnerAnimatorBody.ElapsedDuration / this.OwnerAnimatorBody.TotalDuration);
-                                    this.currFromAnimatorBody.transform.position = fromStartPosition + (fromEndPosition - fromStartPosition) * progress01;
-                                    this.currToAnimatorBody.transform.position = toStartPosition + (toEndPosition - toStartPosition) * progress01;
-                                    yield return null;
-                                }
-                            }
-                            FrigidCoroutine moveOverRoutine = FrigidCoroutine.Run(MoveOver());
-
-                            this.OwnerAnimatorBody.Play(
-                                dockSequence.AnimationName,
-                                () =>
-                                {
-                                    this.isDocking = false;
-
-                                    FrigidCoroutine.Kill(moveOverRoutine);
-                                    this.currFromAnimatorBody.transform.localPosition = Vector2.zero;
-                                    this.currToAnimatorBody.transform.localPosition = Vector2.zero;
-                                    this.currFromAnimatorBody = null;
-                                    this.currToAnimatorBody = null;
-
-                                    foreach (MobBehaviour behaviourWhileDocking in this.behavioursWhileDocking) this.Owner.RemoveBehaviour(behaviourWhileDocking);
-
-                                    CheckTransitions();
-                                }
-                                );
-
-                            this.moveFlag = false;
-                            this.Owner.StopVelocities.Release();
-                            this.Owner.ReleasePushMode(MobPushMode.IgnoreMobsAndTerrain);
+                            this.CheckTransitions();
                             return;
                         }
-                        else
-                        {
-                            Debug.LogWarning("Dock State " + this.name + " seems to have an invalid animator body property name.");
-                        }
+
+                        interpProperty.StartLocalPosition = originalPosition - dockPosition;
+                        interpProperty.FinishLocalPosition = Vector2.zero;
+
+                        this.isDocking = true;
+                        this.onDockStarted?.Invoke();
+
+                        this.Owner.StopVelocities.Request();
+                        this.Owner.RequestPushMode(MobPushMode.IgnoreEverything);
+
+                        this.dockedStateNode = dockTransition.ToStateNode;
+
+                        foreach (MobStatusTag statusTagWhileDocking in this.statusTagsWhileDocking) this.Owner.AddStatusTag(statusTagWhileDocking);
+                        foreach (MobBehaviour behaviourWhileDocking in this.behavioursWhileDocking) this.Owner.AddBehaviour(behaviourWhileDocking, false);
+
+                        this.OwnerAnimatorBody.Play(
+                            dockTransition.AnimationName,
+                            () =>
+                            {
+                                this.isDocking = false;
+                                this.onDockEnded?.Invoke();
+
+                                this.Owner.ReleasePushMode(MobPushMode.IgnoreEverything);
+                                this.Owner.StopVelocities.Release();
+
+                                foreach (MobStatusTag statusTagWhileDocking in this.statusTagsWhileDocking) this.Owner.RemoveStatusTag(statusTagWhileDocking);
+                                foreach (MobBehaviour behaviourWhileDocking in this.behavioursWhileDocking) this.Owner.RemoveBehaviour(behaviourWhileDocking);
+
+                                this.CheckTransitions();
+                            }
+                            );
+
+                        this.preparingDock = false;
+                        return;
                     }
 
                     this.Owner.MoveTo(originalPosition);
                 }
-
-                this.moveFlag = false;
-                this.Owner.StopVelocities.Release();
-                this.Owner.ReleasePushMode(MobPushMode.IgnoreMobsAndTerrain);
+                this.preparingDock = false;
             }
-            CheckTransitions();
+            this.CheckTransitions();
         }
 
         private void ExitDock()
         {
             if (this.isDocking)
             {
+                this.OwnerAnimatorBody.Stop();
+
                 this.isDocking = false;
+                this.onDockEnded?.Invoke();
 
-                this.currFromAnimatorBody.transform.localPosition = Vector2.zero;
-                this.currToAnimatorBody.transform.localPosition = Vector2.zero;
-                this.currFromAnimatorBody = null;
-                this.currToAnimatorBody = null;
+                this.Owner.ReleasePushMode(MobPushMode.IgnoreEverything);
+                this.Owner.StopVelocities.Release();
 
+                foreach (MobStatusTag statusTagWhileDocking in this.statusTagsWhileDocking) this.Owner.RemoveStatusTag(statusTagWhileDocking);
                 foreach (MobBehaviour behaviourWhileDocking in this.behavioursWhileDocking) this.Owner.RemoveBehaviour(behaviourWhileDocking);
             }
         }
 
-        private bool TryDock(out Vector2 dockPosition, out DockSequence validDockSequence)
+        private bool TryDock(out Vector2 dockPosition, out DockTransition dockTransition)
         {
             if (this.Entered)
             {
                 TiledArea tiledArea = this.Owner.TiledArea;
-                Vector2Int currentPositionIndices = this.Owner.PositionIndices;
+                Vector2Int currentIndexPosition = this.Owner.IndexPosition;
 
-                foreach (DockSequence dockSequence in this.dockSequences)
+                foreach (DockTransition potentialDockTransition in this.dockTransitions)
                 {
-                    MobStateNode fromStateNode = this.dockPresets[dockSequence.FromDockPresetIndex].StateNode;
-                    MobStateNode toStateNode = this.dockPresets[dockSequence.ToDockPresetIndex].StateNode;
+                    MobStateNode fromStateNode = potentialDockTransition.FromStateNode;
+                    MobStateNode toStateNode = potentialDockTransition.ToStateNode;
 
                     if (fromStateNode != this.dockedStateNode || fromStateNode == toStateNode) continue;
 
-                    Vector2Int substitutePositionIndices =
-                        currentPositionIndices +
-                        new Vector2Int(Mathf.RoundToInt(this.currDockDirection.x) * toStateNode.CurrentState.TileSize.x, -Mathf.RoundToInt(this.currDockDirection.y) * toStateNode.CurrentState.TileSize.y);
+                    Vector2Int substitudeIndexPosition = currentIndexPosition + new Vector2Int(Mathf.RoundToInt(this.dockTryDirection.x) * toStateNode.CurrentState.TileSize.x, -Mathf.RoundToInt(this.dockTryDirection.y) * toStateNode.CurrentState.TileSize.y);
 
-                    if (!TilePositioning.RectIndicesWithinBounds(substitutePositionIndices, tiledArea.MainAreaDimensions, toStateNode.CurrentState.TileSize)) continue;
+                    if (!AreaTiling.RectIndexPositionWithinBounds(substitudeIndexPosition, tiledArea.MainAreaDimensions, toStateNode.CurrentState.TileSize)) continue;
 
-                    dockPosition = TilePositioning.RectPositionFromIndices(substitutePositionIndices, tiledArea.CenterPosition, tiledArea.MainAreaDimensions, toStateNode.CurrentState.TileSize);
-                    if (substitutePositionIndices != currentPositionIndices && Mob.CanFitAt(this.Owner.TiledArea, dockPosition, toStateNode.CurrentState.Size, toStateNode.CurrentState.TraversableTerrain))
+                    dockPosition = AreaTiling.RectPositionFromIndexPosition(substitudeIndexPosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions, toStateNode.CurrentState.TileSize);
+                    if (substitudeIndexPosition != currentIndexPosition && Mob.CanTraverseAt(this.Owner.TiledArea, dockPosition, toStateNode.CurrentState.Size, toStateNode.CurrentState.TraversableTerrain))
                     {
-                        validDockSequence = dockSequence;
+                        dockTransition = potentialDockTransition;
                         return true;
                     }
                 }
             }
-            dockPosition = Vector2.zero;
-            validDockSequence = new DockSequence();
+            dockPosition = default;
+            dockTransition = default;
             return false;
         }
 
         private bool CanSetChosenStateNode(MobStateNode chosenStateNode)
         {
-            if (chosenStateNode == this) return CanSetCurrentState(this);
-            else return CanSetCurrentState(chosenStateNode.CurrentState);
+            if (chosenStateNode == this) return this.CanSetCurrentState(this);
+            else return this.CanSetCurrentState(chosenStateNode.CurrentState);
         }
 
         private void SetChosenStateNode(MobStateNode chosenStateNode)
         {
-            if (CanSetChosenStateNode(chosenStateNode) && chosenStateNode != this.chosenStateNode)
+            if (this.CanSetChosenStateNode(chosenStateNode) && chosenStateNode != this.chosenStateNode)
             {
                 if (this.Entered)
                 {
                     if (this.chosenStateNode != this)
                     {
                         this.chosenStateNode.Exit();
-                        this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
+                        this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
                     }
                     else
                     {
-                        ExitDock();
+                        this.ExitDock();
                     }
                 }
 
                 this.chosenStateNode = chosenStateNode;
-                SetCurrentStateFromChosenStateNode();
+                this.SetCurrentStateFromChosenStateNode();
 
                 if (this.Entered)
                 {
                     if (this.chosenStateNode != this)
                     {
-                        this.chosenStateNode.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
+                        this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
                         this.chosenStateNode.Enter();
                     }
                     else
                     {
-                        EnterDock();
+                        this.EnterDock();
                     }
                 }
             }
@@ -446,59 +421,24 @@ namespace FrigidBlackwaters.Game
 
         private void SetCurrentStateFromChosenStateNode(MobState previousState, MobState currentState)
         {
-            SetCurrentStateFromChosenStateNode();
+            this.SetCurrentStateFromChosenStateNode();
         }
 
         private void SetCurrentStateFromChosenStateNode()
         {
-            if (this.chosenStateNode == this) SetCurrentState(this);
-            else SetCurrentState(this.chosenStateNode.CurrentState);
+            if (this.chosenStateNode == this) this.SetCurrentState(this);
+            else this.SetCurrentState(this.chosenStateNode.CurrentState);
         }
 
         [Serializable]
-        private struct DockPreset
-        {
-            [SerializeField]
-            private MobStateNode stateNode;
-            [SerializeField]
-            private string animatorBodyPropertyName;
-            [SerializeField]
-            private bool doMoveOver;
-
-            public MobStateNode StateNode
-            {
-                get
-                {
-                    return this.stateNode;
-                }
-            }
-
-            public string AnimatorBodyPropertyName
-            {
-                get
-                {
-                    return this.animatorBodyPropertyName;
-                }
-            }
-
-            public bool DoMoveOver
-            {
-                get
-                {
-                    return this.doMoveOver;
-                }
-            }
-        }
-
-        [Serializable]
-        private struct DockSequence
+        private struct DockTransition
         {
             [SerializeField]
             private string animationName;
             [SerializeField]
-            private int fromDockPresetIndex;
+            private MobStateNode fromStateNode;
             [SerializeField]
-            private int toDockPresetIndex;
+            private MobStateNode toStateNode;
 
             public string AnimationName
             {
@@ -508,19 +448,19 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            public int FromDockPresetIndex
+            public MobStateNode FromStateNode
             {
                 get
                 {
-                    return this.fromDockPresetIndex;
+                    return this.fromStateNode;
                 }
             }
 
-            public int ToDockPresetIndex
+            public MobStateNode ToStateNode
             {
                 get
                 {
-                    return this.toDockPresetIndex;
+                    return this.toStateNode;
                 }
             }
         }

@@ -11,27 +11,19 @@ namespace FrigidBlackwaters.Game
     {
         [SerializeField]
         private RelativeWeightPool<TrialPair> trialPairs;
-        [SerializeField]
-        private TiledArea trialAreaPrefab;
-        [SerializeField]
-        private TiledAreaEntrance exitEntrancePrefab;
-        [SerializeField]
-        private TiledAreaEntrance rewardEntrancePrefab;
-        [SerializeField]
-        private TiledAreaMobGenerator trialMobGenerator;
 
-        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledAreaEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
+        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
         {
             TrialPair trialPair = this.trialPairs.Retrieve();
-            TiledLevelPlanArea combatPlanArea = new TiledLevelPlanArea(this.trialAreaPrefab, trialPair.CombatBlueprintGroup);
-            TiledLevelPlan levelPlan = new TiledLevelPlan(combatPlanArea, this.trialMobGenerator);
+            TiledLevelPlanArea combatPlanArea = new TiledLevelPlanArea(trialPair.CombatBlueprintGroup);
+            TiledLevelPlan levelPlan = new TiledLevelPlan(combatPlanArea);
 
-            TiledLevelPlanArea rewardPlanArea = new TiledLevelPlanArea(this.trialAreaPrefab, trialPair.RewardBlueprintGroup);
+            TiledLevelPlanArea rewardPlanArea = new TiledLevelPlanArea(trialPair.RewardBlueprintGroup);
             levelPlan.AddArea(rewardPlanArea);
             levelPlan.AddConnection(
                 new TiledLevelPlanConnection(
-                    new TiledLevelPlanEntrance(combatPlanArea, this.rewardEntrancePrefab),
-                    new TiledLevelPlanEntrance(rewardPlanArea, this.rewardEntrancePrefab),
+                    new TiledLevelPlanEntrance(combatPlanArea),
+                    new TiledLevelPlanEntrance(rewardPlanArea),
                     Vector2Int.up
                     )
                 );
@@ -42,15 +34,15 @@ namespace FrigidBlackwaters.Game
                 return levelPlan;
             }
 
-            foreach (TiledAreaEntrance subLevelEntrance in subLevelEntrancesAndContainedAreas.Keys)
+            foreach (TiledEntrance subLevelEntrance in subLevelEntrancesAndContainedAreas.Keys)
             {
                 TiledArea containedArea = subLevelEntrancesAndContainedAreas[subLevelEntrance];
                 levelPlan.AddConnection(
                     new TiledLevelPlanConnection(
                         new TiledLevelPlanEntrance(subLevelEntrance),
-                        new TiledLevelPlanEntrance(combatPlanArea, this.exitEntrancePrefab),
+                        new TiledLevelPlanEntrance(combatPlanArea),
                         Vector2Int.up,
-                        containedArea.NavigationGrid.TerrainAtTile(TilePositioning.TileIndicesFromPosition(subLevelEntrance.transform.position, containedArea.CenterPosition, containedArea.MainAreaDimensions))
+                        containedArea.NavigationGrid[AreaTiling.TileIndexPositionFromPosition(subLevelEntrance.transform.position, containedArea.CenterPosition, containedArea.MainAreaDimensions)].Terrain
                         )
                     );
             }

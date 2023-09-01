@@ -8,11 +8,14 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private bool isFiring;
         [SerializeField]
-        private Timer cooldown;
+        private AbilityResource activeAbilityResource;
         [SerializeField]
         private string equipmentAnimationName;
         [SerializeField]
         private Direction facingDirection;
+        [Space]
+        [SerializeField]
+        private List<MobStatusTag> statusTags;
 
         private bool equipmentAnimationFinished;
 
@@ -48,28 +51,36 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Timer Cooldown
+        public AbilityResource ActiveAbilityResource
         {
             get
             {
-                return this.cooldown;
+                return this.activeAbilityResource;
             }
         }
 
         public override void Enter()
         {
             base.Enter();
-            if (!this.EquipmentPiece.EquipPoint.Equipper.CanAct) this.EquipmentAnimatorBody.Direction = this.EquipmentPiece.EquipPoint.Equipper.FacingDirection;
-            else this.EquipmentAnimatorBody.Direction = this.facingDirection.Calculate(this.EquipmentPiece.FacingDirection, this.EnterDuration, this.EnterDurationDelta);
+            if (!this.Owner.EquipPoint.Equipper.IsActingAndNotStunned) this.OwnerAnimatorBody.Direction = this.Owner.EquipPoint.Equipper.FacingDirection;
+            else this.OwnerAnimatorBody.Direction = this.facingDirection.Retrieve(this.Owner.FacingDirection, this.EnterDuration, this.EnterDurationDelta);
             this.equipmentAnimationFinished = false;
-            this.EquipmentAnimatorBody.Play(this.equipmentAnimationName, () => this.equipmentAnimationFinished = true);
+            this.OwnerAnimatorBody.Play(this.equipmentAnimationName, () => this.equipmentAnimationFinished = true);
+            foreach (MobStatusTag statusTag in this.statusTags)
+            {
+                this.Owner.EquipPoint.Equipper.AddStatusTag(statusTag);
+            }
         }
 
         public override void Refresh()
         {
             base.Refresh();
-            if (!this.EquipmentPiece.EquipPoint.Equipper.CanAct) this.EquipmentAnimatorBody.Direction = this.EquipmentPiece.EquipPoint.Equipper.FacingDirection;
-            else this.EquipmentAnimatorBody.Direction = this.facingDirection.Calculate(this.EquipmentPiece.FacingDirection, this.EnterDuration, this.EnterDurationDelta);
+            if (!this.Owner.EquipPoint.Equipper.IsActingAndNotStunned) this.OwnerAnimatorBody.Direction = this.Owner.EquipPoint.Equipper.FacingDirection;
+            else this.OwnerAnimatorBody.Direction = this.facingDirection.Retrieve(this.Owner.FacingDirection, this.EnterDuration, this.EnterDurationDelta);
+            foreach (MobStatusTag statusTag in this.statusTags)
+            {
+                this.Owner.EquipPoint.Equipper.RemoveStatusTag(statusTag);
+            }
         }
     }
 }

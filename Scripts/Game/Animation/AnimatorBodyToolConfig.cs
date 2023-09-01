@@ -28,6 +28,8 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private int cellPreviewPadding;
         [SerializeField]
+        private int numberFramesPerPage;
+        [SerializeField]
         private int propertyBindWidth;
         [SerializeField]
         private int propertyNameWidth;
@@ -159,6 +161,14 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.cellPreviewPadding;
+            }
+        }
+
+        public int NumberFramesPerPage
+        {
+            get
+            {
+                return this.numberFramesPerPage;
             }
         }
 

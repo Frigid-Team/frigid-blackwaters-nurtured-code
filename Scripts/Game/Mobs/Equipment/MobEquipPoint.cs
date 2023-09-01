@@ -1,28 +1,55 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
+    [RequireComponent(typeof(SortingGroupAnimatorProperty))]
     public class MobEquipPoint : FrigidMonoBehaviour
     {
         [SerializeField]
-        private SortingPointAnimatorProperty sortingPointProperty;
+        private MobEquipContext equipContext;
         [SerializeField]
-        private Direction aimDirection;
+        private SortingGroupAnimatorProperty sortingGroupProperty;
         [SerializeField]
-        private ConditionalClause triggerConditions;
+        private List<Usage> usages;
+        [Space]
         [SerializeField]
-        private List<MobEquipmentPiece> defaultEquipmentPiecePrefabs;
+        private List<MobEquipmentSpawnable> existingEquipmentSpawnables;
 
-        private List<MobEquipmentPiece> equipmentPieces;
+        private List<MobEquipment> equipments;
         private int equipIndex;
-        private Action<bool, MobEquipmentPiece, bool, MobEquipmentPiece> onEquipChange;
+        private Action<bool, MobEquipment, bool, MobEquipment> onEquipChange;
+
+        private Usage currentUsage;
 
         private Mob equipper;
+        private MobStateNode equipperRootStateNode;
 
-        private float equippedDuration;
-        private float equippedDurationDelta;
+        public MobEquipContext EquipContext
+        {
+            get
+            {
+                return this.equipContext;
+            }
+        }
+
+        public Vector2 AimPosition
+        {
+            get
+            {
+                return this.currentUsage != null ? this.currentUsage.AimTargeter.Retrieve(Vector2.zero, 0, 0) : (this.Equipper.Position + this.Equipper.FacingDirection);
+            }
+        }
+
+        public bool IsTriggered
+        {
+            get
+            {
+                return this.currentUsage != null && this.currentUsage.TriggerCondition.Evaluate(0, 0);
+            }
+        }
 
         public Mob Equipper
         {
@@ -32,28 +59,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Vector2 AimDirection
-        {
-            get
-            {
-                Vector2 aimDirection = this.aimDirection.Calculate(Vector2.zero, this.equippedDuration, this.equippedDurationDelta);
-                if (aimDirection.magnitude <= 0)
-                {
-                    return this.Equipper.FacingDirection;
-                }
-                return aimDirection;
-            }
-        }
-
-        public bool Triggered
-        {
-            get
-            {
-                return this.triggerConditions.Evaluate(this.equippedDuration, this.equippedDurationDelta);
-            }
-        }
-
-        public Action<bool, MobEquipmentPiece, bool, MobEquipmentPiece> OnEquipChange
+        public Action<bool, MobEquipment, bool, MobEquipment> OnEquipChange
         {
             get
             {
@@ -65,99 +71,122 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public bool TryGetEquippedPiece(out MobEquipmentPiece equippedPiece)
+        public bool TryGetEquippedEquipment(out MobEquipment equippedEquipment)
         {
             if (this.equipIndex != -1)
             {
-                equippedPiece = this.equipmentPieces[this.equipIndex];
+                equippedEquipment = this.equipments[this.equipIndex];
                 return true;
             }
-            equippedPiece = null;
+            equippedEquipment = null;
             return false;
         }
 
-        public void Spawn(Mob equipper)
+        public void Spawn(Mob equipper, MobStateNode equipperRootStateNode)
         {
             this.equipper = equipper;
-            this.sortingPointProperty.OnShownChanged +=
-                (bool shown) =>
+            this.equipperRootStateNode = equipperRootStateNode;
+            this.equipperRootStateNode.OnCurrentStateChanged += this.UpdateCurrentUsage;
+            this.UpdateCurrentUsage();
+
+            this.sortingGroupProperty.OnEnabledChanged +=
+                (bool active) =>
                 {
-                    if (shown)
+                    if (active)
                     {
-                        this.equippedDuration = 0;
-                        this.equippedDurationDelta = 0;
-                        if (this.equipIndex != -1) this.equipmentPieces[this.equipIndex].Equip();
+                        if (this.equipIndex != -1) this.equipments[this.equipIndex].Equip();
                     }
                     else
                     {
-                        if (this.equipIndex != -1) this.equipmentPieces[this.equipIndex].Unequip();
+                        if (this.equipIndex != -1) this.equipments[this.equipIndex].Unequip();
                     }
                 };
-            this.equipmentPieces = new List<MobEquipmentPiece>();
+
+            this.equipments = new List<MobEquipment>();
             this.equipIndex = -1;
-            FrigidCoroutine.Run(Refresh(), this.gameObject);
-
-            foreach (MobEquipmentPiece defaultEquipmentPiecePrefab in this.defaultEquipmentPiecePrefabs)
+            foreach (MobEquipmentSpawnable existingEquipmentSpawnable in this.existingEquipmentSpawnables)
             {
-                MobEquipmentPiece equipmentPiece = FrigidInstancing.CreateInstance<MobEquipmentPiece>(defaultEquipmentPiecePrefab);
-                equipmentPiece.Spawn();
-                AddEquipmentPiece(equipmentPiece);
+                this.AddEquipment(existingEquipmentSpawnable.Spawn());
             }
+
+            FrigidCoroutine.Run(this.Refresh(), this.gameObject);
         }
 
-        public void AddEquipmentPiece(MobEquipmentPiece equipmentPiece)
+        public bool AddEquipment(MobEquipment equipment)
         {
-            if (!this.equipmentPieces.Contains(equipmentPiece))
+            if (!this.equipments.Contains(equipment))
             {
-                this.equipmentPieces.Add(equipmentPiece);
-                equipmentPiece.transform.SetParent(this.transform);
-                equipmentPiece.transform.localPosition = Vector2.zero;
-                equipmentPiece.Assign(this);
-                UpdateEquippedPiece(Mathf.Clamp(this.equipIndex, 0, this.equipmentPieces.Count - 1));
+                this.equipments.Add(equipment);
+                equipment.transform.SetParent(this.transform);
+                equipment.transform.localPosition = Vector2.zero;
+                equipment.Assign(this);
+                this.UpdateEquippedEquipment(Mathf.Clamp(this.equipIndex, 0, this.equipments.Count - 1));
+                return true;
             }
+            return false;
         }
 
-        public void RemoveEquipmentPiece(MobEquipmentPiece equipmentPiece)
+        public bool RemoveEquipment(MobEquipment equipment)
         {
-            int pieceIndex = this.equipmentPieces.IndexOf(equipmentPiece);
-            if (pieceIndex != -1)
+            int equipmentIndex = this.equipments.IndexOf(equipment);
+            if (equipmentIndex != -1)
             {
-                if (this.equipmentPieces.Count == 1)
+                if (this.equipments.Count == 1)
                 {
-                    UpdateEquippedPiece(-1);
+                    this.UpdateEquippedEquipment(-1);
                 }
-                else if (pieceIndex == this.equipIndex)
+                else if (equipmentIndex == this.equipIndex)
                 {
-                    UpdateEquippedPiece((pieceIndex + 1) % this.equipmentPieces.Count);
+                    this.UpdateEquippedEquipment((equipmentIndex + 1) % (this.equipments.Count - 1));
                 }
-                equipmentPiece.Unassign();
-                equipmentPiece.transform.SetParent(null);
-                equipmentPiece.transform.localPosition = Vector2.zero;
-                this.equipmentPieces.RemoveAt(pieceIndex);
+                equipment.Unassign();
+                equipment.transform.SetParent(null);
+                equipment.transform.localPosition = Vector2.zero;
+                this.equipments.RemoveAt(equipmentIndex);
+                return true;
+            }
+            return false;
+        }
+
+        private void UpdateCurrentUsage(MobState previousState, MobState currentState)
+        {
+            this.UpdateCurrentUsage();
+        }
+
+        private void UpdateCurrentUsage()
+        {
+            this.currentUsage = null;
+            foreach (Usage usage in this.usages)
+            {
+                if (usage.HasCurrentState(this.equipperRootStateNode.CurrentState))
+                {
+                    this.currentUsage = usage;
+                    return;
+                }
             }
         }
 
-        private void UpdateEquippedPiece(int equipIndex)
+        private void UpdateEquippedEquipment(int equipIndex)
         {
             if (equipIndex != this.equipIndex)
             {
                 int previousEquipIndex = this.equipIndex;
-                MobEquipmentPiece previousEquippedPiece = null;
-                if (previousEquipIndex != -1 && this.sortingPointProperty.Shown)
+                MobEquipment previousEquippedEquipment = null;
+                if (previousEquipIndex != -1 && this.sortingGroupProperty.Enabled)
                 {
-                    previousEquippedPiece = this.equipmentPieces[previousEquipIndex];
-                    previousEquippedPiece.Unequip();
+                    previousEquippedEquipment = this.equipments[previousEquipIndex];
+                    previousEquippedEquipment.Unequip();
                 }
 
                 this.equipIndex = equipIndex;
-                MobEquipmentPiece currentEquippedPiece = null;
-                if (this.equipIndex != -1 && this.sortingPointProperty.Shown)
+                MobEquipment currentEquippedEquipment = null;
+                if (this.equipIndex != -1 && this.sortingGroupProperty.Enabled)
                 {
-                    currentEquippedPiece = this.equipmentPieces[this.equipIndex];
-                    currentEquippedPiece.Equip();
+                    currentEquippedEquipment = this.equipments[this.equipIndex];
+                    currentEquippedEquipment.Equip();
                 }
 
-                this.onEquipChange?.Invoke(previousEquipIndex == -1, previousEquippedPiece, this.equipIndex == -1, currentEquippedPiece);
+                this.onEquipChange?.Invoke(previousEquipIndex != -1, previousEquippedEquipment, this.equipIndex != -1, currentEquippedEquipment);
             }
         }
 
@@ -165,9 +194,60 @@ namespace FrigidBlackwaters.Game
         {
             while (true)
             {
-                this.equippedDurationDelta = Time.deltaTime * this.Equipper.RequestedTimeScale;
-                this.equippedDuration += this.equippedDurationDelta;
+                if (this.currentUsage != null && this.sortingGroupProperty.Enabled)
+                {
+                    for (int equipIndex = 0; equipIndex < Mathf.Min(this.equipments.Count, this.currentUsage.EquipConditionPerIndex.Length); equipIndex++)
+                    {
+                        if (equipIndex != this.equipIndex && this.currentUsage.EquipConditionPerIndex[equipIndex].Evaluate(0, 0))
+                        {
+                            this.UpdateEquippedEquipment(equipIndex);
+                        }
+                    }
+                }
                 yield return null;
+            }
+        }
+
+        [Serializable]
+        private class Usage
+        {
+            [SerializeField]
+            private List<MobStateNode> stateNodes;
+            [Space]
+            [SerializeField]
+            private Targeter aimTargeter;
+            [SerializeField]
+            private Conditional triggerCondition;
+            [SerializeField]
+            private Conditional[] equipConditionPerIndex;
+
+            public bool HasCurrentState(MobState currentState)
+            {
+                return this.stateNodes.Any((MobStateNode stateNode) => stateNode.CurrentState == currentState);
+            }
+
+            public Targeter AimTargeter
+            {
+                get
+                {
+                    return this.aimTargeter;
+                }
+            }
+
+            public Conditional TriggerCondition
+            {
+                get
+                {
+                    return this.triggerCondition;
+                }
+            }
+
+            public Conditional[] EquipConditionPerIndex
+            {
+                get
+                {
+                    return this.equipConditionPerIndex;
+                }
             }
         }
     }

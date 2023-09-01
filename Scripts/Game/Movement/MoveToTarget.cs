@@ -28,7 +28,7 @@ namespace FrigidBlackwaters.Game
         public override void StartMoving()
         {
             base.StartMoving();
-            this.destinationPosition = this.destinationTargeter.Calculate(this.Mover.Position, this.MovingDuration, this.MovingDurationDelta);
+            this.destinationPosition = this.destinationTargeter.Retrieve(this.Mover.Position, this.MovingDuration, this.MovingDurationDelta);
             this.moveDirection = (this.destinationPosition - this.Mover.Position).normalized;
             this.moveDistance = Vector2.Distance(this.Mover.Position, this.destinationPosition);
         }

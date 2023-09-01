@@ -53,16 +53,20 @@ namespace FrigidBlackwaters.Game
             if (this.MovingDuration < this.TotalDuration)
             {
                 this.inDuration = true;
-                DurationStarted();
+                this.DurationStarted();
                 return;
             }
-            DurationStarted();
-            DurationFinished();
+            this.DurationStarted();
+            this.DurationFinished();
         }
 
         public override void StopMoving()
         {
             base.StopMoving();
+            if (this.inDuration)
+            {
+                this.DurationFinished();
+            }
             this.inDuration = false;
         }
 
@@ -78,14 +82,14 @@ namespace FrigidBlackwaters.Game
                 if (!this.inDuration)
                 {
                     this.inDuration = true;
-                    DurationStarted();
+                    this.DurationStarted();
                 }
                 return;
             }
             if (this.inDuration)
             {
                 this.inDuration = false;
-                DurationFinished();
+                this.DurationFinished();
             }
         }
 

@@ -8,10 +8,15 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private string[] animationNames;
 
-        public override void Populated(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> allTileIndices)
+        public override void Preview(Vector2 orientationDirection)
         {
-            base.Populated(orientationDirection, navigationGrid, allTileIndices);
+            base.Preview(orientationDirection);
+            this.AnimatorBody.Preview(this.animationNames[0], 0, orientationDirection);
+        }
 
+        public override void Populate(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> tileIndexPositions)
+        {
+            base.Populate(orientationDirection, navigationGrid, tileIndexPositions);
             this.AnimatorBody.Play(this.animationNames[Random.Range(0, this.animationNames.Length)]);
         }
     }

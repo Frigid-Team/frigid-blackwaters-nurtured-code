@@ -28,7 +28,7 @@ namespace FrigidBlackwaters.Core
 
         public T Retrieve()
         {
-            return Retrieve(1)[0];
+            return this.Retrieve(1)[0];
         }
 
         public T[] Retrieve(int quantity)
@@ -42,7 +42,7 @@ namespace FrigidBlackwaters.Core
                 {
                     if (!weighting.LimitRetrievals || weighting.MaximumRetrievals > weighting.MinimumRetrievals)
                     {
-                        retrievalCounts.Add(weighting, weighting.MinimumRetrievals);
+                        retrievalCounts.TryAdd(weighting, weighting.MinimumRetrievals);
                     }
                     for (int i = 0; i < Mathf.Min(quantity - retrievals.Count, weighting.MinimumRetrievals); i++)
                     {
@@ -51,7 +51,7 @@ namespace FrigidBlackwaters.Core
                 }
                 else
                 {
-                    retrievalCounts.Add(weighting, 0);
+                    retrievalCounts.TryAdd(weighting, 0);
                 }
 
                 if (retrievals.Count == quantity) return retrievals.ToArray();
@@ -91,12 +91,11 @@ namespace FrigidBlackwaters.Core
                 retrievals.Add(default(T));
             }
 
-            System.Random random = new System.Random();
-            return retrievals.OrderBy((T retrieval) => { return random.Next(); }).ToArray();
+            return retrievals.OrderBy((T retrieval) => { return UnityEngine.Random.Range(0, int.MaxValue); }).ToArray();
         }
 
         [Serializable]
-        private struct Weighting
+        private class Weighting
         {
             [SerializeField]
             private T entry;

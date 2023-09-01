@@ -17,7 +17,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                this.currentMoveDirection = this.moveDirection.Calculate(this.currentMoveDirection, this.MovingDuration, this.MovingDurationDelta);
+                this.currentMoveDirection = this.moveDirection.Retrieve(this.currentMoveDirection, this.MovingDuration, this.MovingDurationDelta);
                 return this.currentMoveDirection * Mathf.Max(this.speed.ImmutableValue + this.Mover.SpeedBonus, 0);
             }
         }

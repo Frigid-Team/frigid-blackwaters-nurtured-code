@@ -15,8 +15,8 @@ namespace FrigidBlackwaters.Game
         private List<State> playerStates;
 
         private State currentPlayerState;
-        private Action<bool, MobEquipmentPiece, bool, MobEquipmentPiece> onEquipChange;
-        private Action<Timer, Timer> onDashTimerChange;
+        private Action<bool, MobEquipment, bool, MobEquipment> onEquipChange;
+        private Action<AbilityResource, AbilityResource> onDashResourceChanged;
 
         public static Action OnExists
         {
@@ -42,7 +42,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Action<bool, MobEquipmentPiece, bool, MobEquipmentPiece> OnEquipChange
+        public Action<bool, MobEquipment, bool, MobEquipment> OnEquipChange
         {
             get
             {
@@ -54,15 +54,15 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Action<Timer, Timer> OnDashTimerChange
+        public Action<AbilityResource, AbilityResource> OnDashResourceChange
         {
             get
             {
-                return this.onDashTimerChange;
+                return this.onDashResourceChanged;
             }
             set
             {
-                this.onDashTimerChange = value;
+                this.onDashResourceChanged = value;
             }
         }
 
@@ -72,21 +72,22 @@ namespace FrigidBlackwaters.Game
             return instance != null;
         }
 
-        public bool TryGetEquippedPiece(out MobEquipmentPiece equippedPiece)
+        public bool TryGetEquippedEquipment(out MobEquipment equippedEquipment)
         {
-            return this.currentPlayerState.EquipPoint.TryGetEquippedPiece(out equippedPiece);
+            return this.currentPlayerState.EquipPoint.TryGetEquippedEquipment(out equippedEquipment);
         }
 
-        public Timer GetDashTimer() 
+        public AbilityResource GetDashResource() 
         {
-            return this.currentPlayerState.DashTimer;
+            return this.currentPlayerState.DashResource;
         }
 
         protected override void OnActive()
         {
             base.OnActive();
-            this.RootStateNode.OnCurrentStateChanged += SwapPlayerStates;
-            this.currentPlayerState = GetPlayerStateFromState(this.RootStateNode.CurrentState);
+            this.RootStateNode.OnCurrentStateChanged += this.SwapPlayerStates;
+            this.currentPlayerState = this.GetPlayerStateFromState(this.RootStateNode.CurrentState);
+            this.currentPlayerState.EquipPoint.OnEquipChange += this.HandleEquipChange;
             if (instance == null)
             {
                 instance = this;
@@ -97,7 +98,9 @@ namespace FrigidBlackwaters.Game
         protected override void OnInactive()
         {
             base.OnInactive();
-            this.RootStateNode.OnCurrentStateChanged -= SwapPlayerStates;
+            this.RootStateNode.OnCurrentStateChanged -= this.SwapPlayerStates;
+            this.currentPlayerState.EquipPoint.OnEquipChange -= this.HandleEquipChange;
+            this.currentPlayerState = null;
             if (instance == this)
             {
                 instance = null;
@@ -107,22 +110,22 @@ namespace FrigidBlackwaters.Game
 
         private void SwapPlayerStates(MobState previousState, MobState currentState)
         {
-            State playerState = GetPlayerStateFromState(currentState);
+            State playerState = this.GetPlayerStateFromState(currentState);
             if (playerState != this.currentPlayerState)
             {
                 State formerPlayerState = this.currentPlayerState;
                 this.currentPlayerState = playerState;
 
-                formerPlayerState.EquipPoint.OnEquipChange -= HandleEquipChange;
-                this.currentPlayerState.EquipPoint.OnEquipChange += HandleEquipChange;
+                formerPlayerState.EquipPoint.OnEquipChange -= this.HandleEquipChange;
+                this.currentPlayerState.EquipPoint.OnEquipChange += this.HandleEquipChange;
 
-                HandleEquipChange(
-                    formerPlayerState.EquipPoint.TryGetEquippedPiece(out MobEquipmentPiece previousEquippedPiece), 
-                    previousEquippedPiece, 
-                    this.currentPlayerState.EquipPoint.TryGetEquippedPiece(out MobEquipmentPiece currentEquippedPiece),
-                    currentEquippedPiece
+                this.HandleEquipChange(
+                    formerPlayerState.EquipPoint.TryGetEquippedEquipment(out MobEquipment previousEquippedEquipment), 
+                    previousEquippedEquipment, 
+                    this.currentPlayerState.EquipPoint.TryGetEquippedEquipment(out MobEquipment currentEquippedEquipment),
+                    currentEquippedEquipment
                     );
-                HandleDashTimerChange(formerPlayerState.DashTimer, this.currentPlayerState.DashTimer);
+                this.HandleDashResourceChange(formerPlayerState.DashResource, this.currentPlayerState.DashResource);
             }
         }
 
@@ -138,19 +141,19 @@ namespace FrigidBlackwaters.Game
             return this.currentPlayerState;
         }
 
-        private void HandleEquipChange(bool hasPrevious, MobEquipmentPiece previousEquippedPiece, bool hasCurrent, MobEquipmentPiece currentEquippedPiece)
+        private void HandleEquipChange(bool hasPrevious, MobEquipment previousEquippedEquipment, bool hasCurrent, MobEquipment currentEquippedEquipment)
         {
-            if (hasPrevious != hasCurrent || previousEquippedPiece != currentEquippedPiece)
+            if (hasPrevious != hasCurrent || previousEquippedEquipment != currentEquippedEquipment)
             {
-                this.onEquipChange?.Invoke(hasPrevious, previousEquippedPiece, hasCurrent, currentEquippedPiece);
+                this.onEquipChange?.Invoke(hasPrevious, previousEquippedEquipment, hasCurrent, currentEquippedEquipment);
             } 
         }
 
-        private void HandleDashTimerChange(Timer previousDashTimer, Timer currentDashTimer)
+        private void HandleDashResourceChange(AbilityResource previousDashResource, AbilityResource currentDashResource)
         {
-            if (previousDashTimer != currentDashTimer)
+            if (previousDashResource != currentDashResource)
             {
-                this.onDashTimerChange?.Invoke(previousDashTimer, currentDashTimer);
+                this.onDashResourceChanged?.Invoke(previousDashResource, currentDashResource);
             }
         }
 
@@ -162,7 +165,7 @@ namespace FrigidBlackwaters.Game
             [SerializeField]
             private MobEquipPoint equipPoint;
             [SerializeField]
-            private Timer dashTimer;
+            private AbilityResource dashResource;
 
             public MobStateNode StateNode
             {
@@ -172,11 +175,11 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            public Timer DashTimer
+            public AbilityResource DashResource
             {
                 get
                 {
-                    return this.dashTimer;
+                    return this.dashResource;
                 }
             }
 

@@ -37,9 +37,9 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.shapeType != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.shapeType = value;
-                    SetToShapeType();
+                    this.SetToShapeType();
                 }
             }
         }
@@ -77,13 +77,13 @@ namespace FrigidBlackwaters.Game
 
         public void AddPolygonPointAt(int animationIndex, int frameIndex, int orientationIndex, int index, Vector2 point)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons[animationIndex][frameIndex][orientationIndex].Points.Insert(index, point);
         }
 
         public void RemovePolygonPointAt(int animationIndex, int frameIndex, int orientationIndex, int index)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons[animationIndex][frameIndex][orientationIndex].Points.RemoveAt(index);
         }
 
@@ -96,7 +96,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.pointsInPolygons[animationIndex][frameIndex][orientationIndex].Points[index] != point)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.pointsInPolygons[animationIndex][frameIndex][orientationIndex].Points[index] = point;
             }
         }
@@ -110,7 +110,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.centers[animationIndex][frameIndex][orientationIndex] != center)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.centers[animationIndex][frameIndex][orientationIndex] = center;
             }
         }
@@ -125,7 +125,7 @@ namespace FrigidBlackwaters.Game
             radius = Mathf.Max(radius, 0);
             if (this.radii[animationIndex][frameIndex][orientationIndex] != radius)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.radii[animationIndex][frameIndex][orientationIndex] = radius;
             }
         }
@@ -140,16 +140,16 @@ namespace FrigidBlackwaters.Game
             size = new Vector2(Mathf.Max(0, size.x), Mathf.Max(0, size.y));
             if (this.sizes[animationIndex][frameIndex][orientationIndex] != size)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.sizes[animationIndex][frameIndex][orientationIndex] = size;
             }
         } 
 
         public override void Created()
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.shapeType = ColliderAnimatorPropertyShapeType.Polygon;
-            SetToShapeType();
+            this.SetToShapeType();
             this.pointsInPolygons = new Nested3DList<PointsInPolygon>();
             this.centers = new Nested3DList<Vector2>();
             this.radii = new Nested3DList<float>();
@@ -180,7 +180,7 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationAddedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons.Insert(animationIndex, new Nested2DList<PointsInPolygon>());
             this.centers.Insert(animationIndex, new Nested2DList<Vector2>());
             this.radii.Insert(animationIndex, new Nested2DList<float>());
@@ -204,7 +204,7 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationRemovedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons.RemoveAt(animationIndex);
             this.centers.RemoveAt(animationIndex);
             this.radii.RemoveAt(animationIndex);
@@ -214,7 +214,7 @@ namespace FrigidBlackwaters.Game
 
         public override void FrameAddedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons[animationIndex].Insert(frameIndex, new Nested1DList<PointsInPolygon>());
             this.centers[animationIndex].Insert(frameIndex, new Nested1DList<Vector2>());
             this.radii[animationIndex].Insert(frameIndex, new Nested1DList<float>());
@@ -231,7 +231,7 @@ namespace FrigidBlackwaters.Game
 
         public override void FrameRemovedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons[animationIndex].RemoveAt(frameIndex);
             this.centers[animationIndex].RemoveAt(frameIndex);
             this.radii[animationIndex].RemoveAt(frameIndex);
@@ -241,7 +241,7 @@ namespace FrigidBlackwaters.Game
 
         public override void OrientationAddedAt(int animationIndex, int frameIndex, int orientationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons[animationIndex][frameIndex].Insert(orientationIndex, new PointsInPolygon());
             this.centers[animationIndex][frameIndex].Insert(orientationIndex, Vector2.zero);
             this.radii[animationIndex][frameIndex].Insert(orientationIndex, 0);
@@ -251,7 +251,7 @@ namespace FrigidBlackwaters.Game
 
         public override void OrientationRemovedAt(int animationIndex, int frameIndex, int orientationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.pointsInPolygons[animationIndex][frameIndex].RemoveAt(orientationIndex);
             this.centers[animationIndex][frameIndex].RemoveAt(orientationIndex);
             this.radii[animationIndex][frameIndex].RemoveAt(orientationIndex);
@@ -266,28 +266,40 @@ namespace FrigidBlackwaters.Game
             if (otherColliderProperty)
             {
                 for (int pointIndex = 0;
-                    pointIndex < Mathf.Min(otherColliderProperty.GetNumberPolygonPoints(toAnimationIndex, toFrameIndex, toOrientationIndex), GetNumberPolygonPoints(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
+                    pointIndex < Mathf.Min(otherColliderProperty.GetNumberPolygonPoints(toAnimationIndex, toFrameIndex, toOrientationIndex), this.GetNumberPolygonPoints(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
                     pointIndex++)
                 {
-                    otherColliderProperty.SetPolygonPointAt(toAnimationIndex, toFrameIndex, toOrientationIndex, pointIndex, GetPolygonPointAt(fromAnimationIndex, fromFrameIndex, fromOrientationIndex, pointIndex));
+                    otherColliderProperty.SetPolygonPointAt(toAnimationIndex, toFrameIndex, toOrientationIndex, pointIndex, this.GetPolygonPointAt(fromAnimationIndex, fromFrameIndex, fromOrientationIndex, pointIndex));
                 }
                 for (int pointIndex = otherColliderProperty.GetNumberPolygonPoints(toAnimationIndex, toFrameIndex, toOrientationIndex);
-                    pointIndex < GetNumberPolygonPoints(fromAnimationIndex, fromFrameIndex, fromOrientationIndex);
+                    pointIndex < this.GetNumberPolygonPoints(fromAnimationIndex, fromFrameIndex, fromOrientationIndex);
                     pointIndex++)
                 {
-                    otherColliderProperty.AddPolygonPointAt(toAnimationIndex, toFrameIndex, toOrientationIndex, pointIndex, GetPolygonPointAt(fromAnimationIndex, fromFrameIndex, fromOrientationIndex, pointIndex));
+                    otherColliderProperty.AddPolygonPointAt(toAnimationIndex, toFrameIndex, toOrientationIndex, pointIndex, this.GetPolygonPointAt(fromAnimationIndex, fromFrameIndex, fromOrientationIndex, pointIndex));
                 }
                 for (int pointIndex = otherColliderProperty.GetNumberPolygonPoints(toAnimationIndex, toFrameIndex, toOrientationIndex) - 1;
-                    pointIndex >= GetNumberPolygonPoints(fromAnimationIndex, fromFrameIndex, fromOrientationIndex);
+                    pointIndex >= this.GetNumberPolygonPoints(fromAnimationIndex, fromFrameIndex, fromOrientationIndex);
                     pointIndex--)
                 {
                     otherColliderProperty.RemovePolygonPointAt(toAnimationIndex, toFrameIndex, toOrientationIndex, pointIndex);
                 }
-                otherColliderProperty.SetCenter(toAnimationIndex, toFrameIndex, toOrientationIndex, GetCenter(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
-                otherColliderProperty.SetRadius(toAnimationIndex, toFrameIndex, toOrientationIndex, GetRadius(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
-                otherColliderProperty.SetSize(toAnimationIndex, toFrameIndex, toOrientationIndex, GetSize(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
+                otherColliderProperty.SetCenter(toAnimationIndex, toFrameIndex, toOrientationIndex, this.GetCenter(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
+                otherColliderProperty.SetRadius(toAnimationIndex, toFrameIndex, toOrientationIndex, this.GetRadius(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
+                otherColliderProperty.SetSize(toAnimationIndex, toFrameIndex, toOrientationIndex, this.GetSize(fromAnimationIndex, fromFrameIndex, fromOrientationIndex));
             }
             base.CopyPasteToAnotherOrientation(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex, fromOrientationIndex, toOrientationIndex);
+        }
+
+        public override void Initialize()
+        {
+            this.collider.enabled = false;
+            base.Initialize();
+        }
+
+        public override void Enable(bool enabled)
+        {
+            this.collider.enabled = enabled;
+            base.Enable(enabled);
         }
 
         public override void OrientationEnter()
@@ -295,38 +307,38 @@ namespace FrigidBlackwaters.Game
             switch (this.ShapeType)
             {
                 case ColliderAnimatorPropertyShapeType.Polygon:
-                    int numPoints = GetNumberPolygonPoints(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    int numPoints = this.GetNumberPolygonPoints(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
                     Vector2[] polygonPoints = new Vector2[Mathf.Max(1, numPoints)];
                     for (int pointIndex = 0; pointIndex < numPoints; pointIndex++)
                     {
-                        polygonPoints[pointIndex] = GetPolygonPointAt(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex, pointIndex);
+                        polygonPoints[pointIndex] = this.GetPolygonPointAt(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex, pointIndex);
                     }
                     PolygonCollider2D polygonCollider = (PolygonCollider2D)this.collider;
                     polygonCollider.SetPath(0, polygonPoints);
+                    polygonCollider.enabled = numPoints > 0;
                     break;
                 case ColliderAnimatorPropertyShapeType.Circle:
                     CircleCollider2D circleCollider = (CircleCollider2D)this.collider;
-                    circleCollider.offset = GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
-                    circleCollider.radius = GetRadius(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    circleCollider.offset = this.GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    float circRadius = this.GetRadius(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    circleCollider.radius = circRadius;
+                    circleCollider.enabled = circRadius > FrigidConstants.SMALLEST_WORLD_SIZE;
                     break;
                 case ColliderAnimatorPropertyShapeType.Box:
                     BoxCollider2D boxCollider = (BoxCollider2D)this.collider;
-                    boxCollider.offset = GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
-                    boxCollider.size = GetSize(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    boxCollider.offset = this.GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    Vector2 boxSize = this.GetSize(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    boxCollider.size = boxSize;
+                    boxCollider.enabled = boxSize.x > FrigidConstants.SMALLEST_WORLD_SIZE && boxSize.y > FrigidConstants.SMALLEST_WORLD_SIZE;
                     break;
                 case ColliderAnimatorPropertyShapeType.Capsule:
                     CapsuleCollider2D capsuleCollider = (CapsuleCollider2D)this.collider;
-                    capsuleCollider.offset = GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
-                    Vector2 capsuleSize = GetSize(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
-                    if (capsuleSize.x > capsuleSize.y)
-                    {
-                        capsuleCollider.direction = CapsuleDirection2D.Horizontal;
-                    }
-                    else
-                    {
-                        capsuleCollider.direction = CapsuleDirection2D.Vertical;
-                    }
+                    capsuleCollider.offset = this.GetCenter(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    Vector2 capsuleSize = this.GetSize(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
+                    if (capsuleSize.x > capsuleSize.y) capsuleCollider.direction = CapsuleDirection2D.Horizontal;
+                    else capsuleCollider.direction = CapsuleDirection2D.Vertical;
                     capsuleCollider.size = capsuleSize;
+                    capsuleCollider.enabled = capsuleSize.x > FrigidConstants.SMALLEST_WORLD_SIZE && capsuleSize.y > FrigidConstants.SMALLEST_WORLD_SIZE;
                     break;
             }
             base.OrientationEnter();
@@ -337,16 +349,16 @@ namespace FrigidBlackwaters.Game
             switch (this.ShapeType)
             {
                 case ColliderAnimatorPropertyShapeType.Polygon:
-                    SetColliderType<PolygonCollider2D>();
+                    this.SetColliderType<PolygonCollider2D>();
                     break;
                 case ColliderAnimatorPropertyShapeType.Circle:
-                    SetColliderType<CircleCollider2D>();
+                    this.SetColliderType<CircleCollider2D>();
                     break;
                 case ColliderAnimatorPropertyShapeType.Box:
-                    SetColliderType<BoxCollider2D>();
+                    this.SetColliderType<BoxCollider2D>();
                     break;
                 case ColliderAnimatorPropertyShapeType.Capsule:
-                    SetColliderType<CapsuleCollider2D>();
+                    this.SetColliderType<CapsuleCollider2D>();
                     break;
             }
         }
@@ -355,12 +367,13 @@ namespace FrigidBlackwaters.Game
 
         private void SetColliderType<C>() where C : Collider2D
         {
+            FrigidEdit.RecordChanges(this);
             if (this.collider != null)
             {
-                FrigidEditMode.RemoveComponent(this.collider);
+                FrigidEdit.RemoveComponent(this.collider);
             }
-            this.collider = FrigidEditMode.AddComponent<C>(this.gameObject);
-            ColliderTypeUpdated();
+            this.collider = FrigidEdit.AddComponent<C>(this.gameObject);
+            this.ColliderTypeUpdated();
         }
 
         [Serializable]

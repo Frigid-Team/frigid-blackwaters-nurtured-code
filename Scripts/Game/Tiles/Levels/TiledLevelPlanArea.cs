@@ -6,32 +6,22 @@ namespace FrigidBlackwaters.Game
 {
     public class TiledLevelPlanArea
     {
-        private TiledArea tiledAreaPrefab;
         private TiledAreaBlueprintGroup blueprintGroup;
         private TileTerrain[] entranceTerrains;
-        private List<Vector2Int> remainingWallEntryDirections;
+        private List<Vector2Int> remainingWallEntryIndexDirections;
 
         private int numberAreasFromStart;
         private float numberAreasFromStartPercent;
         private TiledAreaBlueprint chosenBlueprint;
 
-        public TiledLevelPlanArea(TiledArea tiledAreaPrefab, TiledAreaBlueprintGroup blueprintGroup, TileTerrain[] entranceTerrains = null)
+        public TiledLevelPlanArea(TiledAreaBlueprintGroup blueprintGroup, TileTerrain[] entranceTerrains = null)
         {
-            this.tiledAreaPrefab = tiledAreaPrefab;
             this.blueprintGroup = blueprintGroup;
             this.entranceTerrains = entranceTerrains != null ? entranceTerrains : (new TileTerrain[4] { TileTerrain.None, TileTerrain.None, TileTerrain.None, TileTerrain.None });
-            this.remainingWallEntryDirections = TilePositioning.GetAllWallDirections();
+            this.remainingWallEntryIndexDirections = new List<Vector2Int>(WallTiling.GetAllWallIndexDirections());
 
             this.numberAreasFromStart = int.MaxValue;
             this.chosenBlueprint = null;
-        }
-
-        public TiledArea TiledAreaPrefab
-        {
-            get
-            {
-                return this.tiledAreaPrefab;
-            }
         }
 
         public TiledAreaBlueprintGroup BlueprintGroup
@@ -50,19 +40,19 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public List<Vector2Int> RemainingWallEntryDirections
+        public List<Vector2Int> RemainingWallEntryIndexDirections
         {
             get
             {
-                return this.remainingWallEntryDirections;
+                return this.remainingWallEntryIndexDirections;
             }
         }
 
-        public List<Vector2Int> OccupiedWallEntryDirections
+        public List<Vector2Int> OccupiedWallEntryIndexDirections
         {
             get
             {
-                return TilePositioning.GetAllWallDirections().Except(this.remainingWallEntryDirections).ToList();
+                return WallTiling.GetAllWallIndexDirections().Except(this.remainingWallEntryIndexDirections).ToList();
             }
         }
 
@@ -102,25 +92,25 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public void AddWallEntry(Vector2Int entryDirection, TileTerrain entranceTerrain)
+        public void AddWallEntry(Vector2Int entryIndexDirection, TileTerrain entranceTerrain)
         {
-            if (this.remainingWallEntryDirections.Contains(entryDirection))
+            if (this.remainingWallEntryIndexDirections.Contains(entryIndexDirection))
             {
-                this.remainingWallEntryDirections.Remove(entryDirection);
-                SetWallEntry(entryDirection, entranceTerrain);
+                this.remainingWallEntryIndexDirections.Remove(entryIndexDirection);
+                this.SetWallEntry(entryIndexDirection, entranceTerrain);
                 return;
             }
-            Debug.LogError("Adding an entrance that already exists: " + entryDirection);
+            Debug.LogError("Adding an entry that already exists: " + entryIndexDirection);
         }
 
-        public void SetWallEntry(Vector2Int entryDirection, TileTerrain entranceTerrain)
+        public void SetWallEntry(Vector2Int entryIndexDirection, TileTerrain entranceTerrain)
         {
-            if (!this.remainingWallEntryDirections.Contains(entryDirection))
+            if (!this.remainingWallEntryIndexDirections.Contains(entryIndexDirection))
             {
-                this.entranceTerrains[TilePositioning.WallArrayIndex(entryDirection)] = entranceTerrain;
+                this.entranceTerrains[WallTiling.WallIndexFromWallIndexDirection(entryIndexDirection)] = entranceTerrain;
                 return;
             }
-            Debug.LogError("Setting an entrance that doesn't exist: " + entryDirection);
+            Debug.LogError("Setting an entry that doesn't exist: " + entryIndexDirection);
         }
     }
 }

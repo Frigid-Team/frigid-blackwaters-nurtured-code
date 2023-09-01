@@ -7,9 +7,8 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
-    public class ItemStorage : FrigidMonoBehaviour
+    public class ItemStorage : SceneAccessible<ItemStorage>
     {
-        private static SceneVariable<HashSet<ItemStorage>> findableStorages;
         private static SceneVariable<Dictionary<Mob, ItemStorage>> mobsToStorages;
 
         [SerializeField]
@@ -18,28 +17,43 @@ namespace FrigidBlackwaters.Game
         [ShowIfBool("hasUsingMob", true)]
         private Mob usingMob;
         [SerializeField]
-        private List<AccessZone> accessZones;
-        [SerializeField]
         private List<ItemContainer> defaultContainers;
         [SerializeField]
         private IntSerializedReference baseMaxPower;
         [SerializeField]
         private bool isIgnoringTransactionCosts;
         [SerializeField]
+        [ShowIfBool("isIgnoringTransactionCosts", false)]
         private IntSerializedReference initialCurrencyCount;
         [SerializeField]
+        private bool cannotTransferOutItems;
+        [SerializeField]
+        [ShowIfBool("cannotTransferOutItems", false)]
         private FloatSerializedReference buyCostModifier;
         [SerializeField]
+        private bool cannotTransferInItems;
+        [SerializeField]
+        [ShowIfBool("cannotTransferInItems", false)]
         private FloatSerializedReference sellCostModifier;
+        [SerializeField]
+        private bool replenishTakenItems;
+        [SerializeField]
+        private bool discardReplacedItems;
 
         private ItemPowerBudget powerBudget;
         private ItemCurrencyWallet currencyWallet;
         private List<ItemStorageGrid> storageGrids;
-        private HashSet<Item> storedItems;
+
+        private Dictionary<(ItemStorable, Item), Action> itemStores;
+        private Action<ItemStorable, Item> onItemStored;
+        private Action<ItemStorable, Item> onItemUnstored;
+
+        private HashSet<(ItemStorable, Item)> itemUsages;
+        private Action<ItemStorable, Item> onItemUsed;
+        private Action<ItemStorable, Item> onItemUnused;
 
         static ItemStorage()
         {
-            findableStorages = new SceneVariable<HashSet<ItemStorage>>(() => new HashSet<ItemStorage>());
             mobsToStorages = new SceneVariable<Dictionary<Mob, ItemStorage>>(() => new Dictionary<Mob, ItemStorage>());
         }
 
@@ -67,11 +81,91 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public IReadOnlyCollection<(ItemStorable, Item)> ItemStores
+        {
+            get
+            {
+                return this.itemStores.Keys;
+            }
+        }
+
+        public Action<ItemStorable, Item> OnItemStored
+        {
+            get
+            {
+                return this.onItemStored;
+            }
+            set
+            {
+                this.onItemStored = value;
+            }
+        }
+
+        public Action<ItemStorable, Item> OnItemUnstored
+        {
+            get
+            {
+                return this.onItemUnstored;
+            }
+            set
+            {
+                this.onItemUnstored = value;
+            }
+        }
+
+        public IReadOnlyCollection<(ItemStorable, Item)> ItemUsages
+        {
+            get
+            {
+                return this.itemUsages;
+            }
+        }
+
+        public Action<ItemStorable, Item> OnItemUsed
+        {
+            get
+            {
+                return this.onItemUsed;
+            }
+            set
+            {
+                this.onItemUsed = value;
+            }
+        }
+
+        public Action<ItemStorable, Item> OnItemUnused
+        {
+            get
+            {
+                return this.onItemUnused;
+            }
+            set
+            {
+                this.onItemUnused = value;
+            }
+        }
+
+        public bool CannotTransferOutItems
+        {
+            get
+            {
+                return this.cannotTransferOutItems;
+            }
+        }
+
         public float BuyCostModifier
         {
             get
             {
                 return this.buyCostModifier.ImmutableValue;
+            }
+        }
+
+        public bool CannotTransferInItems
+        {
+            get
+            {
+                return this.cannotTransferInItems;
             }
         }
 
@@ -83,25 +177,20 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public static bool TryGetNearestFindableStorage(Vector2 position, List<ItemStorage> excludedStorages, out ItemStorage nearbyStorage, out Vector2 nearestAccessPosition)
+        public bool ReplenishTakenItems
         {
-            float closestDistance = float.MaxValue;
-            nearbyStorage = null;
-            nearestAccessPosition = position;
-            bool foundStorage = false;
-            foreach (ItemStorage findableStorage in findableStorages.Current)
+            get
             {
-                if (!excludedStorages.Contains(findableStorage) &&
-                    findableStorage.IsAccessibleFromPosition(position, out Vector2 accessPosition) &&
-                    Vector2.Distance(accessPosition, position) < closestDistance)
-                {
-                    closestDistance = Vector2.Distance(accessPosition, position);
-                    nearbyStorage = findableStorage;
-                    nearestAccessPosition = accessPosition;
-                    foundStorage = true;
-                }
+                return this.replenishTakenItems;
             }
-            return foundStorage;
+        }
+
+        public bool DiscardReplacedItems
+        {
+            get
+            {
+                return this.discardReplacedItems;
+            }
         }
 
         public static bool TryGetStorageUsedByMob(Mob mob, out ItemStorage storage)
@@ -115,31 +204,11 @@ namespace FrigidBlackwaters.Game
             return this.hasUsingMob;
         }
 
-        public bool IsAccessibleFromPosition(Vector2 position, out Vector2 accessPosition)
-        {
-            float closestDistance = float.MaxValue;
-            accessPosition = position;
-            bool foundAccess = false;
-            foreach (AccessZone accessZone in this.accessZones)
-            {
-                if (position.WithinBox(accessZone.AccessPoint, accessZone.AccessSize))
-                {
-                    if (Vector2.Distance(position, accessZone.AccessPoint) < closestDistance)
-                    {
-                        closestDistance = Vector2.Distance(position, accessZone.AccessPoint);
-                        accessPosition = accessZone.AccessPoint;
-                        foundAccess = true;
-                    }
-                }
-            }
-            return foundAccess;
-        }
-
         public void SetStorageGridsFromContainers(List<ItemContainer> containers)
         {
             if (containers.Count == 0)
             {
-                Debug.LogWarning("Setting storage grids on " + this.name + " with no item containers.");
+                Debug.LogWarning("Setting ItemStorageGrids on " + this.name + " with no ItemContainers.");
                 return;
             }
 
@@ -150,28 +219,59 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public void AddStoredItems(IEnumerable<Item> items)
+        public void ItemsStored(ItemStorable storable, IEnumerable<Item> items)
         {
             foreach (Item item in items)
             {
-                if (this.storedItems.Add(item))
+                Action onUsed = 
+                    () =>
+                    {
+                        if (item.InUse)
+                        {
+                            if (this.itemUsages.Add((storable, item)))
+                            {
+                                this.onItemUsed?.Invoke(storable, item);
+                            }
+                        }
+                        else
+                        {
+                            if (this.itemUsages.Remove((storable, item)))
+                            {
+                                this.onItemUnused?.Invoke(storable, item);
+                            }
+                        }
+                    };
+                if (this.itemStores.TryAdd((storable, item), onUsed))
                 {
                     item.Assign(this);
                     item.transform.SetParent(this.transform);
+                    item.OnInUseChanged += onUsed;
+                    if (item.InUse && this.itemUsages.Add((storable, item)))
+                    {
+                        this.onItemUsed?.Invoke(storable, item);
+                    }
                     item.Stored();
+                    this.onItemStored?.Invoke(storable, item);
                 }
             }
         }
 
-        public void RemoveStoredItems(IEnumerable<Item> items)
+        public void ItemsUnstored(ItemStorable storable, IEnumerable<Item> items)
         {
             foreach (Item item in items)
             {
-                if (this.storedItems.Remove(item))
+                if (this.itemStores.TryGetValue((storable, item), out Action onUsed))
                 {
+                    this.itemStores.Remove((storable, item));
                     item.Unstored();
+                    item.OnInUseChanged -= onUsed;
+                    if (item.InUse && this.itemUsages.Remove((storable, item)))
+                    {
+                        this.onItemUnused?.Invoke(storable, item);
+                    }
                     item.Unassign();
                     item.transform.SetParent(null);
+                    this.onItemUnstored?.Invoke(storable, item);
                 }
             }
         }
@@ -189,52 +289,17 @@ namespace FrigidBlackwaters.Game
 
             if (this.storageGrids.Count < 1)
             {
-                Debug.LogError(this.name + " has an ItemStorage with no default item containers.");
+                Debug.LogWarning(this.name + " has an ItemStorage with no default item containers.");
             }
-            this.storedItems = new HashSet<Item>();
 
-            if (TryGetUsingMob(out Mob usingMob))
+            this.itemStores = new Dictionary<(ItemStorable, Item), Action>();
+            this.itemUsages = new HashSet<(ItemStorable, Item)>();
+
+            if (this.TryGetUsingMob(out Mob usingMob))
             {
                 if (!mobsToStorages.Current.TryAdd(usingMob, this))
                 {
-                    Debug.LogError("Using mob not specified or multiple storages used by mob!");
-                }
-            }
-        }
-
-        protected override void OnEnable()
-        {
-            base.OnEnable();
-            findableStorages.Current.Add(this);
-        }
-
-        protected override void OnDisable()
-        {
-            base.OnDisable();
-            findableStorages.Current.Remove(this);
-        }
-
-        [Serializable]
-        private struct AccessZone
-        {
-            [SerializeField]
-            private Vector2SerializedReference accessSize;
-            [SerializeField]
-            private Transform accessPointTransform;
-
-            public Vector2 AccessSize
-            {
-                get
-                {
-                    return this.accessSize.ImmutableValue;
-                }
-            }
-
-            public Vector2 AccessPoint
-            {
-                get
-                {
-                    return this.accessPointTransform.position;
+                    Debug.LogError("Using Mob not specified or multiple storages used by Mob!");
                 }
             }
         }

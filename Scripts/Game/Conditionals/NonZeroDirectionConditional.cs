@@ -7,9 +7,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Direction direction;
 
-        public override bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
+        protected override bool CustomEvaluate(float elapsedDuration, float elapsedDurationDelta)
         {
-            return this.direction.Calculate(Vector2.zero, elapsedDuration, elapsedDurationDelta).magnitude > 0;
+            return this.direction.Retrieve(Vector2.zero, elapsedDuration, elapsedDurationDelta).magnitude > 0;
         }
     }
 }

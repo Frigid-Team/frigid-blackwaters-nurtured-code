@@ -7,9 +7,15 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private string[] animationNames;
 
-        protected override void Start()
+        public override void Preview(Vector2 orientationDirection)
         {
-            base.Start();
+            base.Preview(orientationDirection);
+            this.AnimatorBody.Preview(this.animationNames[0], 0, orientationDirection);
+        }
+
+        public override void Populate(Vector2 orientationDirection)
+        {
+            base.Populate(orientationDirection);
             this.AnimatorBody.Play(this.animationNames[Random.Range(0, this.animationNames.Length)]);
         }
     }

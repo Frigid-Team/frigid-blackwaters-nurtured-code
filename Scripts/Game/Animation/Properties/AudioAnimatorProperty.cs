@@ -21,9 +21,6 @@ namespace FrigidBlackwaters.Game
         private float maxVolume;
         [SerializeField]
         [HideInInspector]
-        private List<bool> isPlayedInAnimations;
-        [SerializeField]
-        [HideInInspector]
         private Nested2DList<bool> playThisFrames;
         [SerializeField]
         [HideInInspector]
@@ -36,7 +33,7 @@ namespace FrigidBlackwaters.Game
         private Nested2DList<bool> onlyPlayOnFirstCycles;
 
         private FrigidCoroutine warmingRoutine;
-        private float endDuration;
+        private float clipEndDuration;
 
         static AudioAnimatorProperty()
         {
@@ -53,7 +50,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.audioSource.loop != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this.audioSource);
+                    FrigidEdit.RecordChanges(this.audioSource);
                     this.audioSource.loop = value;
                     this.audioSource.volume = value ? 0.0f : 1.0f;
                     this.audioSource.playOnAwake = value;
@@ -71,7 +68,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.warmingDuration != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.warmingDuration = value;
                 }
             }
@@ -88,7 +85,7 @@ namespace FrigidBlackwaters.Game
                 if (this.maxVolume != value)
                 {
 
-                    FrigidEditMode.RecordPotentialChanges(this);
+                    FrigidEdit.RecordChanges(this);
                     this.maxVolume = value;
                 }
             }
@@ -104,23 +101,9 @@ namespace FrigidBlackwaters.Game
             {
                 if (this.audioSource.clip != value)
                 {
-                    FrigidEditMode.RecordPotentialChanges(this.audioSource);
+                    FrigidEdit.RecordChanges(this.audioSource);
                     this.audioSource.clip = value;
                 }
-            }
-        }
-
-        public bool GetIsPlayedInAnimation(int animationIndex)
-        {
-            return this.isPlayedInAnimations[animationIndex];
-        }
-
-        public void SetIsPlayedInAnimation(int animationIndex, bool isPlayedInAnimation)
-        {
-            if (this.isPlayedInAnimations[animationIndex] != isPlayedInAnimation)
-            {
-                FrigidEditMode.RecordPotentialChanges(this);
-                this.isPlayedInAnimations[animationIndex] = isPlayedInAnimation;
             }
         }
 
@@ -133,7 +116,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.playThisFrames[animationIndex][frameIndex] != playThisFrame)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.playThisFrames[animationIndex][frameIndex] = playThisFrame;
             }
         }
@@ -147,7 +130,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.waitForEndOfClips[animationIndex][frameIndex] != waitForEndOfClip)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.waitForEndOfClips[animationIndex][frameIndex] = waitForEndOfClip;
             }
         }
@@ -161,7 +144,7 @@ namespace FrigidBlackwaters.Game
         {
             if (this.audioClips[animationIndex][frameIndex] != audioClip)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.audioClips[animationIndex][frameIndex] = audioClip;
             }
         }
@@ -175,26 +158,23 @@ namespace FrigidBlackwaters.Game
         {
             if (this.onlyPlayOnFirstCycles[animationIndex][frameIndex] != onlyPlayOnFirstLoop)
             {
-                FrigidEditMode.RecordPotentialChanges(this);
+                FrigidEdit.RecordChanges(this);
                 this.onlyPlayOnFirstCycles[animationIndex][frameIndex] = onlyPlayOnFirstLoop;
             }
         }
 
         public override void Created()
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            this.audioSource = FrigidEditMode.AddComponent<AudioSource>(this.gameObject);
-            FrigidEditMode.RecordPotentialChanges(this.audioSource);
+            FrigidEdit.RecordChanges(this);
+            this.audioSource = FrigidEdit.AddComponent<AudioSource>(this.gameObject);
             this.audioSource.playOnAwake = false;
             this.audioSource.volume = 1.0f;
-            this.isPlayedInAnimations = new List<bool>();
             this.playThisFrames = new Nested2DList<bool>();
             this.waitForEndOfClips = new Nested2DList<bool>();
             this.audioClips = new Nested2DList<AudioClipSerializedReference>();
             this.onlyPlayOnFirstCycles = new Nested2DList<bool>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
             {
-                this.isPlayedInAnimations.Add(false);
                 this.playThisFrames.Add(new Nested1DList<bool>());
                 this.waitForEndOfClips.Add(new Nested1DList<bool>());
                 this.audioClips.Add(new Nested1DList<AudioClipSerializedReference>());
@@ -212,8 +192,7 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationAddedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            this.isPlayedInAnimations.Insert(animationIndex, false);
+            FrigidEdit.RecordChanges(this);
             this.playThisFrames.Insert(animationIndex, new Nested1DList<bool>());
             this.waitForEndOfClips.Insert(animationIndex, new Nested1DList<bool>());
             this.audioClips.Insert(animationIndex, new Nested1DList<AudioClipSerializedReference>());
@@ -230,8 +209,7 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationRemovedAt(int animationIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            this.isPlayedInAnimations.RemoveAt(animationIndex);
+            FrigidEdit.RecordChanges(this);
             this.playThisFrames.RemoveAt(animationIndex);
             this.waitForEndOfClips.RemoveAt(animationIndex);
             this.audioClips.RemoveAt(animationIndex);
@@ -241,7 +219,7 @@ namespace FrigidBlackwaters.Game
 
         public override void FrameAddedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.playThisFrames[animationIndex].Insert(frameIndex, false);
             this.waitForEndOfClips[animationIndex].Insert(frameIndex, false);
             this.audioClips[animationIndex].Insert(frameIndex, new AudioClipSerializedReference());
@@ -251,7 +229,7 @@ namespace FrigidBlackwaters.Game
 
         public override void FrameRemovedAt(int animationIndex, int frameIndex)
         {
-            FrigidEditMode.RecordPotentialChanges(this);
+            FrigidEdit.RecordChanges(this);
             this.playThisFrames[animationIndex].RemoveAt(frameIndex);
             this.waitForEndOfClips[animationIndex].RemoveAt(frameIndex);
             this.audioClips[animationIndex].RemoveAt(frameIndex);
@@ -259,25 +237,15 @@ namespace FrigidBlackwaters.Game
             base.FrameRemovedAt(animationIndex, frameIndex);
         }
 
-        public override void CopyPasteToAnotherAnimation(AnimatorProperty otherProperty, int fromAnimationIndex, int toAnimationIndex)
-        {
-            AudioAnimatorProperty otherAudioProperty = otherProperty as AudioAnimatorProperty;
-            if (otherAudioProperty)
-            {
-                otherAudioProperty.SetIsPlayedInAnimation(toAnimationIndex, GetIsPlayedInAnimation(fromAnimationIndex));
-            }
-            base.CopyPasteToAnotherAnimation(otherProperty, fromAnimationIndex, toAnimationIndex);
-        }
-
         public override void CopyPasteToAnotherFrame(AnimatorProperty otherProperty, int fromAnimationIndex, int toAnimationIndex, int fromFrameIndex, int toFrameIndex)
         {
             AudioAnimatorProperty otherAudioProperty = otherProperty as AudioAnimatorProperty;
             if (otherAudioProperty)
             {
-                otherAudioProperty.SetPlayThisFrame(toAnimationIndex, toFrameIndex, GetPlayThisFrame(fromAnimationIndex, fromFrameIndex));
-                otherAudioProperty.SetWaitForEndOfClip(toAnimationIndex, toFrameIndex, GetWaitForEndOfClip(fromAnimationIndex, fromFrameIndex));
-                otherAudioProperty.SetAudioClipByReference(toAnimationIndex, toFrameIndex, new AudioClipSerializedReference(GetAudioClipByReference(fromAnimationIndex, fromFrameIndex)));
-                otherAudioProperty.SetOnlyPlayOnFirstCycle(toAnimationIndex, toFrameIndex, GetOnlyPlayOnFirstCycle(fromAnimationIndex, fromFrameIndex));
+                otherAudioProperty.SetPlayThisFrame(toAnimationIndex, toFrameIndex, this.GetPlayThisFrame(fromAnimationIndex, fromFrameIndex));
+                otherAudioProperty.SetWaitForEndOfClip(toAnimationIndex, toFrameIndex, this.GetWaitForEndOfClip(fromAnimationIndex, fromFrameIndex));
+                otherAudioProperty.SetAudioClipByReference(toAnimationIndex, toFrameIndex, new AudioClipSerializedReference(this.GetAudioClipByReference(fromAnimationIndex, fromFrameIndex)));
+                otherAudioProperty.SetOnlyPlayOnFirstCycle(toAnimationIndex, toFrameIndex, this.GetOnlyPlayOnFirstCycle(fromAnimationIndex, fromFrameIndex));
             }
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
@@ -292,46 +260,59 @@ namespace FrigidBlackwaters.Game
 
         public override void AnimationEnter()
         {
-            if (this.Loop)
+            if (!this.Body.Previewing)
             {
-                FrigidCoroutine.Kill(this.warmingRoutine);
-                float startingVolume = this.audioSource.volume;
-                if (GetIsPlayedInAnimation(this.Body.CurrAnimationIndex)) 
+                if (this.Loop)
                 {
+                    FrigidCoroutine.Kill(this.warmingRoutine);
+                    float startingVolume = this.audioSource.volume;
                     this.warmingRoutine = FrigidCoroutine.Run(
-                        TweenCoroutine.Value(this.WarmingDuration * (1 - this.audioSource.volume / this.MaxVolume), onUpdate: (float progress01) => { this.audioSource.volume = startingVolume + progress01 * (this.MaxVolume - startingVolume); }),
+                        Tween.Value(this.WarmingDuration * (1 - this.audioSource.volume / this.MaxVolume), onUpdate: (float progress01) => { this.audioSource.volume = startingVolume + progress01 * (this.MaxVolume - startingVolume); }),
                         this.gameObject
                         );
                 }
-                else
+                this.clipEndDuration = 0;
+            }
+            base.AnimationEnter();
+        }
+
+        public override void AnimationExit()
+        {
+            if (!this.Body.Previewing)
+            {
+                if (this.Loop)
                 {
+                    FrigidCoroutine.Kill(this.warmingRoutine);
+                    float startingVolume = this.audioSource.volume;
                     this.warmingRoutine = FrigidCoroutine.Run(
-                        TweenCoroutine.Value(this.WarmingDuration * this.audioSource.volume / this.MaxVolume, onUpdate: (float progress01) => { this.audioSource.volume = (1 - progress01) * startingVolume; }),
+                        Tween.Value(this.WarmingDuration * this.audioSource.volume / this.MaxVolume, onUpdate: (float progress01) => { this.audioSource.volume = (1 - progress01) * startingVolume; }),
                         this.gameObject
                         );
                 }
             }
-            this.endDuration = 0;
-            base.AnimationEnter();
+            base.AnimationExit();
         }
 
         public override void FrameEnter()
         {
-            if (!this.Loop && GetPlayThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex) && (this.Body.CurrentCycleIndex == 0 || !GetOnlyPlayOnFirstCycle(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex)))
+            if (!this.Body.Previewing)
             {
-                AudioClip chosenAudioClip = GetAudioClipByReference(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex).MutableValue;
-                PlayOneShot(chosenAudioClip);
-                if (GetWaitForEndOfClip(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
+                if (!this.Loop && this.GetPlayThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex) && (this.Body.CurrentCycleIndex == 0 || !this.GetOnlyPlayOnFirstCycle(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex)))
                 {
-                    this.endDuration = Mathf.Max(this.endDuration, this.Body.ElapsedDuration + chosenAudioClip.length);
+                    AudioClip chosenAudioClip = this.GetAudioClipByReference(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex).MutableValue;
+                    this.PlayOneShot(chosenAudioClip);
+                    if (this.GetWaitForEndOfClip(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
+                    {
+                        this.clipEndDuration = Mathf.Max(this.clipEndDuration, this.Body.ElapsedDuration + chosenAudioClip.length);
+                    }
                 }
             }
             base.FrameEnter();
         }
 
-        protected override bool CanCompleteAtEndOfAnimation()
+        public override float GetDuration()
         {
-            return this.Body.ElapsedDuration >= this.endDuration;
+            return Mathf.Max(this.clipEndDuration, base.GetDuration());
         }
     }
 }

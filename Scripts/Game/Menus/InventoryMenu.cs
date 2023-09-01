@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+using FrigidBlackwaters.Core;
+
 namespace FrigidBlackwaters.Game
 {
     public class InventoryMenu : Menu
@@ -9,18 +11,24 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private ItemInterface itemInterface;
 
-        public override bool IsOpenable()
+        public override bool WantsToOpen()
         {
-            return PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out _);
+            return InterfaceInput.AccessPerformedThisFrame && PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out _);
         }
 
-        protected override void Opened()
+        public override bool WantsToClose()
         {
+            return InterfaceInput.AccessPerformedThisFrame || InterfaceInput.ReturnPerformedThisFrame;
+        }
+
+        public override void Opened()
+        {
+            base.Opened();
             List<ItemStorage> itemStorages = new List<ItemStorage>();
             if (PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out ItemStorage playerItemStorage))
             {
                 itemStorages.Add(playerItemStorage);
-                if (ItemStorage.TryGetNearestFindableStorage(player.Position, itemStorages, out ItemStorage nearbyStorage,  out _))
+                if (ItemStorage.TryFindNearest(player.Position, itemStorages, out ItemStorage nearbyStorage,  out _))
                 {
                     itemStorages.Add(nearbyStorage);
                 }
@@ -28,8 +36,9 @@ namespace FrigidBlackwaters.Game
             this.itemInterface.OpenStorages(itemStorages);
         }
 
-        protected override void Closed()
+        public override void Closed()
         {
+            base.Closed();
             this.itemInterface.CloseStorages();
         }
 
@@ -38,7 +47,7 @@ namespace FrigidBlackwaters.Game
             trackedPosition = Vector2.zero;
             if (PlayerMob.TryGet(out PlayerMob player) && ItemStorage.TryGetStorageUsedByMob(player, out ItemStorage playerItemStorage))
             {
-                if (ItemStorage.TryGetNearestFindableStorage(player.Position, new List<ItemStorage>() { playerItemStorage }, out _, out Vector2 nearestAccessPosition))
+                if (ItemStorage.TryFindNearest(player.Position, new List<ItemStorage>() { playerItemStorage }, out _, out Vector2 nearestAccessPosition))
                 {
                     trackedPosition = nearestAccessPosition;
                     return true;

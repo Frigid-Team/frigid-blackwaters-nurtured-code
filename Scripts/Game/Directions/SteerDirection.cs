@@ -15,10 +15,10 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private float steerSpeedDegrees;
 
-        public override Vector2[] Calculate(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
+        protected override Vector2[] CustomRetrieve(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
         {
-            Vector2[] startDirections = this.startDirection.Calculate(currDirections, elapsedDuration, elapsedDurationDelta);
-            Vector2[] targetDirections = this.targetDirection.Calculate(currDirections, elapsedDuration, elapsedDurationDelta);
+            Vector2[] startDirections = this.startDirection.Retrieve(currDirections, elapsedDuration, elapsedDurationDelta);
+            Vector2[] targetDirections = this.targetDirection.Retrieve(currDirections, elapsedDuration, elapsedDurationDelta);
             float angleStep = this.steerSpeedDegrees * Mathf.Deg2Rad * elapsedDurationDelta;
             Vector2[] directions = new Vector2[currDirections.Length];
             for (int i = 0; i < directions.Length; i++)
@@ -31,7 +31,7 @@ namespace FrigidBlackwaters.Game
                     {
                         steeredDirection = startDirections[i];
                     }
-                    float steeredAngleRad = steeredDirection.ComponentAngle0To2PI();
+                    float steeredAngleRad = steeredDirection.ComponentAngle0To360() * Mathf.Deg2Rad;
                     steeredAngleRad = Vector2.SignedAngle(steeredDirection, targetDirections[i]) > 0 ? (steeredAngleRad + angleStep) : (steeredAngleRad - angleStep);
                     directions[i] = new Vector2(Mathf.Cos(steeredAngleRad), Mathf.Sin(steeredAngleRad));
                 }

@@ -9,10 +9,10 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private List<MobBehaviour> behaviours;
         [SerializeField]
-        private List<Timer> timers;
+        private List<AbilityResource> inUseAbilityResources;
 
-        private MobEquipmentPiece equipmentPiece;
-        private AnimatorBody equipmentAnimatorBody;
+        private MobEquipment owner;
+        private AnimatorBody ownerAnimatorBody;
 
         private MobEquipmentState currentState;
         private Action<MobEquipmentState, MobEquipmentState> onCurrentStateChanged;
@@ -74,10 +74,10 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public void Link(MobEquipmentPiece equipmentPiece, AnimatorBody equipmentAnimatorBody)
+        public void Link(MobEquipment owner, AnimatorBody ownerAnimatorBody)
         {
-            this.equipmentPiece = equipmentPiece;
-            this.equipmentAnimatorBody = equipmentAnimatorBody;
+            this.owner = owner;
+            this.ownerAnimatorBody = ownerAnimatorBody;
         }
 
         public virtual void Init()
@@ -87,49 +87,49 @@ namespace FrigidBlackwaters.Game
 
         public virtual void Equipped() 
         {
-            this.EquipmentPiece.EquipPoint.Equipper.OnRequestedTimeScaleChanged += HandleEquipperTimeScaleChange;
-            HandleEquipperTimeScaleChange();
+            this.Owner.EquipPoint.Equipper.OnRequestedTimeScaleChanged += this.HandleEquipperTimeScaleChange;
+            this.HandleEquipperTimeScaleChange();
         }
 
         public virtual void Unequipped() 
         {
-            this.EquipmentPiece.EquipPoint.Equipper.OnRequestedTimeScaleChanged -= HandleEquipperTimeScaleChange;
+            this.Owner.EquipPoint.Equipper.OnRequestedTimeScaleChanged -= this.HandleEquipperTimeScaleChange;
         }
 
         public virtual void Enter() 
         { 
-            foreach (MobBehaviour behaviour in this.behaviours) this.EquipmentPiece.EquipPoint.Equipper.AddBehaviour(behaviour, false);
-            foreach (Timer timer in this.timers) timer.InUse.Request();
+            foreach (MobBehaviour behaviour in this.behaviours) this.Owner.EquipPoint.Equipper.AddBehaviour(behaviour, false);
+            foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources) inUseAbilityResource.InUse.Request();
             this.entered = true;
             this.enterDuration = 0;
         }
 
         public virtual void Exit() 
         {
-            foreach (MobBehaviour behaviour in this.behaviours) this.EquipmentPiece.EquipPoint.Equipper.RemoveBehaviour(behaviour);
-            foreach (Timer timer in this.timers) timer.InUse.Release();
+            foreach (MobBehaviour behaviour in this.behaviours) this.Owner.EquipPoint.Equipper.RemoveBehaviour(behaviour);
+            foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources) inUseAbilityResource.InUse.Release();
             this.entered = false;
         }
 
         public virtual void Refresh() 
         {
-            this.enterDurationDelta = Time.deltaTime * this.EquipmentPiece.EquipPoint.Equipper.RequestedTimeScale;
+            this.enterDurationDelta = Time.deltaTime * this.Owner.EquipPoint.Equipper.RequestedTimeScale;
             this.enterDuration += this.enterDurationDelta;
         }
 
-        protected MobEquipmentPiece EquipmentPiece
+        protected MobEquipment Owner
         {
             get
             {
-                return this.equipmentPiece;
+                return this.owner;
             }
         }
 
-        protected AnimatorBody EquipmentAnimatorBody
+        protected AnimatorBody OwnerAnimatorBody
         {
             get
             {
-                return this.equipmentAnimatorBody;
+                return this.ownerAnimatorBody;
             }
         }
 
@@ -166,9 +166,9 @@ namespace FrigidBlackwaters.Game
 
         private void HandleEquipperTimeScaleChange()
         {
-            foreach (Timer timer in this.timers)
+            foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources)
             {
-                timer.LocalTimeScale = this.EquipmentPiece.EquipPoint.Equipper.RequestedTimeScale;
+                inUseAbilityResource.LocalTimeScale = this.Owner.EquipPoint.Equipper.RequestedTimeScale;
             }
         }
     }

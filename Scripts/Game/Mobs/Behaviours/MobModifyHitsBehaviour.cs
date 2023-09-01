@@ -18,28 +18,29 @@ namespace FrigidBlackwaters.Game
         public override void Enter()
         {
             base.Enter();
-            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.OwnerAnimatorBody.GetProperties<HurtBoxAnimatorProperty>())
+            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.OwnerAnimatorBody.GetReferencedProperties<HurtBoxAnimatorProperty>())
             {
                 hurtBoxProperty.AddHitModifier(this.hitModifier);
-                hurtBoxProperty.OnReceived += ModifiedFeedback;
+                hurtBoxProperty.OnReceived += this.ModifiedFeedback;
             }
         }
 
         public override void Exit()
         {
             base.Exit();
-            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.OwnerAnimatorBody.GetProperties<HurtBoxAnimatorProperty>())
+            foreach (HurtBoxAnimatorProperty hurtBoxProperty in this.OwnerAnimatorBody.GetReferencedProperties<HurtBoxAnimatorProperty>())
             {
                 hurtBoxProperty.RemoveHitModifier(this.hitModifier);
-                hurtBoxProperty.OnReceived -= ModifiedFeedback;
+                hurtBoxProperty.OnReceived -= this.ModifiedFeedback;
             }
         }
 
         private void ModifiedFeedback(HitInfo hitInfo)
         {
-            if (hitInfo.TryGetHitModifier(out HitModifier hitModifier) && hitModifier == this.hitModifier)
+            if (!this.playAudioOnModified) return;
+            if (hitInfo.AppliedHitModifiers.Contains(this.hitModifier))
             {
-                foreach (AudioAnimatorProperty audioProperty in this.OwnerAnimatorBody.GetCurrentProperties<AudioAnimatorProperty>())
+                foreach (AudioAnimatorProperty audioProperty in this.OwnerAnimatorBody.GetReferencedProperties<AudioAnimatorProperty>())
                 {
                     if (!audioProperty.Loop) audioProperty.PlayOneShot(this.audioClipOnModified.MutableValue);
                 }

@@ -1,16 +1,10 @@
-using System;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace FrigidBlackwaters.Core
 {
     public static class InterfaceInput
     {
         private static PlayerActions playerActions;
-        private static Action onAccess;
-        private static Action onReturn;
-        private static Action onExpand;
-        private static bool quickHeld;
         private static ControlCounter disabled;
 
         public static Vector2 PointPosition
@@ -21,39 +15,35 @@ namespace FrigidBlackwaters.Core
             }
         }
 
-        public static Action OnAccess
+        public static bool AccessPerformedThisFrame
         {
             get
             {
-                return onAccess;
-            }
-            set
-            {
-                onAccess = value;
+                return playerActions.Interface.Access.WasPerformedThisFrame();
             }
         }
 
-        public static Action OnReturn
+        public static bool ReturnPerformedThisFrame
         {
             get
             {
-                return onReturn;
-            }
-            set
-            {
-                onReturn = value;
+                return playerActions.Interface.Return.WasPerformedThisFrame();
             }
         }
 
-        public static Action OnExpand
+        public static bool ExpandPerformedThisFrame
         {
             get
             {
-                return onExpand;
+                return playerActions.Interface.Expand.WasPerformedThisFrame();
             }
-            set
+        }
+
+        public static bool InteractTriggered
+        {
+            get
             {
-                onExpand = value;
+                return playerActions.Interface.Interact.WasPerformedThisFrame();
             }
         }
 
@@ -61,7 +51,7 @@ namespace FrigidBlackwaters.Core
         {
             get
             {
-                return quickHeld;
+                return playerActions.Interface.Quick.IsPressed();
             }
         }
 
@@ -77,40 +67,9 @@ namespace FrigidBlackwaters.Core
         {
             playerActions = new PlayerActions();
             playerActions.Interface.Enable();
-            playerActions.Interface.Access.performed += AccessPerformed;
-            playerActions.Interface.Return.performed += ReturnPerformed;
-            playerActions.Interface.Expand.performed += ExpandPerformed;
-            playerActions.Interface.Quick.started += QuickStarted;
-            playerActions.Interface.Quick.canceled += QuickCanceled;
             disabled = new ControlCounter();
             disabled.OnFirstRequest += playerActions.Character.Disable;
             disabled.OnLastRelease += playerActions.Character.Enable;
-            quickHeld = false;
-        }
-
-        private static void AccessPerformed(InputAction.CallbackContext callback)
-        {
-            onAccess?.Invoke();
-        }
-
-        private static void ReturnPerformed(InputAction.CallbackContext callback)
-        {
-            onReturn?.Invoke();
-        }
-
-        private static void ExpandPerformed(InputAction.CallbackContext callback)
-        {
-            onExpand?.Invoke();
-        }
-
-        private static void QuickStarted(InputAction.CallbackContext callback)
-        {
-            quickHeld = true;
-        }
-
-        private static void QuickCanceled(InputAction.CallbackContext callback)
-        {
-            quickHeld = false;
         }
     }
 }

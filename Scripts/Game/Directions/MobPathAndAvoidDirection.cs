@@ -1,75 +1,83 @@
 using UnityEngine;
-using System.Collections.Generic;
-
-using FrigidBlackwaters.Utility;
 using FrigidBlackwaters.Core;
+
+using System.Collections.Generic;
 
 namespace FrigidBlackwaters.Game
 {
     public class MobPathAndAvoidDirection : Direction
     {
         [SerializeField]
-        private MobSerializedReference mob;
+        private MobSerializedHandle mob;
         [SerializeField]
         private Targeter targetTargeter;
         [SerializeField]
-        private FloatSerializedReference percentPathExtensionForPathFind;
+        private TargetSamplingMode targetSamplingMode;
+        [SerializeField]
+        private FloatSerializedReference maxPercentPathLengthDelta;
         [SerializeField]
         private FloatSerializedReference stoppingDistance;
+        [SerializeField]
+        private bool ignoreTraversableTerrain;
 
         private PathfindingTask pathfindingTask;
+        private Vector2 targetPosition;
 
-        public override Vector2[] Calculate(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
+        protected override Vector2[] CustomRetrieve(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
         {
-            Mob mob = this.mob.ImmutableValue;
+            if (!this.mob.TryGetValue(out Mob mob))
+            {
+                return currDirections;
+            }
 
             Vector2[] directions = new Vector2[currDirections.Length];
 
-            Vector2[] currentPositions = new Vector2[directions.Length];
-            for (int i = 0; i < currentPositions.Length; i++) currentPositions[i] = mob.Position;
-
-            Vector2[] targetPositions = this.targetTargeter.Calculate(currentPositions, elapsedDuration, elapsedDurationDelta);
-
-            for (int i = 0; i < directions.Length; i++)
-            {
-                List<Vector2> pathPoints = this.pathfindingTask.RequestPathPoints(
+            List<Vector2> pathPoints = this.pathfindingTask.RequestPathPoints(
                     mob.TiledArea,
                     mob.TileSize,
-                    mob.TraversableTerrain,
+                    this.ignoreTraversableTerrain ? TraversableTerrain.All : mob.TraversableTerrain,
+                    Resistance.None,
                     mob.Position,
-                    targetPositions[i],
+                    this.targetPosition,
                     mob.Size / 2,
-                    this.percentPathExtensionForPathFind.ImmutableValue
+                    this.maxPercentPathLengthDelta.ImmutableValue
                     );
-
-                directions[i] = Vector2.zero;
-                if (pathPoints.Count > 1 && Vector2.Distance(mob.Position, targetPositions[i]) > this.stoppingDistance.ImmutableValue)
+            Vector2 pathAndAvoidDirection = Vector2.zero;
+            if (pathPoints.Count > 1 && Vector2.Distance(mob.Position, this.targetPosition) > this.stoppingDistance.ImmutableValue)
+            {
+                Vector2 pathDirection = (pathPoints[1] - mob.Position).normalized;
+                Vector2 summedDirection = pathDirection;
+                if (mob.CurrentPushMode == MobPushMode.IgnoreNone)
                 {
-                    Vector2 pathDirection = pathPoints[1] - mob.Position;
-                    Vector2 summedDirection = pathDirection.normalized;
-                    if (mob.CurrentPushMode == MobPushMode.IgnoreNone)
+                    foreach (Mob activeMob in Mob.GetActiveMobsIn(mob.TiledArea))
                     {
-                        foreach (Mob activeMob in Mob.GetActiveMobsIn(mob.TiledArea))
+                        float avoidanceThresholdDistance = mob.Size.magnitude + activeMob.Size.magnitude;
+                        float avoidanceDistance = Vector2.Distance(activeMob.Position, mob.Position);
+                        if (activeMob != mob && activeMob.CurrentPushMode == MobPushMode.IgnoreNone && avoidanceDistance <= avoidanceThresholdDistance)
                         {
-                            if (activeMob != mob && activeMob.CurrentPushMode == MobPushMode.IgnoreNone)
+                            Vector2 avoidanceDirection = (activeMob.Position - mob.Position).normalized;
+                            if (Vector2.Dot(avoidanceDirection, pathDirection) >= 0)
                             {
-                                Vector2 offsetDirection = activeMob.Position - mob.Position;
-                                float angle = Vector2.Angle(offsetDirection, pathDirection);
-                                float avoidanceDistance = mob.Size.magnitude + activeMob.Size.magnitude;
-                                if (angle <= 90 && offsetDirection.magnitude <= avoidanceDistance)
-                                {
-                                    float weightMultiplier = Mathf.Abs(Vector2.Dot(offsetDirection, pathDirection));
-                                    Vector2 avoidanceDirection = weightMultiplier * -offsetDirection.normalized * (avoidanceDistance - offsetDirection.magnitude) / (avoidanceDistance * 0.5f);
-                                    summedDirection += avoidanceDirection;
-                                    summedDirection.Normalize();
-                                }
+                                float weight = Mathf.Abs(Vector2.Dot(avoidanceDirection, pathDirection));
+                                Vector2 partialDirection = weight * -avoidanceDirection * (avoidanceThresholdDistance - avoidanceDistance) / (avoidanceThresholdDistance / 2f);
+                                summedDirection += partialDirection;
                             }
                         }
                     }
-                    directions[i] = summedDirection;
                 }
+                summedDirection.Normalize();
+                if (Vector2.Dot(summedDirection, pathDirection) < 0)
+                {
+                    // Not allowed to go backwards. Worst case just stop.
+                    summedDirection = Vector2.zero;
+                }
+                pathAndAvoidDirection = summedDirection;
             }
 
+            for (int i = 0; i < directions.Length; i++)
+            {
+                directions[i] = pathAndAvoidDirection;
+            }
             return directions;
         }
 
@@ -77,6 +85,34 @@ namespace FrigidBlackwaters.Game
         {
             base.Awake();
             this.pathfindingTask = new PathfindingTask();
+        }
+
+        protected override void Start()
+        {
+            base.Start();
+            FrigidCoroutine.Run(this.TargetUpdate(), this.gameObject);
+        }
+
+        private IEnumerator<FrigidCoroutine.Delay> TargetUpdate()
+        {
+            while (true)
+            {
+                if (this.mob.TryGetValue(out Mob mob))
+                {
+                    this.targetPosition = this.targetTargeter.Retrieve(mob.Position, 0, 0);
+                    while (this.Retrieve(Vector2.zero, 0, 0).sqrMagnitude > 0 && this.targetSamplingMode == TargetSamplingMode.PathFinish)
+                    {
+                        yield return null;
+                    }
+                }
+                yield return null;
+            }
+        }
+
+        private enum TargetSamplingMode
+        {
+            Continuous,
+            PathFinish
         }
     }
 }

@@ -20,10 +20,6 @@ namespace FrigidBlackwaters.Game
             {
                 return this.terrain;
             }
-            set
-            {
-                this.terrain = value;
-            }
         }
 
         public bool Unobstructed
@@ -45,13 +41,13 @@ namespace FrigidBlackwaters.Game
         public void AddObstruction(Resistance resistance)
         {
             this.obstructions[(int)resistance]++;
-            if (this.obstructions[(int)resistance] == 1) UpdateHighestObstructiveResistance();
+            if (this.obstructions[(int)resistance] == 1) this.UpdateHighestObstructiveResistance();
         }
 
         public void RemoveObstruction(Resistance resistance)
         {
             this.obstructions[(int)resistance]--;
-            if (this.obstructions[(int)resistance] == 0) UpdateHighestObstructiveResistance();
+            if (this.obstructions[(int)resistance] == 0) this.UpdateHighestObstructiveResistance();
         }
 
         private void UpdateHighestObstructiveResistance()

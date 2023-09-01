@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
@@ -32,6 +33,8 @@ namespace FrigidBlackwaters.Game
         private RecyclePool<TiledWorldMapCellConnector> cellConnectorPool;
         private List<TiledWorldMapToken> currentTokens;
         private RecyclePool<TiledWorldMapToken> tokenPool;
+        
+        private Action onMapActionPerformed;
 
         public float WorldToMapScalingFactor
         {
@@ -41,25 +44,37 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public Action OnMapActionPerformed
+        {
+            get
+            {
+                return this.onMapActionPerformed;
+            }
+            set
+            {
+                this.onMapActionPerformed = value;
+            }
+        }
+
         protected override void Awake()
         {
             base.Awake();
             this.currentCells = new List<TiledWorldMapCell>();
             this.cellPool = new RecyclePool<TiledWorldMapCell>(
-                () => FrigidInstancing.CreateInstance<TiledWorldMapCell>(this.cellPrefab, this.cellsTransform, false),
-                (TiledWorldMapCell cell) => FrigidInstancing.DestroyInstance(cell)
+                () => CreateInstance<TiledWorldMapCell>(this.cellPrefab, this.cellsTransform, false),
+                (TiledWorldMapCell cell) => DestroyInstance(cell)
                 );
             this.currentCellConnectors = new List<TiledWorldMapCellConnector>();
             this.cellConnectorPool = new RecyclePool<TiledWorldMapCellConnector>(
-                () => FrigidInstancing.CreateInstance<TiledWorldMapCellConnector>(this.cellConnectorPrefab, this.cellsTransform, false),
-                (TiledWorldMapCellConnector connector) => FrigidInstancing.DestroyInstance(connector)
+                () => CreateInstance<TiledWorldMapCellConnector>(this.cellConnectorPrefab, this.cellsTransform, false),
+                (TiledWorldMapCellConnector connector) => DestroyInstance(connector)
                 );
             if (this.showTokens)
             {
                 this.currentTokens = new List<TiledWorldMapToken>();
                 this.tokenPool = new RecyclePool<TiledWorldMapToken>(
-                    () => FrigidInstancing.CreateInstance<TiledWorldMapToken>(this.tokenPrefab, this.tokensTransform, false),
-                    (TiledWorldMapToken token) => FrigidInstancing.DestroyInstance(token)
+                    () => CreateInstance<TiledWorldMapToken>(this.tokenPrefab, this.tokensTransform, false),
+                    (TiledWorldMapToken token) => DestroyInstance(token)
                     );
             }
         }
@@ -67,23 +82,23 @@ namespace FrigidBlackwaters.Game
         protected override void OnEnable()
         {
             base.OnEnable();
-            TiledWorldExplorer.OnExploredNewTiledArea += RefreshCells;
-            TiledWorldDiscovery.OnTiledWorldDiscoveryRevealed += RefreshTokens;
-            TiledWorldDiscovery.OnTiledWorldDiscoveryHidden += RefreshTokens;
-            TiledLevel.OnFocusedTiledLevelChanged += RefreshCells;
-            TiledLevel.OnFocusedTiledLevelChanged += RefreshTokens;
-            RefreshCells();
-            RefreshTokens();
+            TiledWorldExplorer.OnExploredArea += this.RefreshCells;
+            TiledWorldDiscovery.OnDiscoveryRevealed += this.RefreshTokens;
+            TiledWorldDiscovery.OnDiscoveryHidden += this.RefreshTokens;
+            TiledLevel.OnFocusedLevelChanged += this.RefreshCells;
+            TiledLevel.OnFocusedLevelChanged += this.RefreshTokens;
+            this.RefreshCells();
+            this.RefreshTokens();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            TiledWorldExplorer.OnExploredNewTiledArea -= RefreshCells;
-            TiledWorldDiscovery.OnTiledWorldDiscoveryRevealed -= RefreshTokens;
-            TiledWorldDiscovery.OnTiledWorldDiscoveryHidden -= RefreshTokens;
-            TiledLevel.OnFocusedTiledLevelChanged -= RefreshCells;
-            TiledLevel.OnFocusedTiledLevelChanged -= RefreshTokens;
+            TiledWorldExplorer.OnExploredArea -= this.RefreshCells;
+            TiledWorldDiscovery.OnDiscoveryRevealed -= this.RefreshTokens;
+            TiledWorldDiscovery.OnDiscoveryHidden -= this.RefreshTokens;
+            TiledLevel.OnFocusedLevelChanged -= this.RefreshCells;
+            TiledLevel.OnFocusedLevelChanged -= this.RefreshTokens;
         }
 
 #if UNITY_EDITOR
@@ -92,96 +107,98 @@ namespace FrigidBlackwaters.Game
 
         public void MoveBy(Vector2 worldPositionDelta)
         {
-            MoveTo((Vector2)this.cellsTransform.localPosition / this.worldToMapScalingFactor + worldPositionDelta);
+            this.MoveTo((Vector2)this.cellsTransform.localPosition / this.worldToMapScalingFactor + worldPositionDelta);
         }
 
         public void MoveTo(Vector2 worldPosition)
         {
-            if (TiledLevel.TryGetFocusedTiledLevel(out TiledLevel focusedTiledLevel)) 
+            if (TiledLevel.TryGetFocusedLevel(out TiledLevel focusedLevel)) 
             {
                 float clampedX = Mathf.Clamp(
                     worldPosition.x,
-                    -focusedTiledLevel.CenterPosition.x - focusedTiledLevel.WallBoundsSize.x / 2, 
-                    -focusedTiledLevel.CenterPosition.x + focusedTiledLevel.WallBoundsSize.x / 2
+                    -focusedLevel.CenterPosition.x - focusedLevel.WallBoundsSize.x / 2, 
+                    -focusedLevel.CenterPosition.x + focusedLevel.WallBoundsSize.x / 2
                     );
                 float clampedY = Mathf.Clamp(
                     worldPosition.y,
-                    -focusedTiledLevel.CenterPosition.y - focusedTiledLevel.WallBoundsSize.y / 2,
-                    -focusedTiledLevel.CenterPosition.y + focusedTiledLevel.WallBoundsSize.y / 2
+                    -focusedLevel.CenterPosition.y - focusedLevel.WallBoundsSize.y / 2,
+                    -focusedLevel.CenterPosition.y + focusedLevel.WallBoundsSize.y / 2
                     );
                 this.cellsTransform.localPosition = new Vector2(clampedX, clampedY) * this.worldToMapScalingFactor;
                 if (this.showTokens) this.tokensTransform.localPosition = this.cellsTransform.localPosition;
             }
         }
 
-        private void RefreshCells(TiledArea exploredTiledArea)
+        private void MapActionPerformed() => this.onMapActionPerformed?.Invoke();
+
+        private void RefreshCells(TiledArea exploredArea)
         {
-            RefreshCells();
+            this.RefreshCells();
         }
 
         private void RefreshCells()
         {
-            if (TiledLevel.TryGetFocusedTiledLevel(out TiledLevel focusedTiledLevel))
+            if (TiledLevel.TryGetFocusedLevel(out TiledLevel focusedLevel))
             {
-                this.cellPool.Cycle(this.currentCells, focusedTiledLevel.TiledLevelPlan.Areas.Count);
+                this.cellPool.Cycle(this.currentCells, focusedLevel.ContainingAreas.Count);
 
-                List<TiledLevelPlanArea> planAreas = focusedTiledLevel.TiledLevelPlan.Areas.ToList();
-                for (int i = 0; i < planAreas.Count; i++)
+                List<TiledArea> containingAreas = focusedLevel.ContainingAreas.ToList();
+                for (int i = 0; i < containingAreas.Count; i++)
                 {
-                    TiledArea tiledArea = focusedTiledLevel.SpawnedAreaPerPlanAreas[planAreas[i]];
-                    this.currentCells[i].FillCell(tiledArea, TiledWorldExplorer.ExploredTiledAreas.Contains(tiledArea), this.worldToMapScalingFactor);
+                    this.currentCells[i].FillCell(focusedLevel, containingAreas[i], TiledWorldExplorer.ExploredAreas.Contains(containingAreas[i]), this.worldToMapScalingFactor, this.MapActionPerformed);
                 }
 
-                List<TiledLevelPlanConnection> areaToAreaPlanConnections = focusedTiledLevel.TiledLevelPlan.Connections.ToList().FindAll(
-                    (TiledLevelPlanConnection planConnection) => !planConnection.IsSubLevelConnection
-                    );
-                this.cellConnectorPool.Cycle(this.currentCellConnectors, areaToAreaPlanConnections.Count);
-                for (int i = 0; i < areaToAreaPlanConnections.Count; i++)
+                List<(TiledEntrance, TiledEntrance)> containingConnections = focusedLevel.ContainingConnections.ToList();
+                this.cellConnectorPool.Cycle(this.currentCellConnectors, containingConnections.Count);
+                for (int i = 0; i < containingConnections.Count; i++)
                 {
-                    TiledArea firstTiledArea = focusedTiledLevel.SpawnedAreaPerPlanAreas[areaToAreaPlanConnections[i].FirstEntrance.Area];
-                    TiledArea secondTiledArea = focusedTiledLevel.SpawnedAreaPerPlanAreas[areaToAreaPlanConnections[i].SecondEntrance.Area];
+                    TiledEntrance firstEntrance = containingConnections[i].Item1;
+                    TiledEntrance secondEntrance = containingConnections[i].Item2;
+                    TiledArea firstTiledArea = firstEntrance.ContainedArea;
+                    TiledArea secondTiledArea = secondEntrance.ContainedArea;
                     this.currentCellConnectors[i].FillConnector(
-                        focusedTiledLevel.SpawnedEntrancePerPlanEntrances[areaToAreaPlanConnections[i].FirstEntrance],
-                        focusedTiledLevel.SpawnedEntrancePerPlanEntrances[areaToAreaPlanConnections[i].SecondEntrance],
-                        TiledWorldExplorer.ExploredTiledAreas.Contains(firstTiledArea) || TiledWorldExplorer.ExploredTiledAreas.Contains(secondTiledArea),
+                        focusedLevel, 
+                        firstEntrance, 
+                        secondEntrance, 
+                        TiledWorldExplorer.ExploredAreas.Contains(firstTiledArea) || TiledWorldExplorer.ExploredAreas.Contains(secondTiledArea), 
                         this.worldToMapScalingFactor
                         );
                 }
             }
         }
 
-        private void RefreshTokens(TiledWorldDiscovery tiledWorldDiscoveryChange)
+        private void RefreshTokens(TiledWorldDiscovery discoveryChange)
         {
-            RefreshTokens();
+            this.RefreshTokens();
         }
 
         private void RefreshTokens()
         {
-            if (this.showTokens && TiledLevel.TryGetFocusedTiledLevel(out TiledLevel focusedTiledLevel))
+            if (this.showTokens && TiledLevel.TryGetFocusedLevel(out TiledLevel focusedLevel))
             {
                 int numberTokens = 0;
-                foreach (TiledArea spawnedTiledArea in focusedTiledLevel.SpawnedAreaPerPlanAreas.Values)
+                foreach (TiledArea containingArea in focusedLevel.ContainingAreas)
                 {
-                    if (TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(spawnedTiledArea, out HashSet<TiledWorldDiscovery> tiledWorldDiscoveries) && TiledWorldExplorer.ExploredTiledAreas.Contains(spawnedTiledArea))
+                    if (TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(containingArea, out HashSet<TiledWorldDiscovery> discoveries) && TiledWorldExplorer.ExploredAreas.Contains(containingArea))
                     {
-                        numberTokens += tiledWorldDiscoveries.Count;
+                        numberTokens += discoveries.Count;
                     }
                 }
 
                 this.tokenPool.Cycle(this.currentTokens, numberTokens);
 
                 int numTokensUsed = 0;
-                foreach (TiledArea tiledArea in focusedTiledLevel.SpawnedAreaPerPlanAreas.Values)
+                foreach (TiledArea containingArea in focusedLevel.ContainingAreas)
                 {
-                    if (TiledWorldExplorer.ExploredTiledAreas.Contains(tiledArea) && TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(tiledArea, out HashSet<TiledWorldDiscovery> tiledWorldDiscoveries))
+                    if (TiledWorldExplorer.ExploredAreas.Contains(containingArea) && TiledWorldDiscovery.TryGetDiscoveriesInTiledArea(containingArea, out HashSet<TiledWorldDiscovery> discoveries))
                     {
                         int tokenIndex = 0;
-                        foreach (TiledWorldDiscovery tiledWorldDiscovery in tiledWorldDiscoveries)
+                        foreach (TiledWorldDiscovery discovery in discoveries)
                         {
                             this.currentTokens[numTokensUsed].FillToken(
-                                tiledArea,
-                                tiledWorldDiscovery,
-                                tiledWorldDiscoveries.Count,
+                                containingArea,
+                                discovery,
+                                discoveries.Count,
                                 tokenIndex,
                                 this.worldToMapScalingFactor
                                 );

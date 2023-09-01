@@ -14,18 +14,8 @@ namespace FrigidBlackwaters.Game
         private DungeonGenerator dungeonGenerator;
         [SerializeField]
         private List<RoomContentBlueprintGroup> roomContentBlueprintGroups;
-        [SerializeField]
-        private TiledArea dungeonRoomPrefab;
-        [SerializeField]
-        private TiledAreaEntrance dungeonEntrancePrefab;
-        [SerializeField]
-        private TiledAreaEntrance bossEntrancePrefab;
-        [SerializeField]
-        private TiledAreaEntrance exitEntrancePrefab;
-        [SerializeField]
-        private TiledAreaMobGenerator dungeonMobGenerator;
 
-        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledAreaEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
+        protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
         {
             Dictionary<RoomContentType, RelativeWeightPool<TiledAreaBlueprintGroup>> roomContentBlueprintGroupMap = new Dictionary<RoomContentType, RelativeWeightPool<TiledAreaBlueprintGroup>>();
             foreach (RoomContentBlueprintGroup roomContentBlueprintGroup in this.roomContentBlueprintGroups)
@@ -33,12 +23,31 @@ namespace FrigidBlackwaters.Game
                 roomContentBlueprintGroupMap.Add(roomContentBlueprintGroup.RoomContentType, roomContentBlueprintGroup.BlueprintGroups);
             }
 
-            GeneratedDungeon generatedDungeon = this.dungeonGenerator.GenerateDungeon();
+            List<Vector2Int> subLevelIndexDirections = new List<Vector2Int>();
+            foreach (TiledEntrance subLevelEntrance in subLevelEntrancesAndContainedAreas.Keys)
+            {
+                subLevelIndexDirections.Add(-subLevelEntrance.LocalEntryIndexDirection);
+            }
 
-            GeneratedDungeonRoom spawnRoom = generatedDungeon.RoomPerIndices[new Vector2Int(DungeonGenerator.SPAWN_X_POSITION_INDEX, DungeonGenerator.SPAWN_Y_POSITION_INDEX)];
-            TiledLevelPlanArea spawnRoomPlanArea = new TiledLevelPlanArea(this.dungeonRoomPrefab, roomContentBlueprintGroupMap[spawnRoom.RoomContentType].Retrieve());
+            GeneratedDungeon generatedDungeon = this.dungeonGenerator.GenerateDungeon(Vector2Int.zero, subLevelIndexDirections);
 
-            TiledLevelPlan dungeonLevelPlan = new TiledLevelPlan(spawnRoomPlanArea, this.dungeonMobGenerator);
+            GeneratedDungeonRoom spawnRoom = generatedDungeon.RoomPerIndexPosition[Vector2Int.zero];
+            TiledLevelPlanArea spawnRoomPlanArea = new TiledLevelPlanArea(roomContentBlueprintGroupMap[spawnRoom.RoomContentType].Retrieve());
+
+            TiledLevelPlan dungeonLevelPlan = new TiledLevelPlan(spawnRoomPlanArea);
+
+            foreach (TiledEntrance subLevelEntrance in subLevelEntrancesAndContainedAreas.Keys)
+            {
+                TiledArea containedArea = subLevelEntrancesAndContainedAreas[subLevelEntrance];
+                dungeonLevelPlan.AddConnection(
+                    new TiledLevelPlanConnection(
+                        new TiledLevelPlanEntrance(subLevelEntrance),
+                        new TiledLevelPlanEntrance(spawnRoomPlanArea),
+                        subLevelEntrance.LocalEntryIndexDirection,
+                        containedArea.NavigationGrid[AreaTiling.TileIndexPositionFromPosition(subLevelEntrance.EntryPosition, containedArea.CenterPosition, containedArea.MainAreaDimensions)].Terrain
+                        )
+                    );
+            }
 
             Dictionary<GeneratedDungeonRoom, TiledLevelPlanArea> visitedRooms = new Dictionary<GeneratedDungeonRoom, TiledLevelPlanArea>();
             Queue<(GeneratedDungeonRoom generatedDungeonRoom, TiledLevelPlanArea planArea)> roomCreationsToVisit = new Queue<(GeneratedDungeonRoom generatedDungeonRoom, TiledLevelPlanArea planArea)>();
@@ -67,51 +76,27 @@ namespace FrigidBlackwaters.Game
                     if (!visitedRooms.ContainsKey(adjacentRoom))
                     {
                         List<TiledAreaBlueprintGroup> blueprintGroupsRetrieval = blueprintGroupsRetrievals[adjacentRoom.RoomContentType];
-                        TiledLevelPlanArea newPlanArea = new TiledLevelPlanArea(this.dungeonRoomPrefab, blueprintGroupsRetrieval[blueprintGroupsRetrieval.Count - 1]);
+                        TiledLevelPlanArea newPlanArea = new TiledLevelPlanArea(blueprintGroupsRetrieval[blueprintGroupsRetrieval.Count - 1]);
                         blueprintGroupsRetrieval.RemoveAt(blueprintGroupsRetrieval.Count - 1);
                         visitedRooms.Add(adjacentRoom, newPlanArea);
                         dungeonLevelPlan.AddArea(newPlanArea);
                         roomCreationsToVisit.Enqueue((adjacentRoom, newPlanArea));
                     }
 
-                    Vector2Int entryDirection = adjacentRoom.PositionIndices - currentRoomPair.generatedDungeonRoom.PositionIndices;
-                    if (currentRoomPair.planArea.RemainingWallEntryDirections.Contains(entryDirection))
+                    Vector2Int entryIndexDirection = adjacentRoom.IndexPosition - currentRoomPair.generatedDungeonRoom.IndexPosition;
+                    if (currentRoomPair.planArea.RemainingWallEntryIndexDirections.Contains(entryIndexDirection))
                     {
-                        TiledAreaEntrance chosenEntrancePrefab = this.dungeonEntrancePrefab;
-                        if (currentRoomPair.generatedDungeonRoom.RoomContentType == RoomContentType.Boss || adjacentRoom.RoomContentType == RoomContentType.Boss)
-                        {
-                            chosenEntrancePrefab = this.bossEntrancePrefab;
-                        }
-                        TiledLevelPlanEntrance currentRoomPlanEntrance = new TiledLevelPlanEntrance(currentRoomPair.planArea, chosenEntrancePrefab);
-                        TiledLevelPlanEntrance adjacentRoomPlanEntrance = new TiledLevelPlanEntrance(visitedRooms[adjacentRoom], chosenEntrancePrefab);
+                        TiledLevelPlanEntrance currentRoomPlanEntrance = new TiledLevelPlanEntrance(currentRoomPair.planArea);
+                        TiledLevelPlanEntrance adjacentRoomPlanEntrance = new TiledLevelPlanEntrance(visitedRooms[adjacentRoom]);
                         dungeonLevelPlan.AddConnection(
                             new TiledLevelPlanConnection(
                                 currentRoomPlanEntrance,
                                 adjacentRoomPlanEntrance,
-                                entryDirection
+                                entryIndexDirection
                                 )
                             );
                     }
                 }
-            }
-
-            if (subLevelEntrancesAndContainedAreas.Count > 1)
-            {
-                Debug.LogError("DungeonTiledLevelPlanners cannot support more than 1 sub level entrance.");
-                return dungeonLevelPlan;
-            }
-
-            foreach (TiledAreaEntrance subLevelEntrance in subLevelEntrancesAndContainedAreas.Keys)
-            {
-                TiledArea containedArea = subLevelEntrancesAndContainedAreas[subLevelEntrance];
-                dungeonLevelPlan.AddConnection(
-                    new TiledLevelPlanConnection(
-                        new TiledLevelPlanEntrance(subLevelEntrance),
-                        new TiledLevelPlanEntrance(spawnRoomPlanArea, this.exitEntrancePrefab),
-                        Vector2Int.up,
-                        containedArea.NavigationGrid.TerrainAtTile(TilePositioning.TileIndicesFromPosition(subLevelEntrance.transform.position, containedArea.CenterPosition, containedArea.MainAreaDimensions))
-                        )
-                    );
             }
 
             return dungeonLevelPlan;

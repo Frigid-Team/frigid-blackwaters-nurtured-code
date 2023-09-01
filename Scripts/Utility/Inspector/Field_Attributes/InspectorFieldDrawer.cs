@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Utility
 
         public InspectorFieldDrawer Copy(InspectorFieldAttribute attribute)
         {
-            InspectorFieldDrawer copiedFieldDrawer = (InspectorFieldDrawer)MemberwiseClone();
+            InspectorFieldDrawer copiedFieldDrawer = (InspectorFieldDrawer)this.MemberwiseClone();
             copiedFieldDrawer.attribute = attribute;
             return copiedFieldDrawer;
         }

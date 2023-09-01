@@ -8,12 +8,14 @@ namespace FrigidBlackwaters.Game
     public class WallTileAsset : FrigidScriptableObject
     {
         [SerializeField]
-        [Range(0, WallsPopulator.MAX_WALL_DEPTH)]
+        [Range(0, TiledArea.MAX_WALL_DEPTH)]
         private int depth;
         [SerializeField]
         private List<WallTile> wallTilePrefabs;
         [SerializeField]
         private List<WallTerrainBoundary> terrainBoundaries;
+
+        private Dictionary<TerrainTileAsset, WallBoundaryTile> boundaryMap;
 
         public int Depth
         {
@@ -32,27 +34,36 @@ namespace FrigidBlackwaters.Game
             throw new Exception("Wall tile depth is not within bounds!");
         }
 
-        public bool TryGetBoundaryTilePrefab(TerrainTileAsset nearestTerrainTileAsset, out WallTile wallBoundaryTilePrefab)
+        public bool TryGetWallBoundaryTilePrefab(TerrainTileAsset terrainTileAsset, out WallBoundaryTile wallBoundaryTilePrefab)
         {
-            foreach(WallTerrainBoundary wallTerrainBoundary in this.terrainBoundaries)
+            return this.boundaryMap.TryGetValue(terrainTileAsset, out wallBoundaryTilePrefab);
+        }
+
+        protected override void Initialize()
+        {
+            base.Initialize();
+            this.boundaryMap = new Dictionary<TerrainTileAsset, WallBoundaryTile>();
+            foreach (WallTerrainBoundary terrainBoundary in this.terrainBoundaries)
             {
-                if(wallTerrainBoundary.BoundaryTerrainTileAssets.Contains(nearestTerrainTileAsset))
+                foreach (TerrainTileAsset boundaryTerrainTileAsset in terrainBoundary.BoundaryTerrainTileAssets)
                 {
-                    wallBoundaryTilePrefab = wallTerrainBoundary.WallBoundaryTilePrefab;
-                    return true;
+                    if (this.boundaryMap.ContainsKey(boundaryTerrainTileAsset))
+                    {
+                        Debug.LogWarning("WallTileAsset " + this.name + " has a duplicate boundary TerrainTileAsset: " + boundaryTerrainTileAsset.name + ".");
+                        continue;
+                    }
+                    this.boundaryMap.Add(boundaryTerrainTileAsset, terrainBoundary.WallBoundaryTilePrefab);
                 }
             }
-            wallBoundaryTilePrefab = null;
-            return false;
         }
 
         [Serializable]
-        public struct WallTerrainBoundary
+        private struct WallTerrainBoundary
         {
             [SerializeField]
             private List<TerrainTileAsset> boundaryTerrainTileAssets;
             [SerializeField]
-            private WallTile wallBoundaryTilePrefab;
+            private WallBoundaryTile wallBoundaryTilePrefab;
 
             public List<TerrainTileAsset> BoundaryTerrainTileAssets
             {
@@ -62,7 +73,7 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            public WallTile WallBoundaryTilePrefab
+            public WallBoundaryTile WallBoundaryTilePrefab
             {
                 get
                 {

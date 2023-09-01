@@ -12,7 +12,7 @@ namespace FrigidBlackwaters.Game
         private Rigidbody2D rigidBody;
 
         private ControlCounter stopVelocities;
-        private Dictionary<Move, (int priority, bool ignoreTimeScale, Action onFinished, bool currentlyFinished, Action onStartMotion, Action onEndMotion, bool currentlyInMotion)> moveMap;
+        private Dictionary<Move, (int, bool, Action, bool, Action, Action, bool)> moveMap;
         private int highestPriority;
         private Vector2 calculatedVelocity;
         private float speedBonus;
@@ -83,7 +83,7 @@ namespace FrigidBlackwaters.Game
                 {
                     this.timeScale = value;
                     this.onTimeScaleChanged?.Invoke();
-                    UpdateVelocity();
+                    this.UpdateVelocity();
                 }
             }
         }
@@ -102,13 +102,13 @@ namespace FrigidBlackwaters.Game
 
         public bool DoMove(Move move, int priority, bool ignoreTimeScale, Action onFinished = null, Action onBeginMotion = null, Action onEndMotion = null)
         {
-            return AddMove(
+            return this.AddMove(
                 move,
                 priority,
                 ignoreTimeScale,
                 () => 
-                { 
-                    RemoveMove(move); 
+                {
+                    this.RemoveMove(move); 
                     onFinished?.Invoke(); 
                 },
                 onBeginMotion,
@@ -140,8 +140,8 @@ namespace FrigidBlackwaters.Game
                         onBeginMotion?.Invoke();
                     }
                 }
-                UpdateHighestPriority();
-                UpdateVelocity();
+                this.UpdateHighestPriority();
+                this.UpdateVelocity();
                 return true;
             }
             return false;
@@ -154,8 +154,8 @@ namespace FrigidBlackwaters.Game
                 move.StopMoving();
                 move.Unassign();
                 this.moveMap.Remove(move);
-                UpdateHighestPriority();
-                UpdateVelocity();
+                this.UpdateHighestPriority();
+                this.UpdateVelocity();
                 return true;
             }
             return false;
@@ -185,7 +185,7 @@ namespace FrigidBlackwaters.Game
             this.stopVelocities = new ControlCounter();
             this.stopVelocities.OnFirstRequest += () => { this.rigidBody.velocity = Vector2.zero; };
             this.stopVelocities.OnLastRelease += () => { this.rigidBody.velocity = this.calculatedVelocity; };
-            this.moveMap = new Dictionary<Move, (int priority, bool ignoreTimeScale, Action onFinished, bool currentlyFinished, Action onStartMotion, Action onEndMotion, bool currentlyInMotion)>();
+            this.moveMap = new Dictionary<Move, (int, bool, Action, bool, Action, Action, bool)>();
             this.speedBonus = 0;
             this.timeScale = 1f;
             this.highestPriority = int.MinValue;
@@ -194,8 +194,7 @@ namespace FrigidBlackwaters.Game
         protected override void FixedUpdate()
         {
             base.FixedUpdate();
-            Dictionary<Move, (int priority, bool ignoreTimeScale, Action onFinished, bool currentlyFinished, Action onStartMotion, Action onEndMotion, bool currentlyInMotion)> moveMapCopy = 
-                new Dictionary<Move, (int priority, bool ignoreTimeScale, Action onFinished, bool currentlyFinished, Action onStartMotion, Action onEndMotion, bool currentlyInMotion)>(this.moveMap);
+            Dictionary<Move, (int, bool, Action, bool, Action, Action, bool)> moveMapCopy = new Dictionary<Move, (int, bool, Action, bool, Action, Action, bool)>(this.moveMap);
             foreach (KeyValuePair<Move, (int priority, bool ignoreTimeScale, Action onFinished, bool currentlyFinished, Action onStartMotion, Action onEndMotion, bool currentlyInMotion)> moveMapping in moveMapCopy)
             {
                 Move move = moveMapping.Key;
@@ -237,8 +236,8 @@ namespace FrigidBlackwaters.Game
                     }
                 }
             }
-            
-            UpdateVelocity();
+
+            this.UpdateVelocity();
         }
 
         private void UpdateVelocity()

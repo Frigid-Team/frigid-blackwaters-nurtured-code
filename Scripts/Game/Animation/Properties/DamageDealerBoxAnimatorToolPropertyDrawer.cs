@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEditor;
 
 using FrigidBlackwaters.Core;
+using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
@@ -11,21 +12,33 @@ namespace FrigidBlackwaters.Game
         public override void DrawGeneralEditFields()
         {
             DamageDealerBoxAnimatorProperty<DB, RB, I> damageDealerBoxProperty = (DamageDealerBoxAnimatorProperty<DB, RB, I>)this.Property;
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Label(typeof(DB).Name, EditorStyles.boldLabel);
+                if (GUILayout.Button("Edit " + typeof(DB).Name))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(), 
+                        new InspectorPopup(damageDealerBoxProperty.gameObject)
+                            .DoNotDraw(damageDealerBoxProperty)
+                            .DoNotDraw(damageDealerBoxProperty.transform)
+                            .DoNotMoveOrDelete(damageDealerBoxProperty.GetComponent<DB>())
+                            .DoNotDraw(damageDealerBoxProperty.GetComponent<Collider2D>())
+                            );
+                }
+            }
             damageDealerBoxProperty.PlayAudioOnDealt = EditorGUILayout.Toggle("Play Audio On Dealt", damageDealerBoxProperty.PlayAudioOnDealt);
             if (damageDealerBoxProperty.PlayAudioOnDealt)
             {
-                damageDealerBoxProperty.AudioClipOnDealtByReference = GUILayoutHelper.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip On Dealt", damageDealerBoxProperty.AudioClipOnDealtByReference);
+                damageDealerBoxProperty.AudioClipOnDealtByReference = CoreGUILayout.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip On Dealt", damageDealerBoxProperty.AudioClipOnDealtByReference);
             }
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Material Tweens On Received");
-            Utility.GUILayoutHelper.DrawIndexedList(
+            UtilityGUILayout.IndexedList(
+                "Material Tweens On Received",
                 damageDealerBoxProperty.GetNumberMaterialTweensOnDealt(),
                 damageDealerBoxProperty.AddMaterialTweenOnDealtAt,
                 damageDealerBoxProperty.RemoveMaterialTweenOnDealtAt,
-                (int index) => damageDealerBoxProperty.SetMaterialTweenOnDealtByReferenceAt(
-                    index,
-                    GUILayoutHelper.MaterialTweenTemplateSerializedReferenceField("Material Tweens On Dealt", damageDealerBoxProperty.GetMaterialTweenOnDealtByReferenceAt(index))
-                    )
+                (int index) => damageDealerBoxProperty.SetMaterialTweenOnDealtByReferenceAt(index, CoreGUILayout.MaterialTweenTemplateSerializedReferenceField("Material Tweens On Dealt", damageDealerBoxProperty.GetMaterialTweenOnDealtByReferenceAt(index)))
                 );
             base.DrawGeneralEditFields();
         }

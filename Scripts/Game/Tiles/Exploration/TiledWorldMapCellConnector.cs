@@ -6,20 +6,55 @@ namespace FrigidBlackwaters.Game
     public class TiledWorldMapCellConnector : FrigidMonoBehaviour
     {
         [SerializeField]
-        private Image cellConnectorImage;
+        private Image firstConnectorImage;
+        [SerializeField]
+        private Image intermediateConnectorImage;
+        [SerializeField]
+        private Image secondConnectorImage;
         [SerializeField]
         private float paddedLength;
 
-        public void FillConnector(TiledAreaEntrance firstEntrance, TiledAreaEntrance secondEntrance, bool isRevealed, float worldToMapScalingFactor)
+        public void FillConnector(TiledLevel level, TiledEntrance firstEntrance, TiledEntrance secondEntrance, bool isRevealed, float worldToMapScalingFactor)
         {
-            this.cellConnectorImage.enabled = isRevealed;
+            this.firstConnectorImage.enabled = isRevealed;
+            this.intermediateConnectorImage.enabled = isRevealed;
+            this.secondConnectorImage.enabled = isRevealed;
             if (!isRevealed) return;
-            RectTransform rectTransform = (RectTransform)this.transform;
-            float distanceBetweenEntrances = Vector2.Distance(firstEntrance.EntryPosition, secondEntrance.EntryPosition);
-            rectTransform.sizeDelta = new Vector2(distanceBetweenEntrances * worldToMapScalingFactor + this.paddedLength, rectTransform.sizeDelta.y);
-            float angle = Mathf.Atan2(secondEntrance.EntryPosition.y - firstEntrance.EntryPosition.y, secondEntrance.EntryPosition.x - firstEntrance.EntryPosition.x);
-            rectTransform.localRotation = Quaternion.Euler(0, 0, angle * Mathf.Rad2Deg);
-            rectTransform.localPosition = (firstEntrance.EntryPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distanceBetweenEntrances / 2) * worldToMapScalingFactor;
+
+            Vector2 firstPosition = firstEntrance.ContainedArea.ContainedLevel == level ? firstEntrance.EntryPosition : (secondEntrance.EntryPosition + (Vector2)secondEntrance.EntryIndexDirection * FrigidConstants.UNIT_WORLD_SIZE * TiledArea.MAX_WALL_DEPTH * 2);
+            Vector2 secondPosition = secondEntrance.ContainedArea.ContainedLevel == level ? secondEntrance.EntryPosition : (firstEntrance.EntryPosition + (Vector2)firstEntrance.EntryIndexDirection * FrigidConstants.UNIT_WORLD_SIZE * TiledArea.MAX_WALL_DEPTH * 2);
+            Vector2 halfwayPosition = (firstPosition + secondPosition) / 2;
+            Vector2 firstIntermediatePosition;
+            Vector2 secondIntermediatePosition;
+            if (firstEntrance.EntryIndexDirection == Vector2Int.left || firstEntrance.EntryIndexDirection == Vector2Int.right)
+            {
+                firstIntermediatePosition = new Vector2(halfwayPosition.x, firstPosition.y);
+                secondIntermediatePosition = new Vector2(halfwayPosition.x, secondPosition.y);
+            }
+            else
+            {
+                firstIntermediatePosition = new Vector2(firstPosition.x, halfwayPosition.y);
+                secondIntermediatePosition = new Vector2(secondPosition.x, halfwayPosition.y);
+            }
+
+            this.transform.localPosition = halfwayPosition * worldToMapScalingFactor;
+
+            void PositionConnector(Image connectorImage, Vector2 startPosition, Vector2 endPosition)
+            {
+                float distanceBetween = Vector2.Distance(startPosition, endPosition);
+                if (distanceBetween < FrigidConstants.SMALLEST_WORLD_SIZE)
+                {
+                    connectorImage.enabled = false;
+                    return;
+                }
+                connectorImage.rectTransform.sizeDelta = new Vector2(distanceBetween * worldToMapScalingFactor + this.paddedLength, connectorImage.rectTransform.sizeDelta.y);
+                connectorImage.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(endPosition.y - startPosition.y, endPosition.x - startPosition.x) * Mathf.Rad2Deg);
+                connectorImage.rectTransform.localPosition = ((endPosition + startPosition) / 2  - halfwayPosition) * worldToMapScalingFactor;
+            }
+
+            PositionConnector(this.firstConnectorImage, firstPosition, firstIntermediatePosition);
+            PositionConnector(this.intermediateConnectorImage, firstIntermediatePosition, secondIntermediatePosition);
+            PositionConnector(this.secondConnectorImage, secondIntermediatePosition, secondPosition);
         }
 
 #if UNITY_EDITOR

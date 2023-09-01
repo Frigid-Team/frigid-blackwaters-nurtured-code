@@ -8,16 +8,15 @@ namespace FrigidBlackwaters.Game
         private HashSet<TiledLevelPlanArea> areas;
         private HashSet<TiledLevelPlanConnection> connections;
         private bool isSubLevel;
-        private TiledAreaMobGenerator mobGenerator;
 
-        public TiledLevelPlan(TiledLevelPlanArea startingArea, TiledAreaMobGenerator mobGenerator)
+
+        public TiledLevelPlan(TiledLevelPlanArea startingArea)
         {
             this.startingArea = startingArea;
             this.areas = new HashSet<TiledLevelPlanArea>();
             this.areas.Add(this.startingArea);
             this.connections = new HashSet<TiledLevelPlanConnection>();
             this.isSubLevel = false;
-            this.mobGenerator = mobGenerator;
         }
 
         public TiledLevelPlanArea StartingArea
@@ -52,14 +51,6 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public TiledAreaMobGenerator MobGenerator
-        {
-            get
-            {
-                return this.mobGenerator;
-            }
-        }
-
         public void AddArea(TiledLevelPlanArea tiledPlanArea)
         {
             this.areas.Add(tiledPlanArea);
@@ -72,11 +63,11 @@ namespace FrigidBlackwaters.Game
 
             if (!tiledPlanConnection.FirstEntrance.IsSubLevelEntrance)
             {
-                AddArea(tiledPlanConnection.FirstEntrance.Area);
+                this.AddArea(tiledPlanConnection.FirstEntrance.Area);
             }
             if (!tiledPlanConnection.SecondEntrance.IsSubLevelEntrance)
             {
-                AddArea(tiledPlanConnection.SecondEntrance.Area);
+                this.AddArea(tiledPlanConnection.SecondEntrance.Area);
             }
         }
     }

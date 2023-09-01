@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
@@ -23,36 +22,152 @@ namespace FrigidBlackwaters.Game
             base.DrawGeneralEditFields();
         }
 
+        public override void DrawAnimationEditFields(int animationIndex)
+        {
+            ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
+            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon)
+            {
+                if (GUILayout.Button("Rotate Points In Animation"))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(),
+                        new RotatePolygonPopup(
+                            (Vector2 origin, float angle) =>
+                            {
+                                for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++) 
+                                {
+                                    for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
+                                    {
+                                        for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                        {
+                                            Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
+                                            colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                        }
+                                    }
+                                }
+                            }
+                            )
+                        );
+                }
+                if (GUILayout.Button("Scale Points In Animation"))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(),
+                        new ScalePolygonPopup(
+                            (Vector2 origin, float scale) =>
+                            {
+                                for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
+                                {
+                                    for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
+                                    {
+                                        for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                        {
+                                            Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
+                                            colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, origin + (currPoint - origin) * scale);
+                                        }
+                                    }
+                                }
+                            }
+                            )
+                        );
+                }
+            }
+            base.DrawAnimationEditFields(animationIndex);
+        }
+
+        public override void DrawFrameEditFields(int animationIndex, int frameIndex)
+        {
+            ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
+            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon)
+            {
+                if (GUILayout.Button("Rotate Points In Frame"))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(),
+                        new RotatePolygonPopup(
+                            (Vector2 origin, float angle) =>
+                            {
+                                for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
+                                {
+                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                    {
+                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
+                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                    }
+                                }
+                            }
+                            )
+                        );
+                }
+                if (GUILayout.Button("Scale Points In Frame"))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(),
+                        new ScalePolygonPopup(
+                            (Vector2 origin, float scale) =>
+                            {
+                                for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
+                                {
+                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                    {
+                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
+                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, origin + (currPoint - origin) * scale);
+                                    }
+                                }
+                            }
+                            )
+                        );
+                }
+            }
+            base.DrawFrameEditFields(animationIndex, frameIndex);
+        }
+
         public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)
         {
             ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
             switch (colliderProperty.ShapeType)
             {
                 case ColliderAnimatorPropertyShapeType.Polygon:
-                    EditorGUILayout.LabelField("Points", GUIStyling.WordWrapAndCenter(EditorStyles.boldLabel));
-                    Utility.GUILayoutHelper.DrawIndexedList(
-                    colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex),
-                    (int index) => colliderProperty.AddPolygonPointAt(animationIndex, frameIndex, orientationIndex, index, Vector2.zero),
-                    (int index) => colliderProperty.RemovePolygonPointAt(animationIndex, frameIndex, orientationIndex, index),
-                    (int index) => colliderProperty.SetPolygonPointAt(
-                        animationIndex,
-                        frameIndex,
-                        orientationIndex,
-                        index,
-                        EditorGUILayout.Vector2Field("", colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, index))
-                        )
-                    );
-                    if (GUILayout.Button("Rotate Points"))
+                    UtilityGUILayout.IndexedList(
+                        "Points",
+                        colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex),
+                        (int index) => colliderProperty.AddPolygonPointAt(animationIndex, frameIndex, orientationIndex, index, Vector2.zero),
+                        (int index) => colliderProperty.RemovePolygonPointAt(animationIndex, frameIndex, orientationIndex, index),
+                        (int index) => colliderProperty.SetPolygonPointAt(
+                            animationIndex,
+                            frameIndex,
+                            orientationIndex,
+                            index,
+                            EditorGUILayout.Vector2Field("", colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, index))
+                            )
+                        );
+                    if (GUILayout.Button("Rotate Points In Orientation"))
                     {
-                        FrigidPopupWindow.Show(
+                        FrigidPopup.Show(
                             GUILayoutUtility.GetLastRect(), 
                             new RotatePolygonPopup(
-                                (Vector2 origin, float angleRad) => 
+                                (Vector2 origin, float angle) => 
                                 {
                                     for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
                                     {
                                         Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angleRad));
+                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                    }
+                                }
+                                )
+                            );
+                    }
+                    if (GUILayout.Button("Scale Points In Orientation"))
+                    {
+                        FrigidPopup.Show(
+                            GUILayoutUtility.GetLastRect(),
+                            new ScalePolygonPopup(
+                                (Vector2 origin, float scale) =>
+                                {
+                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                    {
+                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
+                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, origin + (currPoint - origin) * scale);
                                     }
                                 }
                                 )
@@ -105,19 +220,8 @@ namespace FrigidBlackwaters.Game
             base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
         }
 
-        public override Vector2 DrawPreview(
-            Vector2 previewSize,
-            Vector2 previewOffset,
-            float worldToWindowScalingFactor,
-            int animationIndex,
-            int frameIndex,
-            int orientationIndex,
-            bool propertySelected,
-            out List<(Rect rect, Action onDrag)> dragRequests
-            )
+        public override void DrawPreview(Vector2 previewSize, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected)
         {
-            dragRequests = new List<(Rect rect, Action onDrag)>();
-
             ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
 
             Vector2 handleSize = new Vector2(this.Config.HandleLength, this.Config.HandleLength);
@@ -129,12 +233,12 @@ namespace FrigidBlackwaters.Game
                     Vector2[] points = new Vector2[colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex)];
                     for (int pointIndex = 0; pointIndex < points.Length; pointIndex++)
                     {
-                        points[pointIndex] = previewSize / 2 + colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex) * new Vector2(1, -1) * worldToWindowScalingFactor + previewOffset;
+                        points[pointIndex] = previewSize / 2 + colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex) * new Vector2(1, -1) * worldToWindowScalingFactor;
                     }
 
-                    using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                    using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                     {
-                        GUIHelper.DrawLinePolygon(points);
+                        UtilityGUI.DrawLinePolygon(points);
                     }
 
                     if (propertySelected)
@@ -145,7 +249,7 @@ namespace FrigidBlackwaters.Game
                             Rect handleRect = new Rect(points[pointIndex] - handleSize / 2, handleSize);
                             Rect grabRect = new Rect(points[pointIndex] - grabSize / 2, grabSize);
 
-                            Color handleColor = GUIStyling.Darken(this.AccentColor);
+                            Color handleColor = UtilityGUIUtility.Darken(this.AccentColor);
                             if (grabRect.Contains(Event.current.mousePosition))
                             {
                                 handleColor = this.AccentColor;
@@ -158,14 +262,17 @@ namespace FrigidBlackwaters.Game
                                 }
                             }
 
-                            using (new GUIHelper.ColorScope(handleColor))
+                            using (new UtilityGUI.ColorScope(handleColor))
                             {
-                                GUIHelper.DrawSolidBox(handleRect);
+                                UtilityGUI.DrawSolidBox(handleRect);
                             }
 
-                            Vector2 newColliderPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor;
-                            int savedPointIndex = pointIndex;
-                            dragRequests.Add((grabRect, () => colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, savedPointIndex, newColliderPoint)));
+                            if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && grabRect.Contains(Event.current.mousePosition - Event.current.delta))
+                            {
+                                Vector2 newPolygonPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor;
+                                colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, newPolygonPoint);
+                                Event.current.Use();
+                            }
                         }
 
                         if (points.Length > 1 && drawAdd)
@@ -188,31 +295,26 @@ namespace FrigidBlackwaters.Game
                             if (addIndex != -1)
                             {
                                 Rect handleRect = new Rect(addPoint - handleSize / 2, handleSize);
-                                using (new GUIHelper.ColorScope(this.AccentColor))
+                                using (new UtilityGUI.ColorScope(this.AccentColor))
                                 {
-                                    GUIHelper.DrawSolidBox(handleRect);
+                                    UtilityGUI.DrawSolidBox(handleRect);
                                 }
                                 if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
                                 {
-                                    colliderProperty.AddPolygonPointAt(
-                                        animationIndex,
-                                        frameIndex,
-                                        orientationIndex,
-                                        addIndex,
-                                        (addPoint - previewSize / 2 - previewOffset) * new Vector2(1, -1) / worldToWindowScalingFactor
-                                        );
+                                    colliderProperty.AddPolygonPointAt(animationIndex, frameIndex, orientationIndex, addIndex, (addPoint - previewSize / 2) * new Vector2(1, -1) / worldToWindowScalingFactor);
+                                    Event.current.Use();
                                 }
                             }
                         }
                     }
                     break;
                 case ColliderAnimatorPropertyShapeType.Circle:
-                    Vector2 circleDrawCenter = previewSize / 2 + colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1) + previewOffset;
+                    Vector2 circleDrawCenter = previewSize / 2 + colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1);
                     float circleDrawRadius = colliderProperty.GetRadius(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
 
-                    using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                    using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                     {
-                        GUIHelper.DrawLineArc(circleDrawCenter, 0, Mathf.PI * 2, circleDrawRadius);
+                        UtilityGUI.DrawLineArc(circleDrawCenter, 0, Mathf.PI * 2, circleDrawRadius);
                     }
 
                     if (propertySelected)
@@ -224,22 +326,26 @@ namespace FrigidBlackwaters.Game
                             Rect grabRect = new Rect(closestPoint - grabSize / 2, grabSize);
                             Rect handleRect = new Rect(closestPoint - handleSize / 2, handleSize);
 
-                            using (new GUIHelper.ColorScope(this.AccentColor))
+                            using (new UtilityGUI.ColorScope(this.AccentColor))
                             {
-                                GUIHelper.DrawSolidBox(handleRect);
+                                UtilityGUI.DrawSolidBox(handleRect);
                             }
 
-                            dragRequests.Add((grabRect, () => colliderProperty.SetRadius(animationIndex, frameIndex, orientationIndex, ((Event.current.mousePosition - circleDrawCenter) * new Vector2(1, -1)).magnitude / worldToWindowScalingFactor)));
+                            if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && grabRect.Contains(Event.current.mousePosition - Event.current.delta))
+                            {
+                                colliderProperty.SetRadius(animationIndex, frameIndex, orientationIndex, ((Event.current.mousePosition - circleDrawCenter) * new Vector2(1, -1)).magnitude / worldToWindowScalingFactor);
+                                Event.current.Use();
+                            }
                         }
                     }
                     break;
                 case ColliderAnimatorPropertyShapeType.Box:
-                    Vector2 boxDrawCenter = previewSize / 2 + colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1) + previewOffset;
+                    Vector2 boxDrawCenter = previewSize / 2 + colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1);
                     Vector2 boxDrawSize = colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
                     Rect boxDrawRect = new Rect(boxDrawCenter - boxDrawSize / 2, boxDrawSize);
-                    using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                    using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                     {
-                        GUIHelper.DrawLineBox(boxDrawRect);
+                        UtilityGUI.DrawLineBox(boxDrawRect);
                     }
 
                     if (propertySelected)
@@ -253,42 +359,37 @@ namespace FrigidBlackwaters.Game
                         Rect topLeftGrabPos = new Rect(topLeftCornerPos - grabSize / 2, grabSize);
                         Rect bottomRightGrabPos = new Rect(bottomRightCornerPos - grabSize / 2, grabSize);
 
-                        using (new GUIHelper.ColorScope(topLeftGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                        using (new UtilityGUI.ColorScope(topLeftGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                         {
-                            GUIHelper.DrawSolidBox(topLeftHandlePos);
+                            UtilityGUI.DrawSolidBox(topLeftHandlePos);
                         }
-                        using (new GUIHelper.ColorScope(bottomRightGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                        using (new UtilityGUI.ColorScope(bottomRightGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                         {
-                            GUIHelper.DrawSolidBox(bottomRightHandlePos);
+                            UtilityGUI.DrawSolidBox(bottomRightHandlePos);
                         }
 
-                        dragRequests.Add(
-                            (topLeftGrabPos, 
-                            () => 
-                            {
-                                Vector2 worldDelta = Event.current.delta / worldToWindowScalingFactor * new Vector2(1, -1);
-                                colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(-1, 1));
-                                colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) + worldDelta / 2);
-                            })
-                            );
-                        dragRequests.Add(
-                            (bottomRightGrabPos, 
-                            () => 
-                            {
-                                Vector2 worldDelta = Event.current.delta / worldToWindowScalingFactor * new Vector2(-1, 1);
-                                colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(-1, 1));
-                                colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) - worldDelta / 2);
-                            })
-                            );
+                        Vector2 worldDelta = Event.current.delta / worldToWindowScalingFactor * new Vector2(1, -1);
+                        if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && topLeftGrabPos.Contains(Event.current.mousePosition - Event.current.delta))
+                        {
+                            colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(-1, 1));
+                            colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) + worldDelta / 2);
+                            Event.current.Use();
+                        }
+                        if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && bottomRightGrabPos.Contains(Event.current.mousePosition - Event.current.delta))
+                        {
+                            colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(1, -1));
+                            colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) + worldDelta / 2);
+                            Event.current.Use();
+                        }
                     }
                     break;
                 case ColliderAnimatorPropertyShapeType.Capsule:
-                    Vector2 capsuleDrawCenter = previewSize / 2 + colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1) + previewOffset;
+                    Vector2 capsuleDrawCenter = previewSize / 2 + colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor * new Vector2(1, -1);
                     Vector2 capsuleDrawSize = colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
                     Rect capsuleDrawRect = new Rect(capsuleDrawCenter - capsuleDrawSize / 2, capsuleDrawSize);
-                    using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                    using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                     {
-                        GUIHelper.DrawLineCapsule(capsuleDrawRect);
+                        UtilityGUI.DrawLineCapsule(capsuleDrawRect);
                     }
 
                     if (propertySelected)
@@ -302,45 +403,35 @@ namespace FrigidBlackwaters.Game
                         Rect topLeftGrabPos = new Rect(topLeftCornerPos - grabSize / 2, grabSize);
                         Rect bottomRightGrabPos = new Rect(bottomRightCornerPos - grabSize / 2, grabSize);
 
-                        using (new GUIHelper.ColorScope(topLeftGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                        using (new UtilityGUI.ColorScope(topLeftGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                         {
-                            GUIHelper.DrawSolidBox(topLeftHandlePos);
+                            UtilityGUI.DrawSolidBox(topLeftHandlePos);
                         }
-                        using (new GUIHelper.ColorScope(bottomRightGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+                        using (new UtilityGUI.ColorScope(bottomRightGrabPos.Contains(Event.current.mousePosition) ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
                         {
-                            GUIHelper.DrawSolidBox(bottomRightHandlePos);
+                            UtilityGUI.DrawSolidBox(bottomRightHandlePos);
                         }
 
-                        dragRequests.Add(
-                            (topLeftGrabPos,
-                            () =>
-                            {
-                                Vector2 worldDelta = Event.current.delta / worldToWindowScalingFactor * new Vector2(1, -1);
-                                colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(-1, 1));
-                                colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) + worldDelta / 2);
-                            })
-                            );
-                        dragRequests.Add(
-                            (bottomRightGrabPos,
-                            () =>
-                            {
-                                Vector2 worldDelta = Event.current.delta / worldToWindowScalingFactor * new Vector2(-1, 1);
-                                colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(-1, 1));
-                                colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) - worldDelta / 2);
-                            })
-                            );
+                        Vector2 worldDelta = Event.current.delta / worldToWindowScalingFactor * new Vector2(1, -1);
+                        if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && topLeftGrabPos.Contains(Event.current.mousePosition - Event.current.delta))
+                        {
+                            colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(-1, 1));
+                            colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) + worldDelta / 2);
+                            Event.current.Use();
+                        }
+                        if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && bottomRightGrabPos.Contains(Event.current.mousePosition - Event.current.delta))
+                        {
+                            colliderProperty.SetSize(animationIndex, frameIndex, orientationIndex, colliderProperty.GetSize(animationIndex, frameIndex, orientationIndex) + worldDelta * new Vector2(1, -1));
+                            colliderProperty.SetCenter(animationIndex, frameIndex, orientationIndex, colliderProperty.GetCenter(animationIndex, frameIndex, orientationIndex) + worldDelta / 2);
+                            Event.current.Use();
+                        }
                     }
                     break;
             }
-            return Vector2.zero;
+            base.DrawPreview(previewSize, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected);
         }
 
-        public override void DrawOrientationCellPreview(
-            Vector2 cellSize,
-            int animationIndex,
-            int frameIndex,
-            int orientationIndex
-            )
+        public override void DrawOrientationCellPreview(Vector2 cellSize, int animationIndex, int frameIndex, int orientationIndex)
         {
             ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
 
@@ -372,9 +463,9 @@ namespace FrigidBlackwaters.Game
                             drawPoints[pointIndex] = cellSize / 2 + (drawPoints[pointIndex] - (Vector2)bounds.center) * scalingFactor;
                         }
 
-                        using (new GUIHelper.ColorScope(this.AccentColor))
+                        using (new UtilityGUI.ColorScope(this.AccentColor))
                         {
-                            GUIHelper.DrawLinePolygon(drawPoints);
+                            UtilityGUI.DrawLinePolygon(drawPoints);
                         }
                     }
                     break;
@@ -382,9 +473,9 @@ namespace FrigidBlackwaters.Game
                     if (colliderProperty.GetRadius(animationIndex, frameIndex, orientationIndex) > 0)
                     {
                         float circleDrawRadius = Mathf.Min(drawSize.x, drawSize.y) / 2;
-                        using (new GUIHelper.ColorScope(this.AccentColor))
+                        using (new UtilityGUI.ColorScope(this.AccentColor))
                         {
-                            GUIHelper.DrawLineArc(cellSize / 2, 0, Mathf.PI * 2, circleDrawRadius);
+                            UtilityGUI.DrawLineArc(cellSize / 2, 0, Mathf.PI * 2, circleDrawRadius);
                         }
                     }
                     break;
@@ -399,9 +490,9 @@ namespace FrigidBlackwaters.Game
                     {
                         boxScalingFactor = drawSize.y / boxSize.y;
                     }
-                    using (new GUIHelper.ColorScope(this.AccentColor))
+                    using (new UtilityGUI.ColorScope(this.AccentColor))
                     {
-                        GUIHelper.DrawLineBox(new Rect(cellSize / 2 - boxSize * boxScalingFactor / 2, boxSize * boxScalingFactor));
+                        UtilityGUI.DrawLineBox(new Rect(cellSize / 2 - boxSize * boxScalingFactor / 2, boxSize * boxScalingFactor));
                     }
                     break;
                 case ColliderAnimatorPropertyShapeType.Capsule:
@@ -415,9 +506,9 @@ namespace FrigidBlackwaters.Game
                     {
                         capsuleScalingFactor = drawSize.y / capsuleSize.y;
                     }
-                    using (new GUIHelper.ColorScope(this.AccentColor))
+                    using (new UtilityGUI.ColorScope(this.AccentColor))
                     {
-                        GUIHelper.DrawLineCapsule(new Rect(cellSize / 2 - capsuleSize * capsuleScalingFactor / 2, capsuleSize * capsuleScalingFactor));
+                        UtilityGUI.DrawLineCapsule(new Rect(cellSize / 2 - capsuleSize * capsuleScalingFactor / 2, capsuleSize * capsuleScalingFactor));
                     }
                     break;
             }
@@ -425,27 +516,53 @@ namespace FrigidBlackwaters.Game
             base.DrawOrientationCellPreview(cellSize, animationIndex, frameIndex, orientationIndex);
         }
 
-        private class RotatePolygonPopup : FrigidPopupWindow
+        private class RotatePolygonPopup : FrigidPopup
         {
             private Action<Vector2, float> onFinished;
             private Vector2 origin;
-            private float angleRad;
+            private float angle;
 
             public RotatePolygonPopup(Action<Vector2, float> onFinished)
             {
                 this.onFinished = onFinished;
                 this.origin = Vector2.zero;
-                this.angleRad = 0;
+                this.angle = 0;
             }
 
             protected override void Draw()
             {
-                EditorGUILayout.LabelField("Enter Rotate Params Below");
+                EditorGUILayout.LabelField("Enter Rotate Parameters Below");
                 this.origin = EditorGUILayout.Vector2Field("Origin", this.origin);
-                this.angleRad = EditorGUILayout.FloatField("Angle", this.angleRad * Mathf.Rad2Deg) * Mathf.Deg2Rad;
+                this.angle = EditorGUILayout.FloatField("Angle", this.angle);
                 if (GUILayout.Button("Done"))
                 {
-                    this.onFinished?.Invoke(this.origin, this.angleRad);
+                    this.onFinished?.Invoke(this.origin, this.angle);
+                    this.editorWindow.Close();
+                }
+            }
+        }
+
+        private class ScalePolygonPopup : FrigidPopup
+        {
+            private Action<Vector2, float> onFinished;
+            private Vector2 origin;
+            private float scale;
+
+            public ScalePolygonPopup(Action<Vector2, float> onFinished)
+            {
+                this.onFinished = onFinished;
+                this.origin = Vector2.zero;
+                this.scale = 1.0f;
+            }
+
+            protected override void Draw()
+            {
+                EditorGUILayout.LabelField("Enter Scale Parameters Below");
+                this.origin = EditorGUILayout.Vector2Field("Origin", this.origin);
+                this.scale = EditorGUILayout.FloatField("Scale", this.scale);
+                if (GUILayout.Button("Done"))
+                {
+                    this.onFinished?.Invoke(this.origin, this.scale);
                     this.editorWindow.Close();
                 }
             }

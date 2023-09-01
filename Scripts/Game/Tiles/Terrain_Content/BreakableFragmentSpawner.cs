@@ -17,13 +17,13 @@ namespace FrigidBlackwaters.Game
         protected override void OnEnable()
         {
             base.OnEnable();
-            this.terrainObstruction.OnBroken += SpawnBreakableFragments;
+            this.terrainObstruction.OnBroken += this.SpawnBreakableFragments;
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            this.terrainObstruction.OnBroken -= SpawnBreakableFragments;
+            this.terrainObstruction.OnBroken -= this.SpawnBreakableFragments;
         }
 
         private void SpawnBreakableFragments()
@@ -34,7 +34,7 @@ namespace FrigidBlackwaters.Game
                 float randAngle = Random.Range(0, 360) * Mathf.Deg2Rad;
                 Vector3 force = new Vector3(Mathf.Cos(randAngle), Mathf.Sin(randAngle));
                 BreakableFragment spawnedFragment =
-                    FrigidInstancing.CreateInstance<BreakableFragment>(this.fragmentPrefabs[Random.Range(0, this.fragmentPrefabs.Count)], this.transform.position, this.transform);
+                    CreateInstance<BreakableFragment>(this.fragmentPrefabs[Random.Range(0, this.fragmentPrefabs.Count)], this.transform.position, this.transform);
                 spawnedFragment.LaunchFragment(force);
             }
         }

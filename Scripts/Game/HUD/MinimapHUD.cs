@@ -10,16 +10,16 @@ namespace FrigidBlackwaters.Game
         protected override void OnEnable()
         {
             base.OnEnable();
-            TiledArea.OnFocusedTiledAreaChanged += RefreshMinimap;
-            TiledLevel.OnFocusedTiledLevelChanged += RefreshMinimap;
-            RefreshMinimap();
+            TiledArea.OnFocusedAreaChanged += this.RefreshMinimap;
+            TiledLevel.OnFocusedLevelChanged += this.RefreshMinimap;
+            this.RefreshMinimap();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            TiledArea.OnFocusedTiledAreaChanged -= RefreshMinimap;
-            TiledLevel.OnFocusedTiledLevelChanged -= RefreshMinimap;
+            TiledArea.OnFocusedAreaChanged -= this.RefreshMinimap;
+            TiledLevel.OnFocusedLevelChanged -= this.RefreshMinimap;
         }
 
 #if UNITY_EDITOR
@@ -28,7 +28,7 @@ namespace FrigidBlackwaters.Game
 
         private void RefreshMinimap()
         {
-            if (TiledArea.TryGetFocusedTiledArea(out TiledArea focusedTiledArea))
+            if (TiledArea.TryGetFocusedArea(out TiledArea focusedTiledArea))
             {
                 this.tiledWorldMap.MoveTo(-focusedTiledArea.CenterPosition);
             }

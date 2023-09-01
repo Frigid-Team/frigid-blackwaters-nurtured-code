@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Game
 
         private Vector2 teleportPosition;
 
-        public override bool CanSetTiledArea
+        public override bool MoveTiledAreaSafe
         {
             get
             {
@@ -27,16 +27,16 @@ namespace FrigidBlackwaters.Game
 
         protected override void EnterSelf()
         {
-            this.teleportPosition = this.teleportTargeter.Calculate(this.Owner.Position, this.SelfEnterDuration, this.SelfEnterDurationDelta);
-            this.OwnerAnimatorBody.OnFrameUpdated += TeleportOnDesignatedFrame;
+            this.teleportPosition = this.teleportTargeter.Retrieve(this.Owner.Position, this.SelfEnterDuration, this.SelfEnterDurationDelta);
+            this.OwnerAnimatorBody.OnFrameUpdated += this.TeleportOnDesignatedFrame;
             base.EnterSelf();
-            TeleportOnDesignatedFrame(0, this.OwnerAnimatorBody.CurrFrameIndex);
+            this.TeleportOnDesignatedFrame(0, this.OwnerAnimatorBody.CurrFrameIndex);
         }
 
         protected override void ExitSelf()
         {
             base.ExitSelf();
-            this.OwnerAnimatorBody.OnFrameUpdated -= TeleportOnDesignatedFrame;
+            this.OwnerAnimatorBody.OnFrameUpdated -= this.TeleportOnDesignatedFrame;
         }
 
         private void TeleportOnDesignatedFrame(int prevFrameIndex, int currFrameIndex)

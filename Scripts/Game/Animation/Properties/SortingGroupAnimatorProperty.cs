@@ -11,33 +11,25 @@ namespace FrigidBlackwaters.Game
         [ReadOnly]
         private SortingGroup sortingGroup;
 
-        public override int CurrentSortingOrder
+        public override int SortingOrder
         {
             get
             {
                 return this.sortingGroup.sortingOrder;
             }
+            protected set
+            {
+                this.sortingGroup.sortingOrder = value;
+            }
         }
+
 
         public override void Created()
         {
-            FrigidEditMode.RecordPotentialChanges(this);
-            this.sortingGroup = FrigidEditMode.AddComponent<SortingGroup>(this.gameObject);
+            FrigidEdit.RecordChanges(this);
+            this.sortingGroup = FrigidEdit.AddComponent<SortingGroup>(this.gameObject);
             this.sortingGroup.sortingLayerName = FrigidSortingLayer.World.ToString();
             base.Created();
-        }
-
-        public override void OrientationEnter()
-        {
-            try
-            {
-                this.sortingGroup.sortingOrder = GetSortingOrder(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex);
-            }
-            catch
-            {
-                Debug.Log(this.Body);
-            }
-            base.OrientationEnter();
         }
     }
 }

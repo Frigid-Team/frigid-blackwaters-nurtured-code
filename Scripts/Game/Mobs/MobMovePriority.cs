@@ -5,6 +5,6 @@ namespace FrigidBlackwaters.Game
         Normal,
         Interrupting,
         Uninterruptible,
-        Count
+        Forced
     }
 }

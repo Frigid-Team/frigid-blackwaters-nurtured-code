@@ -7,15 +7,41 @@ namespace FrigidBlackwaters.Game
     public class MobHitDealtConditional : Conditional
     {
         [SerializeField]
-        private MobSerializedReference mob;
+        private MobSerializedHandle mob;
         [SerializeField]
         private FloatSerializedReference lastingDuration;
+        [SerializeField]
+        private FloatSerializedReference chanceOfNotOccuring;
+        [SerializeField]
+        private IntSerializedReference minimumDamage;
+        [SerializeField]
+        private bool onlyOnNonTrivial;
 
-        public override bool Evaluate(float elapsedDuration, float elapsedDurationDelta)
+        protected override bool CustomEvaluate(float elapsedDuration, float elapsedDurationDelta)
         {
-            return
-                this.mob.ImmutableValue.HitsDealt.Count > 0 &&
-                Time.time - this.mob.ImmutableValue.HitsDealt.First.Value.TimeHit < this.lastingDuration.ImmutableValue + Time.deltaTime;
+            return this.Tally(elapsedDuration, elapsedDurationDelta) > 0;
+        }
+
+        protected override int CustomTally(float elapsedDuration, float elapsedDurationDelta)
+        {
+            if (!this.mob.TryGetValue(out Mob mob))
+            {
+                return 0;
+            }
+
+            int numberHits = 0;
+            foreach (HitInfo hitInfo in mob.HitsDealt)
+            {
+                if (Time.time - hitInfo.TimeHit >= this.lastingDuration.ImmutableValue + Time.deltaTime - Mathf.Epsilon)
+                {
+                    break;
+                }
+                if (Random.Range(0f, 1f) >= this.chanceOfNotOccuring.ImmutableValue && hitInfo.Damage >= this.minimumDamage.ImmutableValue && (!this.onlyOnNonTrivial || hitInfo.IsNonTrivial))
+                {
+                    numberHits++;
+                }
+            }
+            return numberHits;
         }
     }
 }

@@ -18,7 +18,7 @@ namespace FrigidBlackwaters.Game
 
         public override void StartAtmosphere(Vector2Int mainAreaDimensions, Transform contentsTransform)
         {
-            this.currentSpawnRoutine = FrigidCoroutine.Run(SpawnParticles(mainAreaDimensions, contentsTransform), this.gameObject);
+            this.currentSpawnRoutine = FrigidCoroutine.Run(this.SpawnParticles(mainAreaDimensions, contentsTransform), this.gameObject);
         }
 
         public override void StopAtmosphere()
@@ -32,8 +32,8 @@ namespace FrigidBlackwaters.Game
         {
             base.Awake();
             this.particlePool = new RecyclePool<TiledAreaAtmosphericParticle>(
-                () => FrigidInstancing.CreateInstance<TiledAreaAtmosphericParticle>(this.atmosphericParticlePrefab),
-                (TiledAreaAtmosphericParticle particle) => FrigidInstancing.DestroyInstance(particle)
+                () => CreateInstance<TiledAreaAtmosphericParticle>(this.atmosphericParticlePrefab),
+                (TiledAreaAtmosphericParticle particle) => DestroyInstance(particle)
                 );
             this.currentParticles = new List<TiledAreaAtmosphericParticle>();
         }
@@ -47,7 +47,7 @@ namespace FrigidBlackwaters.Game
                 spawnedParticle.transform.SetParent(contentsTransform);
                 this.currentParticles.Add(spawnedParticle);
                 spawnedParticle.RunParticle(
-                    TilePositioning.RandomTileLocalPosition(dimensions), 
+                    AreaTiling.RandomTileLocalPosition(dimensions), 
                     () => 
                     {
                         this.currentParticles.Remove(spawnedParticle);

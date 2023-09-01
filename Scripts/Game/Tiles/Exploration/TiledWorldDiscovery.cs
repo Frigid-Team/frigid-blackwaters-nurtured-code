@@ -9,9 +9,9 @@ namespace FrigidBlackwaters.Game
 {
     public class TiledWorldDiscovery : FrigidMonoBehaviour
     {
-        private static SceneVariable<Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>> tiledWorldDiscoveriesPerTiledAreas;
-        private static Action<TiledWorldDiscovery> onTiledWorldDiscoveryRevealed;
-        private static Action<TiledWorldDiscovery> onTiledWorldDiscoveryHidden;
+        private static SceneVariable<Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>> discoveriesPerAreas;
+        private static Action<TiledWorldDiscovery> onDiscoveryRevealed;
+        private static Action<TiledWorldDiscovery> onDiscoveryHidden;
 
         [SerializeField]
         private DiscoveryType discoveryType;
@@ -20,11 +20,11 @@ namespace FrigidBlackwaters.Game
         private Mob mob;
         [SerializeField]
         [ShowIfInt("discoveryType", 0, true)]
-        private bool showForMobClassification;
+        private bool showIfStatusTag;
         [SerializeField]
         [ShowIfInt("discoveryType", 0, true)]
-        [ShowIfBool("showForMobClassification", true)]
-        private MobClassification mobClassification;
+        [ShowIfBool("showIfStatusTag", true)]
+        private MobStatusTag mobStatusTag;
         [SerializeField]
         [ShowIfInt("discoveryType", 1, true)]
         private TerrainContent terrainContent;
@@ -33,30 +33,30 @@ namespace FrigidBlackwaters.Game
 
         static TiledWorldDiscovery()
         {
-            tiledWorldDiscoveriesPerTiledAreas = new SceneVariable<Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>>(() => new Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>());
+            discoveriesPerAreas = new SceneVariable<Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>>(() => new Dictionary<TiledArea, HashSet<TiledWorldDiscovery>>());
         }
 
-        public static Action<TiledWorldDiscovery> OnTiledWorldDiscoveryRevealed
+        public static Action<TiledWorldDiscovery> OnDiscoveryRevealed
         {
             get
             {
-                return onTiledWorldDiscoveryRevealed;
+                return onDiscoveryRevealed;
             }
             set
             {
-                onTiledWorldDiscoveryRevealed = value;
+                onDiscoveryRevealed = value;
             }
         }
 
-        public static Action<TiledWorldDiscovery> OnTiledWorldDiscoveryHidden
+        public static Action<TiledWorldDiscovery> OnDiscoveryHidden
         {
             get
             {
-                return onTiledWorldDiscoveryHidden;
+                return onDiscoveryHidden;
             }
             set
             {
-                onTiledWorldDiscoveryHidden = value;
+                onDiscoveryHidden = value;
             }
         }
 
@@ -68,9 +68,9 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public static bool TryGetDiscoveriesInTiledArea(TiledArea tiledArea, out HashSet<TiledWorldDiscovery> tiledWorldDiscoveries)
+        public static bool TryGetDiscoveriesInTiledArea(TiledArea tiledArea, out HashSet<TiledWorldDiscovery> discoveries)
         {
-            return tiledWorldDiscoveriesPerTiledAreas.Current.TryGetValue(tiledArea, out tiledWorldDiscoveries);
+            return discoveriesPerAreas.Current.TryGetValue(tiledArea, out discoveries);
         }
 
         protected override void Awake()
@@ -78,8 +78,12 @@ namespace FrigidBlackwaters.Game
             base.Awake();
             if (this.discoveryType == DiscoveryType.Mob)
             {
-                this.mob.OnTiledAreaChanged += UpdateDiscoveryOnMobTiledAreaChange;
-                if (this.showForMobClassification) this.mob.OnClassificationChanged += UpdateDiscoveryOnMobClassificationChange;
+                this.mob.OnTiledAreaChanged += this.UpdateDiscoveryOnMobTiledAreaChange;
+                if (this.showIfStatusTag)
+                {
+                    this.mob.OnStatusTagAdded += this.UpdateDiscoveryOnMobStatusTagChange;
+                    this.mob.OnStatusTagRemoved += this.UpdateDiscoveryOnMobStatusTagChange;
+                }
             }
         }
 
@@ -88,8 +92,12 @@ namespace FrigidBlackwaters.Game
             base.OnDestroy();
             if (this.discoveryType == DiscoveryType.Mob)
             {
-                this.mob.OnTiledAreaChanged -= UpdateDiscoveryOnMobTiledAreaChange;
-                if (this.showForMobClassification) this.mob.OnClassificationChanged -= UpdateDiscoveryOnMobClassificationChange;
+                this.mob.OnTiledAreaChanged -= this.UpdateDiscoveryOnMobTiledAreaChange;
+                if (this.showIfStatusTag)
+                {
+                    this.mob.OnStatusTagAdded -= this.UpdateDiscoveryOnMobStatusTagChange;
+                    this.mob.OnStatusTagRemoved -= this.UpdateDiscoveryOnMobStatusTagChange;
+                }
             }
         }
 
@@ -99,61 +107,61 @@ namespace FrigidBlackwaters.Game
             switch (this.discoveryType)
             {
                 case DiscoveryType.Mob:
-                    if (!this.showForMobClassification || this.mobClassification == this.mob.Classification)
+                    if (!this.showIfStatusTag || this.mob.HasStatusTag(this.mobStatusTag))
                     {
-                        AddDiscovery(this.mob.TiledArea);
+                        this.AddDiscovery(this.mob.TiledArea);
                     }
                     break;
                 case DiscoveryType.TerrainContent:
-                    if (TiledArea.TryGetTiledAreaAtPosition(this.terrainContent.transform.position, out TiledArea tiledArea))
+                    if (TiledArea.TryGetAreaAtPosition(this.terrainContent.transform.position, out TiledArea area))
                     {
-                        AddDiscovery(tiledArea);
+                        this.AddDiscovery(area);
                     }
                     break;
             }
         }
 
-        private void UpdateDiscoveryOnMobClassificationChange()
+        private void UpdateDiscoveryOnMobStatusTagChange(MobStatusTag changedMobStatusTag)
         {
-            if (this.mobClassification == this.mob.Classification)
+            if (this.mob.HasStatusTag(this.mobStatusTag))
             {
-                AddDiscovery(this.mob.TiledArea);
+                this.AddDiscovery(this.mob.TiledArea);
             }
             else
             {
-                RemoveDiscovery(this.mob.TiledArea);
+                this.RemoveDiscovery(this.mob.TiledArea);
             }
         }
 
-        private void UpdateDiscoveryOnMobTiledAreaChange(TiledArea previousTiledArea, TiledArea currentTiledArea)
+        private void UpdateDiscoveryOnMobTiledAreaChange(TiledArea previousArea, TiledArea currentArea)
         {
-            if (!this.showForMobClassification || this.mobClassification == this.mob.Classification)
+            if (!this.showIfStatusTag || this.mob.HasStatusTag(this.mobStatusTag))
             {
-                RemoveDiscovery(previousTiledArea);
-                AddDiscovery(currentTiledArea);
+                this.RemoveDiscovery(previousArea);
+                this.AddDiscovery(currentArea);
             }
         }
 
-        private void AddDiscovery(TiledArea tiledArea)
+        private void AddDiscovery(TiledArea area)
         {
-            if (!tiledWorldDiscoveriesPerTiledAreas.Current.ContainsKey(tiledArea))
+            if (!discoveriesPerAreas.Current.ContainsKey(area))
             {
-                tiledWorldDiscoveriesPerTiledAreas.Current.Add(tiledArea, new HashSet<TiledWorldDiscovery>());
+                discoveriesPerAreas.Current.Add(area, new HashSet<TiledWorldDiscovery>());
             }
-            if (tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Add(this))
+            if (discoveriesPerAreas.Current[area].Add(this))
             {
-                onTiledWorldDiscoveryRevealed?.Invoke(this);
+                onDiscoveryRevealed?.Invoke(this);
             }
         }
 
-        private void RemoveDiscovery(TiledArea tiledArea)
+        private void RemoveDiscovery(TiledArea area)
         {
-            if (tiledWorldDiscoveriesPerTiledAreas.Current.ContainsKey(tiledArea) && tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Remove(this))
+            if (discoveriesPerAreas.Current.ContainsKey(area) && discoveriesPerAreas.Current[area].Remove(this))
             {
-                onTiledWorldDiscoveryHidden?.Invoke(this);
-                if (tiledWorldDiscoveriesPerTiledAreas.Current[tiledArea].Count == 0)
+                onDiscoveryHidden?.Invoke(this);
+                if (discoveriesPerAreas.Current[area].Count == 0)
                 {
-                    tiledWorldDiscoveriesPerTiledAreas.Current.Remove(tiledArea);
+                    discoveriesPerAreas.Current.Remove(area);
                 }
             }
         }

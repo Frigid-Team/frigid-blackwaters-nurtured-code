@@ -5,11 +5,11 @@ namespace FrigidBlackwaters.Game
     public class MobPhaseThroughState : MobActionState
     {
         [SerializeField]
-        private MoveToTarget moveByDashingToTarget;
+        private MoveToTarget moveToTarget;
 
         private bool phasing;
 
-        public override bool CanSetPosition
+        public override bool MovePositionSafe
         {
             get
             {
@@ -17,7 +17,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override bool CanSetTiledArea
+        public override bool MoveTiledAreaSafe
         {
             get
             {
@@ -28,18 +28,18 @@ namespace FrigidBlackwaters.Game
         protected override void EnterSelf()
         {
             base.EnterSelf();
-            StartPhasing();
+            this.StartPhasing();
         }
 
         protected override void ExitSelf()
         {
             base.ExitSelf();
-            CancelPhasing();
+            this.CancelPhasing();
         }
 
         private void BeginPhase()
         {
-            if (CanPhaseThrough())
+            if (this.CanPhaseThrough())
             {
                 this.phasing = true;
                 this.Owner.RequestPushMode(MobPushMode.IgnoreMobsTerrainAndObstacles);
@@ -58,25 +58,25 @@ namespace FrigidBlackwaters.Game
         private void StartPhasing()
         {
             this.phasing = false;
-            if (!this.Owner.StopVelocities && this.Owner.SetForcedMove(this.moveByDashingToTarget, null, BeginPhase, EndPhase))
+            if (!this.Owner.StopVelocities && this.Owner.SetForcedMove(this.moveToTarget, null, this.BeginPhase, this.EndPhase))
             {
-                this.Owner.StopVelocities.OnFirstRequest += CancelPhasing;
+                this.Owner.StopVelocities.OnFirstRequest += this.CancelPhasing;
             }
         }
 
         private void CancelPhasing()
         {
-            EndPhase();
-            if (this.Owner.ClearForcedMove(this.moveByDashingToTarget))
+            this.EndPhase();
+            if (this.Owner.ClearForcedMove(this.moveToTarget))
             {
                 if (this.phasing) this.Owner.RelocateToTraversableSpace();
-                this.Owner.StopVelocities.OnFirstRequest -= CancelPhasing;
+                this.Owner.StopVelocities.OnFirstRequest -= this.CancelPhasing;
             }
         }
 
         private bool CanPhaseThrough()
         {
-            return Mob.CanFitAt(this.Owner.TiledArea, this.moveByDashingToTarget.DestinationPosition, this.Owner.Size, this.Owner.TraversableTerrain);
+            return Mob.CanTraverseAt(this.Owner.TiledArea, this.moveToTarget.DestinationPosition, this.Owner.Size, this.Owner.TraversableTerrain);
         }
     }
 }

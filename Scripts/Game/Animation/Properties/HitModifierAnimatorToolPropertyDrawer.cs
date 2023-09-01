@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
@@ -36,15 +38,16 @@ namespace FrigidBlackwaters.Game
                 GUILayout.Label(hitModifierProperty.GetHitModifierType().Name, EditorStyles.boldLabel);
                 if (GUILayout.Button("Set Hit Modifier Type"))
                 {
-                    TypeSelectionPopup typeSelectionPopup = new TypeSelectionPopup(
-                        TypeUtility.GetCompleteTypesDerivedFrom(typeof(HitModifier)),
-                        (Type selectedType) => hitModifierProperty.SetHitModifierType(selectedType)
+                    List<Type> hitModifierTypes = TypeUtility.GetCompleteTypesDerivedFrom(typeof(HitModifier));
+                    SearchPopup typeSelectionPopup = new SearchPopup(
+                        hitModifierTypes.Select((Type type) => type.Name).ToArray(),
+                        (int typeIndex) => hitModifierProperty.SetHitModifierType(hitModifierTypes[typeIndex])
                         );
-                    FrigidPopupWindow.Show(GUILayoutUtility.GetLastRect(), typeSelectionPopup);
+                    FrigidPopup.Show(GUILayoutUtility.GetLastRect(), typeSelectionPopup);
                 }
             }
-            EditorGUILayout.LabelField("HurtBox Properties", GUIStyling.WordWrapAndCenter(EditorStyles.boldLabel));
-            Utility.GUILayoutHelper.DrawIndexedList(
+            UtilityGUILayout.IndexedList(
+                "HurtBox Properties",
                 hitModifierProperty.GetNumberHurtBoxProperties(),
                 hitModifierProperty.AddHurtBoxProperty,
                 hitModifierProperty.RemoveHurtBoxProperty,
@@ -53,7 +56,7 @@ namespace FrigidBlackwaters.Game
             hitModifierProperty.PlayAudioWhenModified = EditorGUILayout.Toggle("Play Audio When Modified", hitModifierProperty.PlayAudioWhenModified);
             if (hitModifierProperty.PlayAudioWhenModified)
             {
-                hitModifierProperty.AudioClipWhenModifiedByReference = Core.GUILayoutHelper.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip When Modified", hitModifierProperty.AudioClipWhenModifiedByReference);
+                hitModifierProperty.AudioClipWhenModifiedByReference = CoreGUILayout.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip When Modified", hitModifierProperty.AudioClipWhenModifiedByReference);
             }
             base.DrawGeneralEditFields();
         }
@@ -70,7 +73,7 @@ namespace FrigidBlackwaters.Game
             HitModifierAnimatorProperty hitModifierProperty = (HitModifierAnimatorProperty)this.Property;
             if (hitModifierProperty.GetAddedThisFrame(animationIndex, frameIndex))
             {
-                using (new GUIHelper.ColorScope(this.AccentColor))
+                using (new UtilityGUI.ColorScope(this.AccentColor))
                 {
                     GUI.DrawTexture(new Rect(Vector2.zero, cellSize), this.Config.CellPreviewDiamondTexture);
                 }

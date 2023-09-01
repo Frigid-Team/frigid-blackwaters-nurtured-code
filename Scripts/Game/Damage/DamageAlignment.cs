@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace FrigidBlackwaters.Game
 {
     public enum DamageAlignment

@@ -39,8 +39,8 @@ namespace FrigidBlackwaters.Game
         public override void ContinueMovement()
         {
             base.ContinueMovement();
-            this.currentMoveDirection = this.moveDirection.Calculate(this.currentMoveDirection, this.MovingDuration, this.MovingDurationDelta);
-            this.buildupDuration = ModifyBuildupDuration(this.buildupDuration, this.currentMoveDirection);
+            this.currentMoveDirection = this.moveDirection.Retrieve(this.currentMoveDirection, this.MovingDuration, this.MovingDurationDelta);
+            this.buildupDuration = this.ModifyBuildupDuration(this.buildupDuration, this.currentMoveDirection);
             if (this.currentMoveDirection.magnitude > 0)
             {
                 this.previousNonZeroMoveDirection = this.currentMoveDirection;

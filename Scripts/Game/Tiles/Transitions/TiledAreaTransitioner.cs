@@ -31,7 +31,7 @@ namespace FrigidBlackwaters.Game
 
         public void SetDimensions(Vector2Int dimensions)
         {
-            this.backgroundRenderer.transform.localScale = (Vector2)dimensions * 2 * GameConstants.UNIT_WORLD_SIZE;
+            this.backgroundRenderer.transform.localScale = (Vector2)dimensions * 2 * FrigidConstants.UNIT_WORLD_SIZE;
         }
 
         public void PlayTransitionTo(TiledAreaTransition transition, float duration, Vector2 entryPosition)
@@ -51,7 +51,7 @@ namespace FrigidBlackwaters.Game
 
             float zoomedDuration = duration * this.zoomedDurationPercent;
             FrigidCoroutine.Run(
-                TweenCoroutine.Value(
+                Tween.Value(
                     zoomedDuration, 
                     this.focusMask.transform.localScale,
                     Vector2.one,
@@ -66,7 +66,7 @@ namespace FrigidBlackwaters.Game
                         this.focusAnimator.SetFloat(SPEED_PARAMETER_NAME, transition.BaseDuration / animationDuration);
                         this.focusAnimator.Play(Animator.StringToHash(OPEN_ANIMATION_NAME));
                         FrigidCoroutine.Run(
-                            TweenCoroutine.DelayedCall(
+                            Tween.Delay(
                                 animationDuration, 
                                 () => 
                                 {
@@ -74,7 +74,7 @@ namespace FrigidBlackwaters.Game
                                     this.focusAnimator.enabled = false;
                                     this.focusSpriteRenderer.enabled = false;
                                     FrigidCoroutine.Run(
-                                        TweenCoroutine.Value(
+                                        Tween.Value(
                                             centerDuration,
                                             this.focusMask.transform.position,
                                             cameraBounds.center,
@@ -89,10 +89,10 @@ namespace FrigidBlackwaters.Game
                                         this.gameObject
                                         );
                                     FrigidCoroutine.Run(
-                                        TweenCoroutine.Value(
+                                        Tween.Value(
                                             centerDuration,
                                             this.focusMask.transform.localScale,
-                                            new Vector2(focusMaskMaxScale, focusMaskMaxScale) * GameConstants.UNIT_WORLD_SIZE,
+                                            new Vector2(focusMaskMaxScale, focusMaskMaxScale) * FrigidConstants.UNIT_WORLD_SIZE,
                                             EasingType.EaseInCirc,
                                             onValueUpdated: (Vector2 scale) => this.focusMask.transform.localScale = scale
                                             ),
@@ -122,11 +122,11 @@ namespace FrigidBlackwaters.Game
 
             this.focusMask.enabled = true;
             this.focusMask.transform.position = cameraBounds.center;
-            this.focusMask.transform.localScale = new Vector2(focusMaskMaxScale, focusMaskMaxScale) * GameConstants.UNIT_WORLD_SIZE;
+            this.focusMask.transform.localScale = new Vector2(focusMaskMaxScale, focusMaskMaxScale) * FrigidConstants.UNIT_WORLD_SIZE;
 
             float centerDuration = duration * this.centerDurationPercent;
             FrigidCoroutine.Run(
-                TweenCoroutine.Value(
+                Tween.Value(
                     centerDuration, 
                     this.focusMask.transform.localScale, 
                     Vector2.one,
@@ -142,13 +142,13 @@ namespace FrigidBlackwaters.Game
                         this.focusAnimator.SetFloat(SPEED_PARAMETER_NAME, transition.BaseDuration / animationDuration);
                         this.focusAnimator.Play(Animator.StringToHash(CLOSE_ANIMATION_NAME));
                         FrigidCoroutine.Run(
-                            TweenCoroutine.DelayedCall(
+                            Tween.Delay(
                                 animationDuration,
                                 () =>
                                 {
                                     float zoomedDuration = duration * this.zoomedDurationPercent;
                                     FrigidCoroutine.Run(
-                                        TweenCoroutine.Value(
+                                        Tween.Value(
                                             zoomedDuration,
                                             this.focusMask.transform.localScale,
                                             Vector2.zero,
@@ -174,7 +174,7 @@ namespace FrigidBlackwaters.Game
                 this.gameObject
                 );
             FrigidCoroutine.Run(
-                TweenCoroutine.Value(
+                Tween.Value(
                     centerDuration, 
                     this.focusMask.transform.position,
                     exitPosition, 

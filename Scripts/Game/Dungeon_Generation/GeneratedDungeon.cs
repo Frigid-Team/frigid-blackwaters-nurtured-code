@@ -6,14 +6,14 @@ namespace FrigidBlackwaters.Game
 {
     public class GeneratedDungeon
     {
-        private Dictionary<Vector2Int, GeneratedDungeonRoom> roomPerIndices;
+        private Dictionary<Vector2Int, GeneratedDungeonRoom> roomPerIndexPositions;
         private Dictionary<RoomLayoutType, List<GeneratedDungeonRoom>> roomsPerLayouts;
         private Dictionary<RoomContentType, List<GeneratedDungeonRoom>> roomsPerContents;
         private int currentlyGeneratedNumberOfRooms;
 
         public GeneratedDungeon()
         {
-            this.roomPerIndices = new Dictionary<Vector2Int, GeneratedDungeonRoom>();
+            this.roomPerIndexPositions = new Dictionary<Vector2Int, GeneratedDungeonRoom>();
             this.roomsPerLayouts = new Dictionary<RoomLayoutType, List<GeneratedDungeonRoom>>();
             for (int i = 0; i < (int)RoomLayoutType.Count; i++)
             {
@@ -31,15 +31,15 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.roomPerIndices.Values.ToList();
+                return this.roomPerIndexPositions.Values.ToList();
             }
         }
 
-        public Dictionary<Vector2Int, GeneratedDungeonRoom> RoomPerIndices
+        public Dictionary<Vector2Int, GeneratedDungeonRoom> RoomPerIndexPosition
         {
             get
             {
-                return this.roomPerIndices;
+                return this.roomPerIndexPositions;
             }
         }
 

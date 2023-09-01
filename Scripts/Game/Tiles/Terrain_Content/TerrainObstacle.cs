@@ -13,9 +13,15 @@ namespace FrigidBlackwaters.Game
 
         private ObstacleAnimationSet chosenAnimations;
 
-        public override void Populated(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> allTileIndices)
+        public override void Preview(Vector2 orientationDirection)
         {
-            base.Populated(orientationDirection, navigationGrid, allTileIndices);
+            base.Preview(orientationDirection);
+            this.AnimatorBody.Preview(this.obstacleAnimations[0].DefaultAnimationName, 0, orientationDirection);
+        }
+
+        public override void Populate(Vector2 orientationDirection, NavigationGrid navigationGrid, List<Vector2Int> tileIndexPositions)
+        {
+            base.Populate(orientationDirection, navigationGrid, tileIndexPositions);
             this.chosenAnimations = this.obstacleAnimations[UnityEngine.Random.Range(0, this.obstacleAnimations.Length)];
             this.AnimatorBody.Play(this.chosenAnimations.DefaultAnimationName);
         }

@@ -7,7 +7,9 @@ namespace FrigidBlackwaters.Game
     public class MobHealBehaviour : MobBehaviour
     {
         [SerializeField]
-        private IntSerializedReference heal;
+        private IntSerializedReference flatHeal;
+        [SerializeField]
+        private FloatSerializedReference healPercentOfMaxHealth;
 
         public override bool IsFinished 
         {
@@ -20,7 +22,7 @@ namespace FrigidBlackwaters.Game
         public override void Enter()
         {
             base.Enter();
-            this.Owner.RemainingHealth += this.heal.ImmutableValue;
+            this.Owner.Heal(this.flatHeal.MutableValue + Mathf.RoundToInt(this.healPercentOfMaxHealth.MutableValue * this.Owner.MaxHealth));
         }
     }
 }

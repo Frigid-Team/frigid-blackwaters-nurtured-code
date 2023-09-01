@@ -48,19 +48,11 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public sealed override bool Dead
+        public sealed override MobStatus Status
         {
             get
             {
-                return false;
-            }
-        }
-
-        public sealed override bool Waiting
-        {
-            get
-            {
-                return true;
+                return MobStatus.Waiting;
             }
         }
 

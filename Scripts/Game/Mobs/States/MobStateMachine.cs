@@ -12,10 +12,6 @@ namespace FrigidBlackwaters.Game
         private List<Transition> transitions;
         [SerializeField]
         private bool returnToStartingNodeOnEnter;
-        [SerializeField]
-        private bool autoEnter;
-        [SerializeField]
-        private bool autoExit;
 
         private MobStateNode chosenStartingStateNode;
         private MobStateNode chosenStateNode;
@@ -33,11 +29,11 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override HashSet<MobState> SwitchableStates
+        public override HashSet<MobState> MoveStates
         {
             get
             {
-                return this.chosenStateNode.SwitchableStates;
+                return this.chosenStateNode.MoveStates;
             }
         }
 
@@ -63,7 +59,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.autoEnter && this.chosenStateNode.AutoEnter;
+                return false;
             }
         }
 
@@ -71,7 +67,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.autoExit && this.chosenStateNode.AutoExit;
+                return false;
             }
         }
 
@@ -109,33 +105,33 @@ namespace FrigidBlackwaters.Game
         {
             if (this.returnToStartingNodeOnEnter)
             {
-                SetChosenStateNode(this.chosenStartingStateNode);
+                this.SetChosenStateNode(this.chosenStartingStateNode);
             }
             base.Enter();
-            this.chosenStateNode.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
+            this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
             this.chosenStateNode.Enter();
 
-            CheckTransitions();
+            this.CheckTransitions();
         }
 
         public override void Exit()
         {
             base.Exit();
             this.chosenStateNode.Exit();
-            this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
+            this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
         }
 
         public override void Refresh()
         {
             base.Refresh();
 
-            CheckTransitions();
+            this.CheckTransitions();
             this.chosenStateNode.Refresh();
         }
 
         private void CheckTransitions()
         {
-            if (!this.Owner.CanAct) return;
+            if (!this.Owner.IsActingAndNotStunned) return;
             if (this.chosenStateNode.ShouldExit)
             {
                 List<Transition> validTransitions = new List<Transition>();
@@ -143,7 +139,7 @@ namespace FrigidBlackwaters.Game
                 {
                     if (transition.FromStateNode == this.chosenStateNode &&
                         transition.NextStateNode.ShouldEnter &&
-                        (transition.FromStateNode.AutoExit || transition.NextStateNode.AutoEnter || transition.TransitionConditions.Evaluate(this.EnterDuration, this.EnterDurationDelta)))
+                        (transition.FromStateNode.AutoExit || transition.NextStateNode.AutoEnter || transition.TransitionCondition.Evaluate(this.EnterDuration, this.EnterDurationDelta)))
                     {
                         validTransitions.Add(transition);
                     }
@@ -152,32 +148,32 @@ namespace FrigidBlackwaters.Game
                 if (validTransitions.Count > 0)
                 {
                     Transition chosenTransition = validTransitions[0];
-                    SetChosenStateNode(chosenTransition.NextStateNode);
+                    this.SetChosenStateNode(chosenTransition.NextStateNode);
                 }
             }
         }
 
         private bool CanSetChosenStateNode(MobStateNode chosenStateNode)
         {
-            return CanSetCurrentState(chosenStateNode.CurrentState);
+            return this.CanSetCurrentState(chosenStateNode.CurrentState);
         }
 
         private void SetChosenStateNode(MobStateNode chosenStateNode)
         {
-            if (CanSetChosenStateNode(chosenStateNode))
+            if (this.CanSetChosenStateNode(chosenStateNode))
             {
                 if (this.Entered)
                 {
                     this.chosenStateNode.Exit();
-                    this.chosenStateNode.OnCurrentStateChanged -= SetCurrentStateFromChosenStateNode;
+                    this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
                 }
 
                 this.chosenStateNode = chosenStateNode;
-                SetCurrentStateFromChosenStateNode();
+                this.SetCurrentStateFromChosenStateNode();
 
                 if (this.Entered)
                 {
-                    this.chosenStateNode.OnCurrentStateChanged += SetCurrentStateFromChosenStateNode;
+                    this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
                     this.chosenStateNode.Enter();
                 }
             }
@@ -185,37 +181,29 @@ namespace FrigidBlackwaters.Game
 
         private void SetCurrentStateFromChosenStateNode(MobState previousState, MobState currentState)
         {
-            SetCurrentStateFromChosenStateNode();
+            this.SetCurrentStateFromChosenStateNode();
         }
 
         private void SetCurrentStateFromChosenStateNode()
         {
-            SetCurrentState(this.chosenStateNode.CurrentState);
+            this.SetCurrentState(this.chosenStateNode.CurrentState);
         }
 
         [Serializable]
         private struct Transition
         {
             [SerializeField]
-            private ConditionalClause transitionConditions;
-            [SerializeField]
-            private MobStateNode nextStateNode;
+            private Conditional transitionCondition;
             [SerializeField]
             private MobStateNode fromStateNode;
+            [SerializeField]
+            private MobStateNode nextStateNode;
 
-            public ConditionalClause TransitionConditions
+            public Conditional TransitionCondition
             {
                 get
                 {
-                    return this.transitionConditions;
-                }
-            }
-
-            public MobStateNode NextStateNode
-            {
-                get
-                {
-                    return this.nextStateNode;
+                    return this.transitionCondition;
                 }
             }
 
@@ -224,6 +212,14 @@ namespace FrigidBlackwaters.Game
                 get
                 {
                     return this.fromStateNode;
+                }
+            }
+
+            public MobStateNode NextStateNode
+            {
+                get
+                {
+                    return this.nextStateNode;
                 }
             }
         }

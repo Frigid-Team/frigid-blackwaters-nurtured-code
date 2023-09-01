@@ -8,65 +8,65 @@ namespace FrigidBlackwaters.Game
 {
     public class TiledWorldExplorer : FrigidMonoBehaviour
     {
-        private static SceneVariable<HashSet<TiledArea>> exploredTiledAreas;
-        private static Action<TiledArea> onExploredNewTiledArea;
+        private static SceneVariable<HashSet<TiledArea>> exploredAreas;
+        private static Action<TiledArea> onExploredArea;
 
         [SerializeField]
         private Mob mob;
 
         static TiledWorldExplorer()
         {
-            exploredTiledAreas = new SceneVariable<HashSet<TiledArea>>(() => new HashSet<TiledArea>());
+            exploredAreas = new SceneVariable<HashSet<TiledArea>>(() => new HashSet<TiledArea>());
         }
 
-        public static HashSet<TiledArea> ExploredTiledAreas
+        public static HashSet<TiledArea> ExploredAreas
         {
             get
             {
-                return exploredTiledAreas.Current;
+                return exploredAreas.Current;
             }
         }
 
-        public static Action<TiledArea> OnExploredNewTiledArea
+        public static Action<TiledArea> OnExploredArea
         {
             get
             {
-                return onExploredNewTiledArea;
+                return onExploredArea;
             }
             set
             {
-                onExploredNewTiledArea = value;
+                onExploredArea = value;
             }
         }
 
         protected override void Awake()
         {
             base.Awake();
-            this.mob.OnTiledAreaChanged += ExploreTiledArea;
+            this.mob.OnTiledAreaChanged += this.ExploreArea;
         }
 
         protected override void OnDestroy()
         {
             base.OnDestroy();
-            this.mob.OnTiledAreaChanged -= ExploreTiledArea;
+            this.mob.OnTiledAreaChanged -= this.ExploreArea;
         }
 
         protected override void Start()
         {
             base.Start();
-            ExploreTiledArea(this.mob.TiledArea);
+            this.ExploreArea(this.mob.TiledArea);
         }
 
-        private void ExploreTiledArea(TiledArea previousTiledArea, TiledArea currentTiledArea)
+        private void ExploreArea(TiledArea previousArea, TiledArea currentArea)
         {
-            ExploreTiledArea(currentTiledArea);
+            this.ExploreArea(currentArea);
         }
 
-        private void ExploreTiledArea(TiledArea tiledArea)
+        private void ExploreArea(TiledArea area)
         {
-            if (exploredTiledAreas.Current.Add(tiledArea))
+            if (exploredAreas.Current.Add(area))
             {
-                onExploredNewTiledArea?.Invoke(tiledArea);
+                onExploredArea?.Invoke(area);
             }
         }
     }

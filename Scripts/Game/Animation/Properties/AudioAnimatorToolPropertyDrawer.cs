@@ -41,16 +41,6 @@ namespace FrigidBlackwaters.Game
             base.DrawGeneralEditFields();
         }
 
-        public override void DrawAnimationEditFields(int animationIndex)
-        {
-            AudioAnimatorProperty audioProperty = (AudioAnimatorProperty)this.Property;
-            if (audioProperty.Loop)
-            {
-                audioProperty.SetIsPlayedInAnimation(animationIndex, EditorGUILayout.Toggle("Is Played This Animation", audioProperty.GetIsPlayedInAnimation(animationIndex)));
-            }
-            base.DrawAnimationEditFields(animationIndex);
-        }
-
         public override void DrawFrameEditFields(int animationIndex, int frameIndex)
         {
             AudioAnimatorProperty audioProperty = (AudioAnimatorProperty)this.Property;
@@ -67,7 +57,7 @@ namespace FrigidBlackwaters.Game
                     audioProperty.SetAudioClipByReference(
                         animationIndex,
                         frameIndex,
-                        Core.GUILayoutHelper.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip", audioProperty.GetAudioClipByReference(animationIndex, frameIndex))
+                        CoreGUILayout.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip", audioProperty.GetAudioClipByReference(animationIndex, frameIndex))
                         );
                     audioProperty.SetOnlyPlayOnFirstCycle(
                         animationIndex,
@@ -86,7 +76,7 @@ namespace FrigidBlackwaters.Game
             {
                 if (audioProperty.GetPlayThisFrame(animationIndex, frameIndex)) 
                 {
-                    using (new GUIHelper.ColorScope(this.AccentColor))
+                    using (new UtilityGUI.ColorScope(this.AccentColor))
                     {
                         GUI.DrawTexture(new Rect(Vector2.zero, cellSize), this.Config.CellPreviewDiamondTexture);
                     }

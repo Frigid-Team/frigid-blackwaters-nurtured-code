@@ -1,15 +1,13 @@
 #if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
-using System.Collections.Generic;
-using System;
 
 using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
     [CustomAnimatorToolPropertyDrawer(typeof(ParticleAnimatorProperty))]
-    public class ParticleAnimatorToolPropertyDrawer : SortingOrderedAnimatorToolPropertyDrawer
+    public class ParticleAnimatorToolPropertyDrawer : RendererAnimatorToolPropertyDrawer
     {
         public override string LabelName
         {
@@ -36,18 +34,18 @@ namespace FrigidBlackwaters.Game
         public override void DrawGeneralEditFields()
         {
             ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
-            particleProperty.Loop = EditorGUILayout.Toggle("Is Looped Particle", particleProperty.Loop);
-            base.DrawGeneralEditFields();
-        }
-
-        public override void DrawAnimationEditFields(int animationIndex)
-        {
-            ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
-            if (particleProperty.Loop)
+            using (new EditorGUILayout.HorizontalScope())
             {
-                particleProperty.SetIsPlayedInAnimation(animationIndex, EditorGUILayout.Toggle("Is Played This Animation", particleProperty.GetIsPlayedInAnimation(animationIndex)));
+                particleProperty.Loop = EditorGUILayout.Toggle("Is Looped Particle", particleProperty.Loop);
+                if (GUILayout.Button("Edit Particles"))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(),
+                        new InspectorPopup(particleProperty.gameObject).DoNotDraw(particleProperty).DoNotDraw(particleProperty.transform).DoNotMoveOrDelete(particleProperty.GetComponent<ParticleSystem>()).DoNotMoveOrDelete(particleProperty.GetComponent<ParticleSystemRenderer>())
+                        );
+                }
             }
-            base.DrawAnimationEditFields(animationIndex);
+            base.DrawGeneralEditFields();
         }
 
         public override void DrawFrameEditFields(int animationIndex, int frameIndex)
@@ -64,55 +62,31 @@ namespace FrigidBlackwaters.Game
             base.DrawFrameEditFields(animationIndex, frameIndex);
         }
 
-        public override Vector2 DrawPreview(Vector2 previewSize, Vector2 previewOffset, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected, out List<(Rect rect, Action onDrag)> dragRequests)
+        public override void DrawPreview(Vector2 previewSize, float worldToWindowScalingFactor, int animationIndex, int frameIndex, int orientationIndex, bool propertySelected)
         {
-            ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
-            dragRequests = new List<(Rect rect, Action onDrag)>();
-
-            Vector2 localPreviewOffset = particleProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) * new Vector2(1, -1) * worldToWindowScalingFactor;
-            Vector2 particleDrawPosition = previewSize / 2 + localPreviewOffset + previewOffset;
             (Vector2 position, float radius)[] draws = new (Vector2 position, float radius)[9];
-            draws[0] = (particleDrawPosition, this.Config.HandleLength);
+            draws[0] = (previewSize / 2, this.Config.HandleLength);
+
             for (int i = 0; i < 3; i++)
             {
-                float angleRad = (particleProperty.GetLocalRotationDeg(animationIndex, frameIndex, orientationIndex) - 45f + 45f * i) * Mathf.Deg2Rad;
+                float angleRad = (45f + 45f * i) * Mathf.Deg2Rad;
                 Vector2 direction = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * new Vector2(1, -1);
-                draws[i + 1] = (particleDrawPosition + direction * this.Config.HandleGrabLength / 2, this.Config.HandleLength / 1.25f);
+                draws[i + 1] = (previewSize / 2 + direction * this.Config.HandleGrabLength / 2, this.Config.HandleLength / 1.25f);
             }
             for (int i = 0; i < 5; i++)
             {
-                float angleRad = (particleProperty.GetLocalRotationDeg(animationIndex, frameIndex, orientationIndex) - 45f + 22.5f * i) * Mathf.Deg2Rad;
+                float angleRad = (45f + 22.5f * i) * Mathf.Deg2Rad;
                 Vector2 direction = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * new Vector2(1, -1);
-                draws[i + 4] = (particleDrawPosition + direction * this.Config.HandleGrabLength, this.Config.HandleLength / 2.5f);
+                draws[i + 4] = (previewSize / 2 + direction * this.Config.HandleGrabLength, this.Config.HandleLength / 2.5f);
             }
-            using (new GUIHelper.ColorScope(propertySelected ? this.AccentColor : GUIStyling.Darken(this.AccentColor)))
+            using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
             {
-                Vector2 grabSize = new Vector2(this.Config.HandleGrabLength, this.Config.HandleGrabLength);
                 foreach ((Vector2 position, float radius) draw in draws)
                 {
-                    GUIHelper.DrawSolidArc(draw.position, 0, 2 * Mathf.PI, draw.radius / 2);
-                    if (propertySelected)
-                    {
-                        dragRequests.Add(
-                            (new Rect(draw.position - grabSize / 2, grabSize),
-                            () =>
-                            {
-                                Vector2 newLocalOffset = particleProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor;
-                                particleProperty.SetLocalOffset(animationIndex, frameIndex, orientationIndex, newLocalOffset);
-                            })
-                            );
-                    }
+                    UtilityGUI.DrawSolidArc(draw.position, 0, 2 * Mathf.PI, draw.radius / 2);
                 }
             }
-            return localPreviewOffset;
-        }
-
-        public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)
-        {
-            ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
-            particleProperty.SetLocalOffset(animationIndex, frameIndex, orientationIndex, EditorGUILayout.Vector2Field("Local Offset", particleProperty.GetLocalOffset(animationIndex, frameIndex, orientationIndex)));
-            particleProperty.SetLocalRotationDeg(animationIndex, frameIndex, orientationIndex, EditorGUILayout.Slider("Local Rotation", particleProperty.GetLocalRotationDeg(animationIndex, frameIndex, orientationIndex), 0, 360));
-            base.DrawOrientationEditFields(animationIndex, frameIndex, orientationIndex);
+            base.DrawPreview(previewSize, worldToWindowScalingFactor, animationIndex, frameIndex, orientationIndex, propertySelected);
         }
 
         public override void DrawFrameCellPreview(Vector2 cellSize, int animationIndex, int frameIndex)
@@ -120,40 +94,12 @@ namespace FrigidBlackwaters.Game
             ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
             if (!particleProperty.Loop && particleProperty.GetPlayThisFrame(animationIndex, frameIndex))
             {
-                using (new GUIHelper.ColorScope(this.AccentColor))
+                using (new UtilityGUI.ColorScope(this.AccentColor))
                 {
                     GUI.DrawTexture(new Rect(Vector2.zero, cellSize), this.Config.CellPreviewDiamondTexture);
                 }
             }
             base.DrawFrameCellPreview(cellSize, animationIndex, frameIndex);
-        }
-
-        public override void DrawOrientationCellPreview(Vector2 cellSize, int animationIndex, int frameIndex, int orientationIndex)
-        {
-            ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
-            float drawSeparationDistance = Mathf.Max(cellSize.x, cellSize.y) / 6;
-            (Vector2 position, float radius)[] draws = new (Vector2 position, float radius)[9];
-            draws[0] = (cellSize / 2, drawSeparationDistance);
-            for (int i = 0; i < 3; i++)
-            {
-                float angleRad = (particleProperty.GetLocalRotationDeg(animationIndex, frameIndex, orientationIndex) - 45f + 45f * i) * Mathf.Deg2Rad;
-                Vector2 direction = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * new Vector2(1, -1);
-                draws[i + 1] = (cellSize / 2 + direction * drawSeparationDistance, drawSeparationDistance / 2);
-            }
-            for (int i = 0; i < 5; i++)
-            {
-                float angleRad = (particleProperty.GetLocalRotationDeg(animationIndex, frameIndex, orientationIndex) - 45f + 22.5f * i) * Mathf.Deg2Rad;
-                Vector2 direction = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * new Vector2(1, -1);
-                draws[i + 4] = (cellSize / 2 + direction * drawSeparationDistance * 2, drawSeparationDistance / 4);
-            }
-            using (new GUIHelper.ColorScope(this.AccentColor))
-            {
-                foreach ((Vector2 position, float radius) draw in draws)
-                {
-                    GUIHelper.DrawSolidArc(draw.position, 0, 2 * Mathf.PI, draw.radius / 2);
-                }
-            }
-            base.DrawOrientationCellPreview(cellSize, animationIndex, frameIndex, orientationIndex);
         }
     }
 }

@@ -80,13 +80,13 @@ namespace FrigidBlackwaters.Game
                 return false;
             }
             this.lastReceiveTime = Time.time;
-            info = ProcessDamage(damageDealerBox, position, direction, collision);
+            info = this.ProcessDamage(damageDealerBox, position, direction, collision);
             this.onReceived?.Invoke(info);
             float pauseDuration = this.pauseDuration.MutableValue;
             if (pauseDuration > 0)
             {
                 TimePauser.Paused.Request();
-                FrigidCoroutine.Run(TweenCoroutine.DelayedCall(pauseDuration, TimePauser.Paused.Release, true));
+                FrigidCoroutine.Run(Tween.Delay(pauseDuration, TimePauser.Paused.Release, true));
             }
             return true;
         }
