@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+
 using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
@@ -10,7 +11,7 @@ namespace FrigidBlackwaters.Game
         private bool hasPassiveEffect;
         [SerializeField]
         [ShowIfBool("hasPassiveEffect", true)]
-        private ItemNode passiveRootItemNode;
+        private ItemEffectNode passiveRootItemEffectNode;
 
         public override bool IsUsable
         {
@@ -20,30 +21,28 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override void Stored()
+        public override void Created()
         {
-            base.Stored();
-            if (this.hasPassiveEffect)
-            {
-                this.ActivateRootNode(this.passiveRootItemNode);
-            }
+            base.Created();
+            this.InUse = false;
+            this.StorageChangeable = true;
         }
 
-        public override void Unstored()
-        {
-            base.Unstored();
-            if (this.hasPassiveEffect)
-            {
-                this.DeactivateRootNode(this.passiveRootItemNode);
-            }
-        }
-
-        protected override HashSet<ItemNode> RootNodes
+        protected override HashSet<ItemEffectNode> InitialRootEffectNodes
         {
             get
             {
-                if (this.hasPassiveEffect) return new HashSet<ItemNode> { this.passiveRootItemNode };
-                return new HashSet<ItemNode>();
+                if (this.hasPassiveEffect) return new HashSet<ItemEffectNode>() { this.passiveRootItemEffectNode };
+                return new HashSet<ItemEffectNode>();
+            }
+        }
+
+        protected override HashSet<ItemEffectNode> ReferencedRootEffectNodes
+        {
+            get
+            {
+                if (this.hasPassiveEffect) return new HashSet<ItemEffectNode>() { this.passiveRootItemEffectNode };
+                return new HashSet<ItemEffectNode>();
             }
         }
     }

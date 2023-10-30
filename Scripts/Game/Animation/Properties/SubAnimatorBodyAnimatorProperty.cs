@@ -150,20 +150,15 @@ namespace FrigidBlackwaters.Game
             base.AnimationEnter();
         }
 
-        public override Bounds? GetAreaOccupied()
+        public override Bounds? GetVisibleArea()
         {
-            Bounds? baseAreaOccupied = base.GetAreaOccupied();
+            Bounds? baseAreaOccupied = base.GetVisibleArea();
             if (baseAreaOccupied.HasValue)
             {
-                baseAreaOccupied.Value.Encapsulate(this.subBody.AreaOccupied);
+                baseAreaOccupied.Value.Encapsulate(this.subBody.VisibleArea);
                 return baseAreaOccupied;
             }
-            return this.subBody.AreaOccupied;
-        }
-
-        public override bool GetLooped()
-        {
-            return (!this.GetIgnoreSubAnimationLoopAndDuration(this.Body.CurrAnimationIndex) && this.subBody.IsLooping) || base.GetLooped();
+            return this.subBody.VisibleArea;
         }
 
         public override float GetDuration()

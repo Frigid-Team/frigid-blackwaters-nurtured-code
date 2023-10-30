@@ -7,13 +7,21 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "ItemLootTable", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.ITEMS + "ItemLootTable")]
+    [CreateAssetMenu(fileName = "ItemLootTable", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Items + "ItemLootTable")]
     public class ItemLootTable : FrigidScriptableObject
     {
         [SerializeField]
         private List<LootGroup> lootGroups;
 
-        public List<ItemLootRoll> GenerateLootRolls()
+        public void FillStorage(ItemStorage storage)
+        {
+            foreach (ItemLootRoll lootRoll in this.GenerateLootRolls())
+            {
+                storage.AddAndCreateItems(lootRoll.Storable, lootRoll.Quantity, ItemStorage.PickStashCriteria.Random);
+            }
+        }
+
+        private List<ItemLootRoll> GenerateLootRolls()
         {
             List<ItemLootRoll> generatedLootRolls = new List<ItemLootRoll>();
             foreach (LootGroup lootGroup in this.lootGroups)
@@ -79,6 +87,34 @@ namespace FrigidBlackwaters.Game
                         generatedLootRolls.Add(new ItemLootRoll(randomItemStorable, quantity));
                     }
                     return generatedLootRolls;
+                }
+            }
+        }
+
+        private struct ItemLootRoll
+        {
+            private ItemStorable storable;
+            private int quantity;
+
+            public ItemLootRoll(ItemStorable storable, int quantity)
+            {
+                this.storable = storable;
+                this.quantity = quantity;
+            }
+
+            public ItemStorable Storable
+            {
+                get
+                {
+                    return this.storable;
+                }
+            }
+
+            public int Quantity
+            {
+                get
+                {
+                    return this.quantity;
                 }
             }
         }

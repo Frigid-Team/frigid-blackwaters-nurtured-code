@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game 
 {
-    [CreateAssetMenu(fileName = "TrialTiledLevelPlanner", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TrialTiledLevelPlanner")]
+    [CreateAssetMenu(fileName = "TrialTiledLevelPlanner", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TrialTiledLevelPlanner")]
     public class TrialTiledLevelPlanner : TiledLevelPlanner
     {
         [SerializeField]

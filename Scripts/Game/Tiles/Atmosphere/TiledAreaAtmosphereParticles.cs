@@ -24,7 +24,7 @@ namespace FrigidBlackwaters.Game
         public override void StopAtmosphere()
         {
             FrigidCoroutine.Kill(this.currentSpawnRoutine);
-            this.particlePool.Pool(this.currentParticles);
+            this.particlePool.Return(this.currentParticles);
             this.currentParticles.Clear();
         }
 
@@ -51,7 +51,7 @@ namespace FrigidBlackwaters.Game
                     () => 
                     {
                         this.currentParticles.Remove(spawnedParticle);
-                        this.particlePool.Pool(spawnedParticle); 
+                        this.particlePool.Return(spawnedParticle); 
                     }
                     );
                 yield return spawnDelay;

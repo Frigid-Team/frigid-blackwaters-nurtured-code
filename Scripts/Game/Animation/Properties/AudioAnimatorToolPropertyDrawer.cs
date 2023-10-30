@@ -32,10 +32,10 @@ namespace FrigidBlackwaters.Game
         {
             AudioAnimatorProperty audioProperty = (AudioAnimatorProperty)this.Property;
             audioProperty.Loop = EditorGUILayout.Toggle("Is Looped Audio", audioProperty.Loop);
+            audioProperty.PlayVolume = EditorGUILayout.FloatField("Play Volume", audioProperty.PlayVolume);
             if (audioProperty.Loop)
             {
                 audioProperty.WarmingDuration = EditorGUILayout.FloatField("Warming Duration", audioProperty.WarmingDuration);
-                audioProperty.MaxVolume = EditorGUILayout.FloatField("Max Volume", audioProperty.MaxVolume);
                 audioProperty.AudioClip = (AudioClip)EditorGUILayout.ObjectField("Audio Clip", audioProperty.AudioClip, typeof(AudioClip), false);
             }
             base.DrawGeneralEditFields();
@@ -46,23 +46,14 @@ namespace FrigidBlackwaters.Game
             AudioAnimatorProperty audioProperty = (AudioAnimatorProperty)this.Property;
             if (!audioProperty.Loop)
             {
-                audioProperty.SetPlayThisFrame(
-                    animationIndex,
-                    frameIndex,
-                    EditorGUILayout.Toggle("Play This Frame", audioProperty.GetPlayThisFrame(animationIndex, frameIndex))
-                    );
-                if (audioProperty.GetPlayThisFrame(animationIndex, frameIndex))
+                audioProperty.SetPlayBehaviour(animationIndex, frameIndex, (AudioAnimatorProperty.PlayBehaviour)EditorGUILayout.EnumPopup(audioProperty.GetPlayBehaviour(animationIndex, frameIndex)));
+                using (new EditorGUI.DisabledScope(audioProperty.GetPlayBehaviour(animationIndex, frameIndex) == AudioAnimatorProperty.PlayBehaviour.NoPlay))
                 {
                     audioProperty.SetWaitForEndOfClip(animationIndex, frameIndex, EditorGUILayout.Toggle("Wait For End Of Clip", audioProperty.GetWaitForEndOfClip(animationIndex, frameIndex)));
                     audioProperty.SetAudioClipByReference(
                         animationIndex,
                         frameIndex,
                         CoreGUILayout.ObjectSerializedReferenceField<AudioClipSerializedReference, AudioClip>("Audio Clip", audioProperty.GetAudioClipByReference(animationIndex, frameIndex))
-                        );
-                    audioProperty.SetOnlyPlayOnFirstCycle(
-                        animationIndex,
-                        frameIndex,
-                        EditorGUILayout.Toggle("Only Play On First Cycle", audioProperty.GetOnlyPlayOnFirstCycle(animationIndex, frameIndex))
                         );
                 }
             }
@@ -74,7 +65,7 @@ namespace FrigidBlackwaters.Game
             AudioAnimatorProperty audioProperty = (AudioAnimatorProperty)this.Property;
             if (!audioProperty.Loop)
             {
-                if (audioProperty.GetPlayThisFrame(animationIndex, frameIndex)) 
+                if (audioProperty.GetPlayBehaviour(animationIndex, frameIndex) != AudioAnimatorProperty.PlayBehaviour.NoPlay) 
                 {
                     using (new UtilityGUI.ColorScope(this.AccentColor))
                     {

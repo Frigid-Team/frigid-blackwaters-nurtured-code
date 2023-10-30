@@ -111,8 +111,8 @@ namespace FrigidBlackwaters.Game
                                     TiledAreaWaveSignal waveSignal = waveSignalPool.Retrieve();
                                     Vector2 signalPosition =
                                         mobInWave.Position -
-                                        new Vector2((tileSize.x - 1) * FrigidConstants.UNIT_WORLD_SIZE, (tileSize.y - 1) * FrigidConstants.UNIT_WORLD_SIZE) / 2 +
-                                        new Vector2(x * FrigidConstants.UNIT_WORLD_SIZE, y * FrigidConstants.UNIT_WORLD_SIZE);
+                                        new Vector2((tileSize.x - 1) * FrigidConstants.UnitWorldSize, (tileSize.y - 1) * FrigidConstants.UnitWorldSize) / 2 +
+                                        new Vector2(x * FrigidConstants.UnitWorldSize, y * FrigidConstants.UnitWorldSize);
                                     float delayDuration = this.waveSpawnDelayDuration.MutableValue;
                                     waveSignal.DoSignal(
                                         signalPosition,
@@ -126,7 +126,7 @@ namespace FrigidBlackwaters.Game
                                         {
                                             numberSignalsComplete++;
                                             if (numberSignalsComplete >= numberSignals) numberSpawnsCompleted++;
-                                            waveSignalPool.Pool(waveSignal);
+                                            waveSignalPool.Return(waveSignal);
                                         }
                                         );
                                 }

@@ -199,14 +199,14 @@ namespace FrigidBlackwaters.Game
 
         public override void Initialize()
         {
-            this.spriteRenderer.enabled = false;
             base.Initialize();
+            this.spriteRenderer.enabled = false;
         }
 
         public override void Enable(bool enabled)
         {
-            this.spriteRenderer.enabled = enabled;
             base.Enable(enabled);
+            this.spriteRenderer.enabled = enabled;
         }
 
         public override void AnimationEnter()
@@ -223,17 +223,6 @@ namespace FrigidBlackwaters.Game
         {
             this.spriteRenderer.sprite = this.GetSpriteByReference(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex, this.Body.CurrOrientationIndex).MutableValue;
             base.OrientationEnter();
-        }
-
-        public override Bounds? GetAreaOccupied()
-        {
-            Bounds? baseAreaOccupied = base.GetAreaOccupied();
-            if (baseAreaOccupied.HasValue)
-            {
-                baseAreaOccupied.Value.Encapsulate(this.spriteRenderer.bounds);
-                return baseAreaOccupied;
-            }
-            return this.spriteRenderer.bounds;
         }
 
         protected override Renderer Renderer

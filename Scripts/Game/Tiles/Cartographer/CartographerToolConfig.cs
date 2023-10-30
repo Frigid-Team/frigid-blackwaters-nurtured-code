@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "CartographerToolConfig", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "CartographerToolConfig")]
+    [CreateAssetMenu(fileName = "CartographerToolConfig", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "CartographerToolConfig")]
     public class CartographerToolConfig : FrigidScriptableObject
     {
         [SerializeField]

@@ -22,16 +22,10 @@ namespace FrigidBlackwaters.Game
             } 
         }
 
-        public void Assign(Mob actor, AnimatorBody ownerAnimatorBody)
+        public void OwnedBy(Mob owner, AnimatorBody ownerAnimatorBody)
         {
-            this.owner = actor;
+            this.owner = owner;
             this.ownerAnimatorBody = ownerAnimatorBody;
-        }
-
-        public void Unassign()
-        {
-            this.owner = null;
-            this.ownerAnimatorBody = null;
         }
 
         public virtual void Added() { }

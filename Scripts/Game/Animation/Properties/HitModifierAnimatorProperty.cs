@@ -74,30 +74,30 @@ namespace FrigidBlackwaters.Game
             return this.hurtBoxProperties.Count;
         }
 
-        public HurtBoxAnimatorProperty GetHurtBoxProperty(int index)
+        public HurtBoxAnimatorProperty GetHurtBoxProperty(int propertyIndex)
         {
-            return this.hurtBoxProperties[index];
+            return this.hurtBoxProperties[propertyIndex];
         }
 
-        public void SetHurtBoxProperty(int index, HurtBoxAnimatorProperty hurtBoxProperty)
+        public void SetHurtBoxProperty(int propertyIndex, HurtBoxAnimatorProperty hurtBoxProperty)
         {
-            if (this.hurtBoxProperties[index] != hurtBoxProperty)
+            if (this.hurtBoxProperties[propertyIndex] != hurtBoxProperty)
             {
                 FrigidEdit.RecordChanges(this);
-                this.hurtBoxProperties[index] = hurtBoxProperty;
+                this.hurtBoxProperties[propertyIndex] = hurtBoxProperty;
             }
         }
 
-        public void AddHurtBoxProperty(int index)
+        public void AddHurtBoxProperty(int propertyIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.hurtBoxProperties.Insert(index, null);
+            this.hurtBoxProperties.Insert(propertyIndex, null);
         }
 
-        public void RemoveHurtBoxProperty(int index)
+        public void RemoveHurtBoxProperty(int propertyIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.hurtBoxProperties.RemoveAt(index);
+            this.hurtBoxProperties.RemoveAt(propertyIndex);
         }
 
         public bool GetAddedThisFrame(int animationIndex, int frameIndex)

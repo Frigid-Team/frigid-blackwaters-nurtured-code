@@ -22,9 +22,6 @@ namespace FrigidBlackwaters.Game
         [Tooltip("Only check this for levels that you expect to be large.")]
         private bool onlyQueueLevelSpawnWhenAccessible;
 
-        private const int LOCAL_SPAWN_POSITION_PADDING_X = 2;
-        private const int LOCAL_SPAWN_POSITION_PADDING_Y = 2;
-
         private Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas;
         private Bounds wallBounds;
         private HashSet<TiledArea> containingAreas;
@@ -174,7 +171,7 @@ namespace FrigidBlackwaters.Game
                 }
             }
 
-            LoadingOverlay.RequestLoad(
+            ActivelyBusy.Request(
                 () =>
                 {
                     TiledLevelPlanner levelPlanner = this.levelPlanner.MutableValue;
@@ -193,7 +190,7 @@ namespace FrigidBlackwaters.Game
                                     }
                                     levelSpawnQueue.Current.Dequeue();
                                     if (levelSpawnQueue.Current.Count > 0) levelSpawnQueue.Current.Peek().ContinueLevelSpawnQueue();
-                                    LoadingOverlay.ReleaseLoad();
+                                    ActivelyBusy.Release();
                                 }
                                 else
                                 {
@@ -349,7 +346,7 @@ namespace FrigidBlackwaters.Game
                 }
                 else
                 {
-                    throw new Exception("Sublevel entrance " + subLevelEntrance.name + " is not in a pre-existing TiledArea!");
+                    Debug.LogError("Sublevel entrance " + subLevelEntrance.name + " is not in a pre-existing TiledArea!");
                 }
             }
         }
@@ -374,8 +371,10 @@ namespace FrigidBlackwaters.Game
                     wallAreaDimensionsMaxY = planArea.ChosenBlueprint.WallAreaDimensions.y;
                 }
             }
-            wallAreaDimensionsMaxX += LOCAL_SPAWN_POSITION_PADDING_X;
-            wallAreaDimensionsMaxY += LOCAL_SPAWN_POSITION_PADDING_Y;
+            const int LocalSpawnPositionPaddingX = 2;
+            const int LocalSpawnPositionPaddingY = 2;
+            wallAreaDimensionsMaxX += LocalSpawnPositionPaddingX;
+            wallAreaDimensionsMaxY += LocalSpawnPositionPaddingY;
 
             while (queuedPlanAreas.Count > 0)
             {
@@ -408,7 +407,7 @@ namespace FrigidBlackwaters.Game
                             queuedPlanAreas.Enqueue(connectedPlanArea);
                             localSpawnPositionPerPlanAreas.Add(
                                 connectedPlanArea,
-                                localSpawnPositionPerPlanAreas[dequeuedPlanArea] + new Vector2(adjacentDirection.x * wallAreaDimensionsMaxX, adjacentDirection.y * wallAreaDimensionsMaxY) * FrigidConstants.UNIT_WORLD_SIZE
+                                localSpawnPositionPerPlanAreas[dequeuedPlanArea] + new Vector2(adjacentDirection.x * wallAreaDimensionsMaxX, adjacentDirection.y * wallAreaDimensionsMaxY) * FrigidConstants.UnitWorldSize
                                 );
                         }
                     }
@@ -422,7 +421,7 @@ namespace FrigidBlackwaters.Game
             Bounds localBounds = new Bounds();
             foreach (KeyValuePair<TiledLevelPlanArea, Vector2> localSpawnPositionPerPlanArea in localSpawnPositionPerPlanAreas)
             {
-                Vector2 wallExtents = new Vector2(localSpawnPositionPerPlanArea.Key.ChosenBlueprint.WallAreaDimensions.x, localSpawnPositionPerPlanArea.Key.ChosenBlueprint.WallAreaDimensions.y) * FrigidConstants.UNIT_WORLD_SIZE / 2;
+                Vector2 wallExtents = new Vector2(localSpawnPositionPerPlanArea.Key.ChosenBlueprint.WallAreaDimensions.x, localSpawnPositionPerPlanArea.Key.ChosenBlueprint.WallAreaDimensions.y) * FrigidConstants.UnitWorldSize / 2;
                 localBounds.Encapsulate(localSpawnPositionPerPlanArea.Value + wallExtents);
                 localBounds.Encapsulate(localSpawnPositionPerPlanArea.Value - wallExtents);
             }

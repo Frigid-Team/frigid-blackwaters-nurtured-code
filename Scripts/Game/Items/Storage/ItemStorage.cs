@@ -243,7 +243,7 @@ namespace FrigidBlackwaters.Game
                     };
                 if (this.itemStores.TryAdd((storable, item), onUsed))
                 {
-                    item.Assign(this);
+                    item.StoredBy(this);
                     item.transform.SetParent(this.transform);
                     item.OnInUseChanged += onUsed;
                     if (item.InUse && this.itemUsages.Add((storable, item)))
@@ -269,11 +269,100 @@ namespace FrigidBlackwaters.Game
                     {
                         this.onItemUnused?.Invoke(storable, item);
                     }
-                    item.Unassign();
+                    item.StoredBy(null);
                     item.transform.SetParent(null);
                     this.onItemUnstored?.Invoke(storable, item);
                 }
             }
+        }
+
+        public List<ContainerItemStash> AddAndCreateItems(ItemStorable storable, int quantity, PickStashCriteria pickStashCriteria) 
+        {
+            List<ContainerItemStash> pickedStashes = new List<ContainerItemStash>();
+            List<Item> createdItems = storable.CreateItems(quantity);
+            foreach (ItemStorageGrid storageGrid in this.StorageGrids)
+            {
+                List<ContainerItemStash> availableStashes = new List<ContainerItemStash>();
+                for (int x = 0; x < storageGrid.Dimensions.x; x++)
+                {
+                    for (int y = 0; y < storageGrid.Dimensions.y; y++)
+                    {
+                        if (storageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash stash))
+                        {
+                            if (stash.CanStackStorable(storable) && stash.MaxQuantity - stash.CurrentQuantity >= quantity)
+                            {
+                                availableStashes.Add(stash);
+                            }
+                        }
+                    }
+                }
+                while (availableStashes.Count > 0 && createdItems.Count > 0)
+                {
+                    int chosenStashIndex = -1;
+                    switch (pickStashCriteria)
+                    {
+                        case PickStashCriteria.FirstAvailable:
+                            chosenStashIndex = 0;
+                            break;
+                        case PickStashCriteria.Random:
+                            chosenStashIndex = UnityEngine.Random.Range(0, availableStashes.Count);
+                            break;
+                    }
+                    ContainerItemStash pickedStash = availableStashes[chosenStashIndex];
+                    pickedStashes.Add(pickedStash);
+                    createdItems.RemoveRange(0, pickedStash.PushItems(storable, createdItems));
+                    availableStashes.RemoveAt(chosenStashIndex);
+                }
+            }
+            if (createdItems.Count > 0)
+            {
+                ItemStorable.DiscardItems(createdItems);
+            }
+            return pickedStashes;
+        }
+
+        public List<ContainerItemStash> RemoveAndDiscardItems(ItemStorable storable, int quantity, PickStashCriteria pickStashCriteria)
+        {
+            List<ContainerItemStash> pickedStashes = new List<ContainerItemStash>();
+            List<Item> itemsToDiscard = new List<Item>();
+            foreach (ItemStorageGrid itemStorageGrid in this.StorageGrids)
+            {
+                List<ContainerItemStash> filledStashes = new List<ContainerItemStash>();
+                for (int x = 0; x < itemStorageGrid.Dimensions.x; x++)
+                {
+                    for (int y = 0; y < itemStorageGrid.Dimensions.y; y++)
+                    {
+                        if (itemStorageGrid.TryGetStash(new Vector2Int(x, y), out ContainerItemStash stash))
+                        {
+                            if (stash.CanStackStorable(storable) && stash.CurrentQuantity > 0)
+                            {
+                                filledStashes.Add(stash);
+                            }
+                        }
+                    }
+                }
+                while (filledStashes.Count > 0 && quantity > 0)
+                {
+                    int chosenStashIndex = -1;
+                    switch (pickStashCriteria)
+                    {
+                        case PickStashCriteria.FirstAvailable:
+                            chosenStashIndex = 0;
+                            break;
+                        case PickStashCriteria.Random:
+                            chosenStashIndex = UnityEngine.Random.Range(0, filledStashes.Count);
+                            break;
+                    }
+                    ContainerItemStash pickedStash = filledStashes[chosenStashIndex];
+                    pickedStashes.Add(pickedStash);
+                    (ItemStorable _, List<Item> poppedItems) = pickedStash.PopItems(quantity);
+                    itemsToDiscard.AddRange(poppedItems);
+                    quantity -= poppedItems.Count;
+                    filledStashes.RemoveAt(chosenStashIndex);
+                }
+            }
+            ItemStorable.DiscardItems(itemsToDiscard);
+            return pickedStashes;
         }
 
         protected override void Awake()
@@ -302,6 +391,12 @@ namespace FrigidBlackwaters.Game
                     Debug.LogError("Using Mob not specified or multiple storages used by Mob!");
                 }
             }
+        }
+
+        public enum PickStashCriteria
+        {
+            FirstAvailable,
+            Random
         }
     }
 }

@@ -127,7 +127,7 @@ namespace FrigidBlackwaters.Game
             if (!this.Body.Previewing)
             {
                 int nextFrameIndex = this.Body.CurrFrameIndex + 1;
-                if (this.Body.GetLooping(this.Body.CurrAnimationIndex))
+                if (this.Body.GetLoopBehaviour(this.Body.CurrAnimationIndex) != AnimatorBody.LoopBehaviour.NoLoop)
                 {
                     nextFrameIndex = nextFrameIndex % this.Body.GetFrameCount(this.Body.CurrAnimationIndex);
                 }

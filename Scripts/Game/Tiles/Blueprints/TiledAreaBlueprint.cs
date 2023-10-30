@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -10,7 +9,7 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "TiledAreaBlueprint", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TiledAreaBlueprint")]
+    [CreateAssetMenu(fileName = "TiledAreaBlueprint", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TiledAreaBlueprint")]
     public class TiledAreaBlueprint : FrigidScriptableObject
     {
         [SerializeField]
@@ -59,15 +58,8 @@ namespace FrigidBlackwaters.Game
 #if UNITY_EDITOR
         public static TiledAreaBlueprint CreateEmpty(string assetPath, TiledArea areaPrefab, Vector2Int mainAreaDimensions, TerrainTileAsset terrainTileAsset, WallTileAsset wallTileAsset)
         {
-            if (terrainTileAsset == null || wallTileAsset == null)
-            {
-                throw new Exception("Tried to create empty TiledAreaBlueprint with null assets.");
-            }
-
-            if (mainAreaDimensions.x <= 0 || mainAreaDimensions.y <= 0)
-            {
-                throw new Exception("Tried to create empty TiledAreaBlueprint with invalid dimensions.");
-            }
+            Debug.Assert(terrainTileAsset != null && wallTileAsset != null, "Tried to create empty TiledAreaBlueprint with null assets.");
+            Debug.Assert(mainAreaDimensions.x > 0 && mainAreaDimensions.y > 0, "Tried to create empty TiledAreaBlueprint with invalid dimensions.");
 
             TiledAreaBlueprint emptyBlueprint = CreateInstance<TiledAreaBlueprint>();
             emptyBlueprint.areaPrefab = areaPrefab;
@@ -126,7 +118,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return new Vector2Int(this.mainAreaDimensions.x + TiledArea.MAX_WALL_DEPTH * 2, this.mainAreaDimensions.y + TiledArea.MAX_WALL_DEPTH * 2);
+                return new Vector2Int(this.mainAreaDimensions.x + TiledArea.MaxWallDepth * 2, this.mainAreaDimensions.y + TiledArea.MaxWallDepth * 2);
             }
         }
 
@@ -148,10 +140,7 @@ namespace FrigidBlackwaters.Game
 
         public void Expand(Vector2Int wallIndexDirection)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
 
             Vector2Int newMainAreaDimensions = this.mainAreaDimensions + new Vector2Int(Mathf.Abs(wallIndexDirection.x), Mathf.Abs(wallIndexDirection.y));
             if (newMainAreaDimensions.x < 1 || newMainAreaDimensions.y < 1 ||
@@ -246,10 +235,7 @@ namespace FrigidBlackwaters.Game
 
         public void Shrink(Vector2Int wallIndexDirection)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
 
             Vector2Int newMainAreaDimensions = this.mainAreaDimensions - new Vector2Int(Mathf.Abs(wallIndexDirection.x), Mathf.Abs(wallIndexDirection.y));
             if (newMainAreaDimensions.x < 1 || newMainAreaDimensions.y < 1 || 
@@ -344,10 +330,7 @@ namespace FrigidBlackwaters.Game
 
         public bool TryGetWallEntranceAssetAndIndexAndWidth(Vector2Int wallIndexDirection, out TiledEntranceAsset entranceAsset, out int tileIndex, out int width)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
 
             int wallIndex = WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection);
             entranceAsset = this.wallEntranceAssets[wallIndex];
@@ -358,20 +341,9 @@ namespace FrigidBlackwaters.Game
 
         public void SetWallEntranceAssetAndIndexAndWidth(Vector2Int wallIndexDirection, TiledEntranceAsset entranceAsset, int tileIndex, int width)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
-
-            if (entranceAsset == null)
-            {
-                throw new ArgumentNullException("TiledEntranceAsset cannot be null");
-            }
-
-            if (width < entranceAsset.MinWidth || width > entranceAsset.MaxWidth || !WallTiling.EdgeExtentIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions, width))
-            {
-                throw new ArgumentException("Index out of bounds or cannot fit.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
+            Debug.Assert(entranceAsset != null, "TiledEntranceAsset cannot be null");
+            Debug.Assert(width >= entranceAsset.MinWidth && width <= entranceAsset.MaxWidth && WallTiling.EdgeExtentIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions, width), "Index out of bounds or cannot fit.");
 
             int wallIndex = WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection);
             if (entranceAsset != this.wallEntranceAssets[wallIndex] || tileIndex != this.wallEntranceTileIndexes[wallIndex] || width != this.wallEntranceWidths[wallIndex])
@@ -385,10 +357,7 @@ namespace FrigidBlackwaters.Game
 
         public void ClearWallEntranceAsset(Vector2Int wallIndexDirection)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
 
             int wallIndex = WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection);
             if (this.wallEntranceAssets[wallIndex] != null)
@@ -402,25 +371,15 @@ namespace FrigidBlackwaters.Game
 
         public TerrainTileAsset GetTerrainTileAssetAt(Vector2Int tileIndexPosition)
         {
-            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index position out of bounds.");
-            }
+            Debug.Assert(AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions), "Index position out of bounds.");
 
             return this.terrainTileAssets[tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x];
         }
 
         public void SetTerrainTileAssetAt(Vector2Int tileIndexPosition, TerrainTileAsset terrainTileAsset)
         {
-            if (terrainTileAsset == null)
-            {
-                throw new ArgumentNullException("TerrainTileAsset cannot be null.");
-            }
-
-            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index position out of bounds.");
-            }
+            Debug.Assert(terrainTileAsset != null, "TerrainTileAsset cannot be null.");
+            Debug.Assert(AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions), "Index position out of bounds.");
 
             if (this.terrainTileAssets[tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != terrainTileAsset)
             {
@@ -431,10 +390,7 @@ namespace FrigidBlackwaters.Game
 
         public bool TryGetTerrainContentAssetAndOrientationAt(TerrainContentHeight height, Vector2Int tileIndexPosition, out TerrainContentAsset terrainContentAsset, out Vector2 orientationDirection)
         {
-            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index position out of bounds.");
-            }
+            Debug.Assert(AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions), "Index position out of bounds.");
 
             terrainContentAsset = this.terrainContentAssets[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x];
             orientationDirection = this.terrainContentOrientationDirections[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x];
@@ -443,15 +399,8 @@ namespace FrigidBlackwaters.Game
 
         public void SetTerrainContentAssetAndOrientationAt(Vector2Int tileIndexPosition, TerrainContentAsset terrainContentAsset, Vector2 orientationDirection)
         {
-            if (terrainContentAsset == null)
-            {
-                throw new ArgumentNullException("TerrainContentAsset cannot be null.");
-            }
-
-            if (!AreaTiling.RectIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions, terrainContentAsset.GetDimensions(orientationDirection)))
-            {
-                throw new ArgumentException("Index position out of bounds or cannot fit.");
-            }
+            Debug.Assert(terrainContentAsset != null, "TerrainContentAsset cannot be null.");
+            Debug.Assert(AreaTiling.RectIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions, terrainContentAsset.GetDimensions(orientationDirection)), "Index position out of bounds or cannot fit.");
 
             if ((this.terrainContentAssets[(int)terrainContentAsset.Height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != terrainContentAsset ||
                 this.terrainContentOrientationDirections[(int)terrainContentAsset.Height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != orientationDirection) &&
@@ -480,10 +429,7 @@ namespace FrigidBlackwaters.Game
 
         public void ClearTerrainContentAssetAt(TerrainContentHeight height, Vector2Int tileIndexPosition)
         {
-            if (!AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index position out of bounds.");
-            }
+            Debug.Assert(AreaTiling.TileIndexPositionWithinBounds(tileIndexPosition, this.MainAreaDimensions), "Index position out of bounds.");
 
             if (this.terrainContentAssets[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != null ||
                 this.terrainContentOrientationDirections[(int)height][tileIndexPosition.y * this.mainAreaDimensions.x + tileIndexPosition.x] != Vector2.zero)
@@ -496,35 +442,17 @@ namespace FrigidBlackwaters.Game
 
         public WallTileAsset GetWallTileAssetAt(Vector2Int wallIndexDirection, int tileIndex)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
-
-            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index out of bounds.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
+            Debug.Assert(WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions), "Index out of bounds.");
 
             return this.wallTileAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex];
         }
 
         public void SetWallTileAssetAt(Vector2Int wallIndexDirection, int tileIndex, WallTileAsset wallTileAsset)
         {
-            if (wallTileAsset == null)
-            {
-                throw new ArgumentNullException("WallTileAsset cannot be null.");
-            }
-
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
-
-            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index out of bounds.");
-            }
+            Debug.Assert(wallTileAsset != null, "WallTileAsset cannot be null.");
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
+            Debug.Assert(WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions), "Invalid wall direction.");
 
             if (this.wallTileAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != wallTileAsset)
             {
@@ -535,15 +463,8 @@ namespace FrigidBlackwaters.Game
 
         public bool TryGetWallContentAssetAndOrientationAt(Vector2Int wallIndexDirection, int tileIndex, out WallContentAsset wallContentAsset, out Vector2 orientationDirection)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
-
-            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index out of bounds.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
+            Debug.Assert(WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions), "Index out of bounds.");
 
             wallContentAsset = this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex];
             orientationDirection = this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex];
@@ -552,20 +473,9 @@ namespace FrigidBlackwaters.Game
 
         public void SetWallContentAssetAndOrientationAt(Vector2Int wallIndexDirection, int tileIndex, WallContentAsset wallContentAsset, Vector2 orientationDirection)
         {
-            if (wallContentAsset == null)
-            {
-                throw new ArgumentNullException("WallContentAsset cannot be null.");
-            }
-
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
-
-            if (!WallTiling.EdgeExtentIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions, wallContentAsset.GetWidth(orientationDirection)))
-            {
-                throw new ArgumentException("Index out of bounds or cannot fit.");
-            }
+            Debug.Assert(wallContentAsset != null, "WallContentAsset cannot be null.");
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
+            Debug.Assert(WallTiling.EdgeExtentIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions, wallContentAsset.GetWidth(orientationDirection)), "Index out of bounds or cannot fit.");
 
             if (this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != wallContentAsset ||
                 this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != orientationDirection)
@@ -589,15 +499,8 @@ namespace FrigidBlackwaters.Game
 
         public void ClearWallContentAssetAt(Vector2Int wallIndexDirection, int tileIndex)
         {
-            if (!WallTiling.IsValidWallIndexDirection(wallIndexDirection))
-            {
-                throw new ArgumentException("Invalid wall direction.");
-            }
-
-            if (!WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions))
-            {
-                throw new ArgumentException("Index out of bounds.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(wallIndexDirection), "Invalid wall direction.");
+            Debug.Assert(WallTiling.EdgeTileIndexWithinBounds(wallIndexDirection, tileIndex, this.MainAreaDimensions), "Index out of bounds.");
 
             if (this.wallContentAssets[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != null ||
                 this.wallContentOrientationDirections[WallTiling.WallIndexFromWallIndexDirection(wallIndexDirection)][tileIndex] != Vector2.zero)

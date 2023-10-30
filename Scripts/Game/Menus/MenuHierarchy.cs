@@ -41,7 +41,7 @@ namespace FrigidBlackwaters.Game
                 CharacterInput.Disabled.Request();
                 TimePauser.Paused.Request();
             }
-            LoadingOverlay.OnLoadStart += this.CloseCurrentMenu;
+            ActivelyBusy.OnStarted += this.CloseCurrentMenu;
         }
 
         protected override void OnDisable()
@@ -52,7 +52,7 @@ namespace FrigidBlackwaters.Game
                 CharacterInput.Disabled.Release();
                 TimePauser.Paused.Release();
             }
-            LoadingOverlay.OnLoadStart -= this.CloseCurrentMenu;
+            ActivelyBusy.OnStarted -= this.CloseCurrentMenu;
         }
 
         protected override void Update()

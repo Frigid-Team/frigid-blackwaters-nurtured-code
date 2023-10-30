@@ -30,9 +30,9 @@ namespace FrigidBlackwaters.Game
         private int editOrientationIndex;
 
         [SerializeField]
-        private Vector2 editFieldsScrollPos;
+        private int editCategoryIndex;
         [SerializeField]
-        private Vector2 inspectorFieldsScrollPos;
+        private Vector2 editFieldsScrollPos;
 
         [SerializeField]
         private int previewNumberTiles;
@@ -168,7 +168,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        [MenuItem(FrigidPaths.MenuItem.WINDOW + "Animator Body")]
+        [MenuItem(FrigidPaths.MenuItem.Window + "Animator Body")]
         private static void ShowAnimatorBodyTool()
         {
             Show<AnimatorBodyTool>();
@@ -361,38 +361,40 @@ namespace FrigidBlackwaters.Game
 
         private void DrawPropertyEditFields()
         {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.MaxWidth((EditorGUIUtility.currentViewWidth - this.config.PreviewLength) / 2), GUILayout.MaxHeight(this.config.PreviewLength)))
+            using (new EditorGUILayout.VerticalScope(GUILayout.MaxWidth((EditorGUIUtility.currentViewWidth - this.config.PreviewLength) / 2f), GUILayout.MaxHeight(this.config.PreviewLength)))
             {
                 if (this.editPropertyIndex < this.body.GetNumberProperties())
                 {
                     AnimatorProperty currentProperty = this.body.GetProperties()[this.editPropertyIndex];
                     AnimatorToolPropertyDrawer propertyDrawer = this.CreatePropertyDrawerForProperty(currentProperty);
-                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+
+                    this.editCategoryIndex = GUILayout.Toolbar(this.editCategoryIndex, new string[] { "General Fields", "Animation Fields", "Frame Fields", "Orientation Fields" }, EditorStyles.toolbarButton);
+                    using (EditorGUILayout.ScrollViewScope scrollViewScope = new EditorGUILayout.ScrollViewScope(this.editFieldsScrollPos, EditorStyles.helpBox))
                     {
-                        EditorGUILayout.LabelField("Edit in Animation", UtilityStyles.WordWrapAndCenter(EditorStyles.boldLabel));
-                    }
-                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                    {
-                        using (EditorGUILayout.ScrollViewScope scrollViewScope = new EditorGUILayout.ScrollViewScope(this.editFieldsScrollPos))
+                        this.editFieldsScrollPos = scrollViewScope.scrollPosition;
+                        switch (this.editCategoryIndex)
                         {
-                            GUILayout.Box("General Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
-                            this.editFieldsScrollPos = scrollViewScope.scrollPosition;
-                            propertyDrawer.DrawGeneralEditFields();
-                            if (this.editAnimationIndex != -1)
-                            {
-                                GUILayout.Box("Animation Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
-                                propertyDrawer.DrawAnimationEditFields(this.editAnimationIndex);
-                                if (this.editFrameIndex != -1)
+                            case 0:
+                                propertyDrawer.DrawGeneralEditFields();
+                                break;
+                            case 1:
+                                if (this.editAnimationIndex != -1)
                                 {
-                                    GUILayout.Box("Frame Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
-                                    propertyDrawer.DrawFrameEditFields(this.editAnimationIndex, this.editFrameIndex);
-                                    if (this.editOrientationIndex != -1)
-                                    {
-                                        GUILayout.Box("Orientation Fields", UtilityStyles.WordWrapAndCenter(EditorStyles.helpBox));
-                                        propertyDrawer.DrawOrientationEditFields(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
-                                    }
+                                    propertyDrawer.DrawAnimationEditFields(this.editAnimationIndex);
                                 }
-                            }
+                                break;
+                            case 2:
+                                if (this.editAnimationIndex != -1 && this.editFrameIndex != -1)
+                                {
+                                    propertyDrawer.DrawFrameEditFields(this.editAnimationIndex, this.editFrameIndex);
+                                }
+                                break;
+                            case 3:
+                                if (this.editAnimationIndex != -1 && this.editFrameIndex != -1 && this.editOrientationIndex != -1)
+                                {
+                                    propertyDrawer.DrawOrientationEditFields(this.editAnimationIndex, this.editFrameIndex, this.editOrientationIndex);
+                                }
+                                break;
                         }
                     }
                 }
@@ -554,6 +556,11 @@ namespace FrigidBlackwaters.Game
         {
             using (new EditorGUILayout.VerticalScope(GUILayout.MaxHeight(this.config.PreviewLength)))
             {
+                using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox))
+                {
+                    this.body.RotateToDirection = EditorGUILayout.Toggle("Rotate To Direction", this.body.RotateToDirection);
+                }
+
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.FlexibleSpace();
@@ -655,8 +662,6 @@ namespace FrigidBlackwaters.Game
 
                 using (EditorGUILayout.ScrollViewScope scrollViewScope = new EditorGUILayout.ScrollViewScope(this.orientationBarScrollPos, EditorStyles.helpBox))
                 {
-                    this.body.RotateToDirection = EditorGUILayout.Toggle("Rotate To Direction", this.body.RotateToDirection);
-
                     this.orientationBarScrollPos = scrollViewScope.scrollPosition;
                     using (new EditorGUILayout.HorizontalScope())
                     {
@@ -784,7 +789,12 @@ namespace FrigidBlackwaters.Game
                     }
 
                     this.body.SetFrameRate(this.editAnimationIndex, Mathf.Max(0, EditorGUILayout.FloatField("Frame Rate", this.body.GetFrameRate(this.editAnimationIndex))));
-                    this.body.SetLooping(this.editAnimationIndex, EditorGUILayout.Toggle("Looping", this.body.GetLooping(this.editAnimationIndex)));
+
+                    this.body.SetLoopBehaviour(this.editAnimationIndex, (AnimatorBody.LoopBehaviour)EditorGUILayout.EnumPopup(this.body.GetLoopBehaviour(this.editAnimationIndex)));
+                    using (new EditorGUI.DisabledScope(this.body.GetLoopBehaviour(this.editAnimationIndex) != AnimatorBody.LoopBehaviour.LoopForDuration))
+                    {
+                        this.body.SetLoopDuration(this.editAnimationIndex, EditorGUILayout.FloatField(this.body.GetLoopDuration(this.editAnimationIndex)));
+                    }
                 }
                 else
                 {

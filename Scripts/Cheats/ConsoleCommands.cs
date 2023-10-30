@@ -8,6 +8,7 @@ using FrigidBlackwaters.Core;
 using FrigidBlackwaters.Game;
 
 using IngameDebugConsole;
+using System;
 
 namespace FrigidBlackwaters.Cheats
 {
@@ -64,8 +65,27 @@ namespace FrigidBlackwaters.Cheats
         [ConsoleMethod("GiveStamps", "Gives the player stamps.")]
         public static void GiveStamps(int stampsAdded)
         {
-            Stamps.TotalStamps += stampsAdded;
-            Stamps.CurrentStamps += stampsAdded;
+            Stamps.TotalAmount += stampsAdded;
+            Stamps.CurrentAmount += stampsAdded;
+        }
+
+        
+        [ConsoleMethod("ActivateBoon", "Use a boon.")]
+        public static void ActivateBoon(string boonName, int quantity = 1)
+        {
+            if (AssetDatabaseUpdater.TryFindAsset<Boon>(boonName, out Boon boon))
+            {
+                boon.ActivateQuantity(quantity);
+            }
+        }
+
+        [ConsoleMethod("DeactivateBoon", "Unuse a boon.")]
+        public static void DeactivateBoon(string boonName, int quantity = 1)
+        {
+            if (AssetDatabaseUpdater.TryFindAsset<Boon>(boonName, out Boon boon))
+            {
+                boon.DeactivateQuantity(quantity);
+            }
         }
 
         [ConsoleMethod("MovePlayer", "Moves the player to your mouse position.")]
@@ -78,44 +98,6 @@ namespace FrigidBlackwaters.Cheats
                 {
                     player.MoveTo(movePosition, false);
                 }
-            }
-        }
-
-        [ConsoleMethod("SpawnProjectile", "Spawn a projectile at your mouse position.")]
-        public static void SpawnProjectile(string projectilePrefabName)
-        {
-            if (AssetDatabaseUpdater.TryFindPrefab<Projectile>(projectilePrefabName, out Projectile projectilePrefab))
-            {
-                Projectile spawnedProjectile = FrigidMonoBehaviour.CreateInstance<Projectile>(projectilePrefab);
-                spawnedProjectile.LaunchProjectile(
-                    0,
-                    DamageAlignment.Neutrals,
-                    () => FrigidMonoBehaviour.DestroyInstance(spawnedProjectile),
-                    MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
-                    Vector2.right,
-                    null,
-                    null,
-                    null
-                    );
-            }
-        }
-
-        [ConsoleMethod("SpawnExplosion", "Spawn a explosion at your mouse position.")]
-        public static void SpawnExplosion(string explosionPrefabName)
-        {
-            if (AssetDatabaseUpdater.TryFindPrefab<Explosion>(explosionPrefabName, out Explosion explosionPrefab))
-            {
-                Explosion spawnedExplosion = FrigidMonoBehaviour.CreateInstance<Explosion>(explosionPrefab);
-                spawnedExplosion.SummonExplosion(
-                    0,
-                    DamageAlignment.Neutrals,
-                    () => FrigidMonoBehaviour.DestroyInstance(spawnedExplosion),
-                    MainCamera.Instance.Camera.ScreenToWorldPoint(Pointer.current.position.ReadValue()),
-                    0,
-                    null,
-                    null,
-                    null
-                    );
             }
         }
 

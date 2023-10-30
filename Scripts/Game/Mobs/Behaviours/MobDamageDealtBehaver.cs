@@ -26,7 +26,7 @@ namespace FrigidBlackwaters.Game
                         (MobBehaviour behaviour) => DestroyInstance(behaviour)
                         )
                     );
-                this.behaviourPools[this.behaviourPools.Count - 1].Pool(childBehaviour);
+                this.behaviourPools[this.behaviourPools.Count - 1].Return(childBehaviour);
             }
             this.damageDealerBox.OnDealt += this.DoBehavioursOnDamage;
         }
@@ -45,7 +45,7 @@ namespace FrigidBlackwaters.Game
                         () =>
                         {
                             behaviour.transform.SetParent(this.transform);
-                            behaviourPool.Pool(behaviour);
+                            behaviourPool.Return(behaviour);
                         }
                         );
                 }

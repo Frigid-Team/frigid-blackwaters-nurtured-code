@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -61,7 +62,7 @@ namespace FrigidBlackwaters.Game
 
         private void RefreshExpeditionDetails()
         {
-            this.stampNumberText.text = "" + Stamps.CurrentStamps + " / " + Stamps.TotalStamps;
+            this.stampNumberText.text = "" + Stamps.CurrentAmount + " / " + Stamps.TotalAmount;
             if (this.expeditionProgress.TryGetActiveExpedition(out Expedition activeExpedition))
             {
                 this.expeditionButtonText.text = this.returnText;

@@ -60,11 +60,15 @@ namespace FrigidBlackwaters.Game
 
         [Header("Colors")]
         [SerializeField]
-        private ColorSerializedReference defaultColor;
+        private ColorSerializedReference transferableColor;
         [SerializeField]
         private ColorSerializedReference cannotStackColor;
         [SerializeField]
         private ColorSerializedReference isFullColor;
+        [SerializeField]
+        private ColorSerializedReference usableColor;
+        [SerializeField]
+        private ColorSerializedReference unusableColor;
 
         [Header("Audio")]
         [SerializeField]
@@ -157,7 +161,7 @@ namespace FrigidBlackwaters.Game
         {
             this.pointerEntered = false;
             this.highlightImage.enabled = false;
-            this.quantityText.color = this.defaultColor.ImmutableValue;
+            this.quantityText.color = this.transferableColor.ImmutableValue;
             this.SetDefaultHoverColors();
             this.ResetTransfer();
             this.tooltip.RemoveStashToShow(this.stash);
@@ -399,7 +403,7 @@ namespace FrigidBlackwaters.Game
 
         private void StartWaitForUse()
         {
-            if (this.useHoldRoutine == null && this.stash.CanUseTopmostItem())
+            if (this.useHoldRoutine == null)
             {
                 this.useHoldRoutine = FrigidCoroutine.Run(this.WaitForUse(), this.gameObject);
             }
@@ -417,26 +421,31 @@ namespace FrigidBlackwaters.Game
 
         private IEnumerator<FrigidCoroutine.Delay> WaitForUse()
         {
-            yield return new FrigidCoroutine.DelayForSecondsRealTime(this.useDelayDuration);
-
-            this.transferAction = TransferAction.None;
-            this.useProgressImage.enabled = true;
-            float elapsedDuration = 0;
-            while (elapsedDuration < this.usingDuration)
+            if (this.stash.TryGetStorable(out ItemStorable storable))
             {
-                elapsedDuration += Time.unscaledDeltaTime;
-                this.useProgressImage.fillAmount = elapsedDuration / this.usingDuration;
-                yield return null;
-            }
+                yield return new FrigidCoroutine.DelayForSecondsRealTime(this.useDelayDuration);
 
-            if (this.stash.TryGetStorable(out ItemStorable itemStorable))
-            {
-                if (this.stash.UseTopmostItem())
+                bool canUse = this.stash.CanUseTopmostItem();
+
+                Color progressColor = canUse ? this.usableColor.MutableValue : this.unusableColor.MutableValue;
+                progressColor.a = this.useProgressImage.color.a;
+                this.useProgressImage.color = progressColor;
+
+                this.transferAction = TransferAction.None;
+                this.useProgressImage.enabled = true;
+                float elapsedDuration = 0;
+                while (elapsedDuration < this.usingDuration)
                 {
-                    this.audioSource.PlayOneShot(itemStorable.ConsumedAudioClip);
+                    elapsedDuration += Time.unscaledDeltaTime;
+                    this.useProgressImage.fillAmount = EasingFunctions.EaseOutSine(0f, 1f, elapsedDuration / this.usingDuration);
+                    yield return null;
+                }
+
+                if (canUse && this.stash.UseTopmostItem())
+                {
+                    this.audioSource.PlayOneShot(storable.ConsumedAudioClip);
                 }
             }
-
             this.ResetTransfer();
         }
 
@@ -467,8 +476,8 @@ namespace FrigidBlackwaters.Game
 
         private void SetDefaultHoverColors()
         {
-            this.highlightImage.color = this.defaultColor.ImmutableValue;
-            this.quantityText.color = this.defaultColor.ImmutableValue;
+            this.highlightImage.color = this.transferableColor.ImmutableValue;
+            this.quantityText.color = this.transferableColor.ImmutableValue;
         }
 
         private void ResetTransfer()

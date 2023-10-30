@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "PredefinedTiledLevelPlanner", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "PredefinedTiledLevelPlanner")]
+    [CreateAssetMenu(fileName = "PredefinedTiledLevelPlanner", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "PredefinedTiledLevelPlanner")]
     public class PredefinedTiledLevelPlanner : TiledLevelPlanner
     {
         [SerializeField]
@@ -15,10 +15,7 @@ namespace FrigidBlackwaters.Game
 
         protected override TiledLevelPlan CreateInitialLevelPlan(Dictionary<TiledEntrance, TiledArea> subLevelEntrancesAndContainedAreas)
         {
-            if (this.placements.Count == 0)
-            {
-                throw new Exception("No placements for PredefinedTiledLevelPlanner " + this.name + ".");
-            }
+            Debug.Assert(this.placements.Count > 0, "No placements for PredefinedTiledLevelPlanner " + this.name + ".");
 
             TiledLevelPlanArea mainPlanArea = new TiledLevelPlanArea(this.placements[0].BlueprintGroup);
             TiledLevelPlan levelPlan = new TiledLevelPlan(mainPlanArea);

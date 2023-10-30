@@ -54,7 +54,7 @@ namespace FrigidBlackwaters.Game
                 {
                     this.lastTimePulsed = Time.time;
                 }
-                cursorFill = equippedEquipment.ActiveAbilityResource.Progress;
+                cursorFill = equippedEquipment.AbilityResources.Count > 0 ? equippedEquipment.AbilityResources[0].Progress : 1f;
             }
             this.fillSpriteRenderer.sprite = this.fillSprites[Mathf.FloorToInt((this.fillSprites.Count - 1) * cursorFill)];
             this.pointSpriteRenderer.sprite = this.pulseSprites[Mathf.FloorToInt((this.pulseSprites.Count - 1) * Mathf.Clamp01((Time.time - this.lastTimePulsed) / this.pulseDuration))];

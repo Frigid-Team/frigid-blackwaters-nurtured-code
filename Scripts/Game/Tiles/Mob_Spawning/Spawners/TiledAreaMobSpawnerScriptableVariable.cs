@@ -4,6 +4,6 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "TiledAreaMobSpawnerScriptableVariable", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TiledAreaMobSpawnerScriptableVariable")]
+    [CreateAssetMenu(fileName = "TiledAreaMobSpawnerScriptableVariable", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TiledAreaMobSpawnerScriptableVariable")]
     public class TiledAreaMobSpawnerScriptableVariable : ScriptableVariable<TiledAreaMobSpawner> { }
 }

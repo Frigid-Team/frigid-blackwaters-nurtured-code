@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "ItemContainer", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.ITEMS + "ItemContainer")]
+    [CreateAssetMenu(fileName = "ItemContainer", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Items + "ItemContainer")]
     public class ItemContainer : FrigidScriptableObject
     {
         [SerializeField]

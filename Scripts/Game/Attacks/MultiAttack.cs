@@ -9,24 +9,37 @@ namespace FrigidBlackwaters.Game
     public class MultiAttack : Attack
     {
         [SerializeField]
-        private bool loop;
-        [SerializeField]
         private Step[] steps;
 
-        public override void Perform(float elapsedDuration, Action onComplete = null)
+        public override void Perform(float elapsedDuration, ref Action toForceComplete, Action onComplete = null)
         {
+            Action toForceAttackComplete = null;
+            toForceAttackComplete += () => toForceAttackComplete.Invoke();
             IEnumerator<FrigidCoroutine.Delay> StepThrough()
             {
+                int numberAttacks = 0;
+                foreach (Step step in this.steps)
+                {
+                    numberAttacks += step.Attacks.Length;
+                }
+                if (numberAttacks == 0)
+                {
+                    onComplete?.Invoke();
+                    yield break;
+                }
+                int numberAttacksCompleted = 0;
+
                 float accumulatedDuration = 0;
                 foreach (Step step in this.steps)
                 {
-                    int numberRepetitions = Mathf.Max(1, 1 + step.NumberRepetitionsByReference.MutableValue);
+                    int numberIterations = Mathf.Max(1, 1 + step.NumberRepetitionsByReference.MutableValue);
 
-                    for (int i = 0; i < numberRepetitions; i++)
+                    for (int i = 0; i < numberIterations; i++)
                     {
                         foreach (Attack attack in step.Attacks)
                         {
                             attack.DamageAlignment = this.DamageAlignment;
+                            attack.IsIgnoringDamage = this.IsIgnoringDamage;
                             Action<HitInfo> onHitDealt = this.OnHitDealt;
                             Action<BreakInfo> onBreakDealt = this.OnBreakDealt;
                             Action<ThreatInfo> onThreatDealt = this.OnThreatDealt;
@@ -37,12 +50,19 @@ namespace FrigidBlackwaters.Game
                             attack.OnThreatDealt += onThreatDealt;
                             attack.Perform(
                                 elapsedDuration + accumulatedDuration, 
+                                ref toForceAttackComplete,
                                 () => 
                                 {
                                     attack.DamageBonus -= this.DamageBonus;
                                     attack.OnHitDealt -= onHitDealt;
                                     attack.OnBreakDealt -= onBreakDealt;
                                     attack.OnThreatDealt -= onThreatDealt;
+
+                                    numberAttacksCompleted++;
+                                    if (numberAttacksCompleted == numberAttacks)
+                                    {
+                                        onComplete?.Invoke();
+                                    }
                                 }
                                 );
                         }
@@ -52,9 +72,9 @@ namespace FrigidBlackwaters.Game
                         accumulatedDuration += duration;
                     }
                 }
-                onComplete?.Invoke();
             }
-            FrigidCoroutine.Run(StepThrough(), this.gameObject);
+            FrigidCoroutine stepThroughRoutine = FrigidCoroutine.Run(StepThrough(), this.gameObject);
+            toForceComplete += () => FrigidCoroutine.Kill(stepThroughRoutine);
         }
 
         [Serializable]

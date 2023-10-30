@@ -53,11 +53,7 @@ namespace FrigidBlackwaters.Game
             ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
             if (!particleProperty.Loop)
             {
-                particleProperty.SetPlayThisFrame(animationIndex, frameIndex, EditorGUILayout.Toggle("Play This Frame", particleProperty.GetPlayThisFrame(animationIndex, frameIndex)));
-                if (particleProperty.GetPlayThisFrame(animationIndex, frameIndex))
-                {
-                    particleProperty.SetOnlyPlayOnFirstCycle(animationIndex, frameIndex, EditorGUILayout.Toggle("Only Play On First Cycle", particleProperty.GetOnlyPlayOnFirstCycle(animationIndex, frameIndex)));
-                }
+                particleProperty.SetPlayBehaviour(animationIndex, frameIndex, (ParticleAnimatorProperty.PlayBehaviour)EditorGUILayout.EnumPopup(particleProperty.GetPlayBehaviour(animationIndex, frameIndex)));
             }
             base.DrawFrameEditFields(animationIndex, frameIndex);
         }
@@ -92,7 +88,7 @@ namespace FrigidBlackwaters.Game
         public override void DrawFrameCellPreview(Vector2 cellSize, int animationIndex, int frameIndex)
         {
             ParticleAnimatorProperty particleProperty = (ParticleAnimatorProperty)this.Property;
-            if (!particleProperty.Loop && particleProperty.GetPlayThisFrame(animationIndex, frameIndex))
+            if (!particleProperty.Loop && particleProperty.GetPlayBehaviour(animationIndex, frameIndex) != ParticleAnimatorProperty.PlayBehaviour.NoPlay)
             {
                 using (new UtilityGUI.ColorScope(this.AccentColor))
                 {

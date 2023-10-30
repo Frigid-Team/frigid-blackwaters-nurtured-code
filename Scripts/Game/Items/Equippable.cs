@@ -19,12 +19,12 @@ namespace FrigidBlackwaters.Game
         private bool hasEquippedEffect;
         [SerializeField]
         [ShowIfBool("hasEquippedEffect", true)]
-        private ItemNode equippedRootNode;
+        private ItemEffectNode equippedRootEffectNode;
         [SerializeField]
         private bool hasUnequippedEffect;
         [SerializeField]
         [ShowIfBool("hasUnequippedEffect", true)]
-        private ItemNode unequippedRootNode;
+        private ItemEffectNode unequippedRootEffectNode;
 
         public override bool IsUsable
         {
@@ -42,8 +42,8 @@ namespace FrigidBlackwaters.Game
                 {
                     this.InUse = true;
                     this.StorageChangeable = false;
-                    if (this.hasEquippedEffect) this.ActivateRootNode(this.equippedRootNode);
-                    if (this.hasUnequippedEffect) this.DeactivateRootNode(this.unequippedRootNode);
+                    if (this.hasEquippedEffect) this.AddRootEffectNode(this.equippedRootEffectNode);
+                    if (this.hasUnequippedEffect) this.RemoveRootEffectNode(this.unequippedRootEffectNode);
                 }
             }
             else
@@ -51,38 +51,56 @@ namespace FrigidBlackwaters.Game
                 if (this.Storage.PowerBudget.TryReleasePower(this) && this.Storage.PowerBudget.TryDecreaseMaxPower(this))
                 {
                     this.InUse = false;
-                    if (this.hasUnequippedEffect) this.ActivateRootNode(this.unequippedRootNode);
-                    if (this.hasEquippedEffect) this.DeactivateRootNode(this.equippedRootNode);
+                    if (this.hasUnequippedEffect) this.AddRootEffectNode(this.unequippedRootEffectNode);
+                    if (this.hasEquippedEffect) this.RemoveRootEffectNode(this.equippedRootEffectNode);
                 }
             }
             this.StorageChangeable = !this.InUse && !this.cannotChangeStorageWhenEquippable;
             return false;
         }
 
+        public override void Created()
+        {
+            base.Created();
+            this.InUse = false;
+            this.StorageChangeable = true;
+        }
+
         public override void Stored()
         {
             base.Stored();
-            this.InUse = false;
             this.StorageChangeable = !this.IsUsable || !this.cannotChangeStorageWhenEquippable;
-            if (this.hasUnequippedEffect) this.ActivateRootNode(this.unequippedRootNode);
         }
 
         public override void Unstored()
         {
             base.Unstored();
-            if (this.hasUnequippedEffect) this.DeactivateRootNode(this.unequippedRootNode);
-            this.InUse = false;
+            if (this.InUse)
+            {
+                if (this.hasUnequippedEffect) this.AddRootEffectNode(this.unequippedRootEffectNode);
+                if (this.hasEquippedEffect) this.RemoveRootEffectNode(this.equippedRootEffectNode);
+                this.InUse = false;
+            }
             this.StorageChangeable = true;
         }
 
-        protected override HashSet<ItemNode> RootNodes
+        protected override HashSet<ItemEffectNode> InitialRootEffectNodes
         {
             get
             {
-                HashSet<ItemNode> rootNodes = new HashSet<ItemNode>();
-                if (this.hasEquippedEffect) rootNodes.Add(this.equippedRootNode);
-                if (this.hasUnequippedEffect) rootNodes.Add(this.unequippedRootNode);
-                return rootNodes;
+                if (this.hasUnequippedEffect) return new HashSet<ItemEffectNode>() { this.unequippedRootEffectNode };
+                return new HashSet<ItemEffectNode>();
+            }
+        }
+
+        protected override HashSet<ItemEffectNode> ReferencedRootEffectNodes
+        {
+            get
+            {
+                HashSet<ItemEffectNode> referencedRootEffectNodes = new HashSet<ItemEffectNode>();
+                if (this.hasEquippedEffect) referencedRootEffectNodes.Add(this.equippedRootEffectNode);
+                if (this.hasUnequippedEffect) referencedRootEffectNodes.Add(this.unequippedRootEffectNode);
+                return referencedRootEffectNodes;
             }
         }
     }

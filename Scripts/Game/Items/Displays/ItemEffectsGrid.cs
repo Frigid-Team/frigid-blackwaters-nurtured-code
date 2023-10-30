@@ -68,7 +68,7 @@ namespace FrigidBlackwaters.Game
 
         private void RemoveSlot(ItemStorable storable, Item item)
         {
-            this.slotsPool.Pool(this.currentSlots[(storable, item)]);
+            this.slotsPool.Return(this.currentSlots[(storable, item)]);
             this.currentSlots.Remove((storable, item));
             this.SortCurrentSlots();
         }

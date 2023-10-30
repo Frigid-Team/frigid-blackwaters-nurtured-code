@@ -107,29 +107,29 @@ namespace FrigidBlackwaters.Game
             return this.materialTweensOnReceived.Count;
         }
 
-        public void AddMaterialTweenOnReceivedAt(int index)
+        public void AddMaterialTweenOnReceivedAt(int tweenIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.materialTweensOnReceived.Insert(index, new MaterialTweenOptionSetSerializedReference());
+            this.materialTweensOnReceived.Insert(tweenIndex, new MaterialTweenOptionSetSerializedReference());
         }
 
-        public void RemoveMaterialTweenOnReceivedAt(int index)
+        public void RemoveMaterialTweenOnReceivedAt(int tweenIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.materialTweensOnReceived.RemoveAt(index);
+            this.materialTweensOnReceived.RemoveAt(tweenIndex);
         }
 
-        public MaterialTweenOptionSetSerializedReference GetMaterialTweenOnReceivedByReferenceAt(int index)
+        public MaterialTweenOptionSetSerializedReference GetMaterialTweenOnReceivedByReferenceAt(int tweenIndex)
         {
-            return this.materialTweensOnReceived[index];
+            return this.materialTweensOnReceived[tweenIndex];
         }
 
-        public void SetMaterialTweenOnReceivedByReferenceAt(int index, MaterialTweenOptionSetSerializedReference materialEffectOnReceived)
+        public void SetMaterialTweenOnReceivedByReferenceAt(int tweenIndex, MaterialTweenOptionSetSerializedReference materialEffectOnReceived)
         {
-            if (this.materialTweensOnReceived[index] != materialEffectOnReceived)
+            if (this.materialTweensOnReceived[tweenIndex] != materialEffectOnReceived)
             {
                 FrigidEdit.RecordChanges(this);
-                this.materialTweensOnReceived[index] = materialEffectOnReceived;
+                this.materialTweensOnReceived[tweenIndex] = materialEffectOnReceived;
             }
         } 
 

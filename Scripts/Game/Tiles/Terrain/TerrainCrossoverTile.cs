@@ -9,9 +9,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private string[] animationNames;
 
-        public void Populated(Vector2 direction, bool isOuter)
+        public void Populated(Vector2 direction, bool isInner)
         {
-            float crossoverAngleRad = Mathf.Atan2(direction.y, direction.x) + (isOuter ? 1 : -1) * Mathf.PI / 16;
+            float crossoverAngleRad = Mathf.Atan2(direction.y, direction.x) + (isInner ? 1 : -1) * Mathf.PI / 16;
             this.animatorBody.Play(this.animationNames[Random.Range(0, this.animationNames.Length)]);
             this.animatorBody.Direction = new Vector2(Mathf.Cos(crossoverAngleRad), Mathf.Sin(crossoverAngleRad));
         }

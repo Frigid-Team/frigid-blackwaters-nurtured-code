@@ -4,13 +4,11 @@ namespace FrigidBlackwaters.Game
 {
     public class ThreatInfo : DamageInfo
     {
-        private float timeThreatened;
         private Vector2 threatPosition;
         private Vector2 threatDirection;
 
         public ThreatInfo(Vector2 threatPosition, Vector2 threatDirection, Collider2D collision) : base(collision)
         {
-            this.timeThreatened = Time.time;
             this.threatPosition = threatPosition;
             this.threatDirection = threatDirection;
         }
@@ -20,14 +18,6 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return true;
-            }
-        }
-
-        public float TimeWarned
-        {
-            get
-            {
-                return this.timeThreatened;
             }
         }
 

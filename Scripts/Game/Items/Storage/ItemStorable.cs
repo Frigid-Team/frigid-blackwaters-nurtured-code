@@ -5,7 +5,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "ItemStorable", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.ITEMS + "ItemStorable")]
+    [CreateAssetMenu(fileName = "ItemStorable", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Items + "ItemStorable")]
     public class ItemStorable : FrigidScriptableObject
     {
         [SerializeField]
@@ -15,11 +15,13 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private ItemRarity rarity;
         [SerializeField]
+        private IntSerializedReference stackSize;
+        [SerializeField]
         private bool ignoreBuyCostModifiers;
         [SerializeField]
         private IntSerializedReference currencyValue;
         [SerializeField]
-        private IntSerializedReference stackSize;
+        private bool isUniqueUse;
 
         [Header("Display")]
         [SerializeField]
@@ -80,6 +82,14 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.currencyValue.ImmutableValue;
+            }
+        }
+
+        public bool IsUniqueUse
+        {
+            get
+            {
+                return this.isUniqueUse;
             }
         }
 
@@ -157,7 +167,9 @@ namespace FrigidBlackwaters.Game
 
         public Item CreateItem()
         {
-            return FrigidMonoBehaviour.CreateInstance<Item>(this.itemPrefab);
+            Item item = FrigidMonoBehaviour.CreateInstance<Item>(this.itemPrefab);
+            item.Created();
+            return item;
         }
 
         public List<Item> CreateItems(int quantity)
@@ -172,6 +184,7 @@ namespace FrigidBlackwaters.Game
 
         public static void DiscardItem(Item item)
         {
+            item.Discarded();
             FrigidMonoBehaviour.DestroyInstance(item);
         }
 

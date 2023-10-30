@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "OneRandomTiledAreaMobSpawner", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "OneRandomTiledAreaMobSpawner")]
+    [CreateAssetMenu(fileName = "OneRandomTiledAreaMobSpawner", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "OneRandomTiledAreaMobSpawner")]
     public class OneRandomTiledAreaMobSpawner : TiledAreaMobSpawner
     {
         [SerializeField]

@@ -161,7 +161,7 @@ namespace FrigidBlackwaters.Game
                         {
                             if (this.startupEmpty)
                             {
-                                string assetPath = FileUtility.AssetsRelativePath(EditorUtility.SaveFilePanel("Pick Empty Blueprint Path", FrigidPaths.ProjectFolder.ASSETS, "New_Blueprint", "asset"));
+                                string assetPath = FileUtility.AssetsRelativePath(EditorUtility.SaveFilePanel("Pick Empty Blueprint Path", FrigidPaths.ProjectFolder.Assets, "New_Blueprint", "asset"));
                                 assetPath = AssetDatabase.GenerateUniqueAssetPath(assetPath);
                                 this.editBlueprint = TiledAreaBlueprint.CreateEmpty(assetPath, this.startupAreaPrefab, this.startupDimensions, this.startupTerrainTileAsset, this.startupWallTileAsset);
                             }
@@ -199,7 +199,7 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        [MenuItem(FrigidPaths.MenuItem.WINDOW + "Cartographer")]
+        [MenuItem(FrigidPaths.MenuItem.Window + "Cartographer")]
         private static void ShowCartographerTool()
         {
             Show<CartographerTool>();
@@ -340,8 +340,8 @@ namespace FrigidBlackwaters.Game
 
                             Vector2 contentLocalPosition = WallTiling.EdgeExtentLocalPositionFromWallIndexDirectionAndExtentIndex(wallIndexDirection, tileIndex, this.editBlueprint.MainAreaDimensions, width);
                             contentLocalPosition *= tileDrawSize * new Vector2(1, -1);
-                            contentLocalPosition += entrancePivot * tileDrawSize / FrigidConstants.PIXELS_PER_UNIT;
-                            Vector2 contentSize = new Vector2(entranceTexture.width, entranceTexture.height) * tileDrawSize / FrigidConstants.PIXELS_PER_UNIT;
+                            contentLocalPosition += entrancePivot * tileDrawSize / FrigidConstants.PixelsPerUnit;
+                            Vector2 contentSize = new Vector2(entranceTexture.width, entranceTexture.height) * tileDrawSize / FrigidConstants.PixelsPerUnit;
                             Rect contentRect = new Rect(areaPreviewCenter + contentLocalPosition - contentSize / 2, contentSize);
 
                             GUI.DrawTexture(contentRect, entranceTexture);
@@ -404,8 +404,8 @@ namespace FrigidBlackwaters.Game
 
                                     Vector2 contentLocalPosition = WallTiling.EdgeExtentLocalPositionFromWallIndexDirectionAndExtentIndex(wallIndexDirection, tileIndex, this.editBlueprint.MainAreaDimensions, wallContentAssetToDraw.GetWidth(orientationDirectionToDraw));
                                     contentLocalPosition *= tileDrawSize * new Vector2(1, -1);
-                                    contentLocalPosition += contentPivot * tileDrawSize / FrigidConstants.PIXELS_PER_UNIT;
-                                    Vector2 contentSize = new Vector2(contentTexture.width, contentTexture.height) * tileDrawSize / FrigidConstants.PIXELS_PER_UNIT;
+                                    contentLocalPosition += contentPivot * tileDrawSize / FrigidConstants.PixelsPerUnit;
+                                    Vector2 contentSize = new Vector2(contentTexture.width, contentTexture.height) * tileDrawSize / FrigidConstants.PixelsPerUnit;
                                     Rect contentRect = new Rect(areaPreviewCenter + contentLocalPosition - contentSize / 2, contentSize);
                                     using (new UtilityGUI.ColorScope(tintColor))
                                     {
@@ -469,8 +469,8 @@ namespace FrigidBlackwaters.Game
 
                                     Vector2 contentLocalPosition = AreaTiling.RectLocalPositionFromIndexPosition(tileIndexPosition, this.editBlueprint.MainAreaDimensions, terrainContentAssetToDraw.GetDimensions(orientationDirectionToDraw));
                                     contentLocalPosition *= tileDrawSize * new Vector2(1, -1);
-                                    contentLocalPosition += contentPivot * tileDrawSize / FrigidConstants.PIXELS_PER_UNIT;
-                                    Vector2 contentSize = new Vector2(contentTexture.width, contentTexture.height) * tileDrawSize / FrigidConstants.PIXELS_PER_UNIT;
+                                    contentLocalPosition += contentPivot * tileDrawSize / FrigidConstants.PixelsPerUnit;
+                                    Vector2 contentSize = new Vector2(contentTexture.width, contentTexture.height) * tileDrawSize / FrigidConstants.PixelsPerUnit;
                                     Rect contentRect = new Rect(areaPreviewCenter + contentLocalPosition - contentSize / 2, contentSize);
                                     using (new UtilityGUI.ColorScope(tintColor))
                                     {
@@ -874,25 +874,25 @@ namespace FrigidBlackwaters.Game
                     UtilityGUILayout.IndexedList(
                         isExclusive ? "Exclusive Mob Spawnables" : "Excluded Mob Spawnables",
                         filteredMobSpawnables.Count,
-                        (int index) => filteredMobSpawnables.Insert(index, null),
+                        (int spawnableIndex) => filteredMobSpawnables.Insert(spawnableIndex, null),
                         filteredMobSpawnables.RemoveAt,
-                        (int index) => filteredMobSpawnables[index] = (MobSpawnable)EditorGUILayout.ObjectField(filteredMobSpawnables[index], typeof(MobSpawnable), false)
+                        (int spawnableIndex) => filteredMobSpawnables[spawnableIndex] = (MobSpawnable)EditorGUILayout.ObjectField(filteredMobSpawnables[spawnableIndex], typeof(MobSpawnable), false)
                         );
                     List<MobSpawnTag> filteredMobSpawnTags = new List<MobSpawnTag>(currentSpawnPoint.FilteredMobSpawnTags);
                     UtilityGUILayout.IndexedList(
                         isExclusive ? "Exclusive Mob Spawn Tags" : "Excluded Mob Spawn Tags",
                         filteredMobSpawnTags.Count,
-                        (int index) => filteredMobSpawnTags.Insert(index, null),
+                        (int tagIndex) => filteredMobSpawnTags.Insert(tagIndex, null),
                         filteredMobSpawnTags.RemoveAt,
-                        (int index) => filteredMobSpawnTags[index] = (MobSpawnTag)EditorGUILayout.ObjectField(filteredMobSpawnTags[index], typeof(MobSpawnTag), false)
+                        (int tagIndex) => filteredMobSpawnTags[tagIndex] = (MobSpawnTag)EditorGUILayout.ObjectField(filteredMobSpawnTags[tagIndex], typeof(MobSpawnTag), false)
                         );
                     List<Core.Span<int>> filteredTierSpans = new List<Core.Span<int>>(currentSpawnPoint.FilteredTierSpans);
                     UtilityGUILayout.IndexedList(
                         isExclusive ? "Exclusive Tier Spans" : "Excluded Tier Spans",
                         filteredTierSpans.Count,
-                        (int index) => filteredTierSpans.Insert(index, new Core.Span<int>(0, 0)),
+                        (int spanIndex) => filteredTierSpans.Insert(spanIndex, new Core.Span<int>(0, 0)),
                         filteredTierSpans.RemoveAt,
-                        (int index) => filteredTierSpans[index] = CoreGUILayout.IntSpanField(filteredTierSpans[index])
+                        (int spanIndex) => filteredTierSpans[spanIndex] = CoreGUILayout.IntSpanField(filteredTierSpans[spanIndex])
                         );
                     this.editBlueprint.SetMobSpawnPoint(this.chosenSpawnerIndex, this.chosenSpawnPointIndex, new TiledAreaMobSpawnPoint(localPosition, isExclusive, filteredMobSpawnables, filteredMobSpawnTags, filteredTierSpans));
                 }

@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Utility
         protected override bool EvaluateWithRootObject(ShowIfAttribute showIfAttribute, SerializedObject rootObject, List<InspectorDrawnFieldRecord> drawnFieldRecords)
         {
             ShowIfMethodAttribute showIfMethodAttribute = (ShowIfMethodAttribute)showIfAttribute;
-            MethodInfo methodInfo = rootObject.targetObject.GetType().GetDerivedMethod(showIfMethodAttribute.MethodName, InspectorUtility.SEARCH_FLAGS);
+            MethodInfo methodInfo = rootObject.targetObject.GetType().GetDerivedMethod(showIfMethodAttribute.MethodName, InspectorUtility.SearchFlags);
             return methodInfo == null || methodInfo.ReturnType != typeof(bool) || methodInfo.GetParameters().Length > 0 || (bool)methodInfo.Invoke(rootObject.targetObject, null);
         }
 
@@ -19,7 +19,7 @@ namespace FrigidBlackwaters.Utility
         {
             FieldInfo propertyFieldInfo = InspectorUtility.GetFieldFromSerializedProperty(rootProperty);
             ShowIfMethodAttribute showIfMethodAttribute = (ShowIfMethodAttribute)showIfAttribute;
-            MethodInfo methodInfo = propertyFieldInfo.DeclaringType.GetDerivedMethod(showIfMethodAttribute.MethodName, InspectorUtility.SEARCH_FLAGS);
+            MethodInfo methodInfo = propertyFieldInfo.DeclaringType.GetDerivedMethod(showIfMethodAttribute.MethodName, InspectorUtility.SearchFlags);
             return methodInfo == null || methodInfo.ReturnType != typeof(bool) || methodInfo.GetParameters().Length > 0 || (bool)methodInfo.Invoke(InspectorUtility.GetObjectFromSerializedProperty(rootProperty), null);
         }
     }

@@ -38,9 +38,9 @@ namespace FrigidBlackwaters.Game
                 damageReceiverBoxProperty.GetNumberMaterialTweensOnReceived(),
                 damageReceiverBoxProperty.AddMaterialTweenOnReceivedAt,
                 damageReceiverBoxProperty.RemoveMaterialTweenOnReceivedAt,
-                (int index) => damageReceiverBoxProperty.SetMaterialTweenOnReceivedByReferenceAt(
-                    index, 
-                    CoreGUILayout.MaterialTweenTemplateSerializedReferenceField("Material Tween On Received", damageReceiverBoxProperty.GetMaterialTweenOnReceivedByReferenceAt(index))
+                (int tweenIndex) => damageReceiverBoxProperty.SetMaterialTweenOnReceivedByReferenceAt(
+                    tweenIndex, 
+                    CoreGUILayout.MaterialTweenTemplateSerializedReferenceField("Material Tween On Received", damageReceiverBoxProperty.GetMaterialTweenOnReceivedByReferenceAt(tweenIndex))
                     )
                 );
             base.DrawGeneralEditFields();

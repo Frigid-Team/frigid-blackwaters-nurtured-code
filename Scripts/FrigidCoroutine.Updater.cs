@@ -7,9 +7,9 @@ namespace FrigidBlackwaters
     {
         private class Updater : MonoBehaviour
         {
-            private const int INITIAL_BUFFER_SIZE = 256;
-            private const float RESIZE_FACTOR = 1.4142f;
-            private const short FRAMES_UNTIL_MAINTENANCE = 64;
+            private const int InitialBufferSize = 256;
+            private const float ResizeFactor = 1.4142f;
+            private const short FramesUntilMaintenance = 64;
 
             private static Updater instance;
 
@@ -46,7 +46,7 @@ namespace FrigidBlackwaters
                 if (this.nextRoutineIndex == this.coroutines.Length)
                 {
                     FrigidCoroutine[] previousRoutines = this.coroutines;
-                    this.coroutines = new FrigidCoroutine[Mathf.RoundToInt(this.coroutines.Length * RESIZE_FACTOR)];
+                    this.coroutines = new FrigidCoroutine[Mathf.RoundToInt(this.coroutines.Length * ResizeFactor)];
                     for (int i = 0; i < this.nextRoutineIndex; i++)
                     {
                         this.coroutines[i] = previousRoutines[i];
@@ -89,7 +89,7 @@ namespace FrigidBlackwaters
 
             private void Awake()
             {
-                this.coroutines = new FrigidCoroutine[INITIAL_BUFFER_SIZE];
+                this.coroutines = new FrigidCoroutine[InitialBufferSize];
                 this.nextRoutineIndex = 0;
                 this.numFramesSinceLastMaintenance = 0;
 #if UNITY_EDITOR
@@ -141,7 +141,7 @@ namespace FrigidBlackwaters
                     }
                 }
 
-                if (this.numFramesSinceLastMaintenance >= FRAMES_UNTIL_MAINTENANCE)
+                if (this.numFramesSinceLastMaintenance >= FramesUntilMaintenance)
                 {
                     int inner;
                     int outer;
@@ -160,8 +160,8 @@ namespace FrigidBlackwaters
                     }
                     this.nextRoutineIndex = inner;
 
-                    int resizeLength = Mathf.RoundToInt(this.coroutines.Length / (RESIZE_FACTOR * RESIZE_FACTOR));
-                    if (resizeLength >= INITIAL_BUFFER_SIZE && this.nextRoutineIndex <= resizeLength)
+                    int resizeLength = Mathf.RoundToInt(this.coroutines.Length / (ResizeFactor * ResizeFactor));
+                    if (resizeLength >= InitialBufferSize && this.nextRoutineIndex <= resizeLength)
                     {
                         FrigidCoroutine[] previousRoutines = this.coroutines;
                         this.coroutines = new FrigidCoroutine[resizeLength];

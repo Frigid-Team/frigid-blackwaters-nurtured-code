@@ -5,6 +5,7 @@ namespace FrigidBlackwaters.Game
         Polygon,
         Circle,
         Box,
-        Capsule
+        Capsule,
+        Line
     }
 }

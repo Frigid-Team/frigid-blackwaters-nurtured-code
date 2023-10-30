@@ -28,15 +28,10 @@ namespace FrigidBlackwaters.Game
         public override void Exit()
         {
             base.Exit();
-            foreach (KeyValuePair<Mob, List<MobBehaviour>> affecteeAndBehaviours in this.affecteesAndBehaviours)
+            List<Mob> affectees = this.affecteesAndBehaviours.Keys.ToList();
+            foreach (Mob affectee in affectees)
             {
-                Mob affectee = affecteeAndBehaviours.Key;
-                List<MobBehaviour> behaviours = affecteeAndBehaviours.Value;
-                foreach (MobBehaviour behaviour in behaviours)
-                {
-                    affectee.RemoveBehaviour(behaviour);
-                    behaviour.transform.SetParent(this.transform);
-                }
+                this.RemoveAffectee(affectee);
             }
             this.affecteesAndBehaviours = null;
         }
@@ -55,18 +50,7 @@ namespace FrigidBlackwaters.Game
 
                 if (Vector2.Distance(potentialAffectee.Position, this.originTargeter.Retrieve(Vector2.zero, 0, 0)) <= this.effectRadius.ImmutableValue && potentialAffectee.Status != MobStatus.Dead)
                 {
-                    List<MobBehaviour> auraBehaviours = new List<MobBehaviour>();
-                    foreach (MobBehaviour childBehaviour in this.childBehaviours)
-                    {
-                        auraBehaviours.Add(CreateInstance<MobBehaviour>(childBehaviour));
-                    }
-                    foreach(MobBehaviour behaviour in auraBehaviours)
-                    {
-                        behaviour.transform.SetParent(potentialAffectee.transform);
-                        behaviour.transform.localPosition = Vector3.zero;
-                        potentialAffectee.AddBehaviour(behaviour, this.Owner.GetIsIgnoringTimeScale(this));
-                    }
-                    this.affecteesAndBehaviours.Add(potentialAffectee, auraBehaviours);
+                    this.AddAffectee(potentialAffectee);
                 }
             }
 
@@ -75,15 +59,36 @@ namespace FrigidBlackwaters.Game
             {
                 if (Vector2.Distance(affectee.Position, this.originTargeter.Retrieve(Vector2.zero, 0, 0)) > this.effectRadius.ImmutableValue || affectee.Status == MobStatus.Dead)
                 {
-                    foreach (MobBehaviour behaviour in this.affecteesAndBehaviours[affectee])
-                    {
-                        affectee.RemoveBehaviour(behaviour);
-                        behaviour.transform.SetParent(this.transform);
-                        DestroyInstance(behaviour);
-                    }
-                    this.affecteesAndBehaviours.Remove(affectee);
+                    this.RemoveAffectee(affectee);
                 }
             }
+        }
+
+        private void AddAffectee(Mob affectee)
+        {
+            List<MobBehaviour> auraBehaviours = new List<MobBehaviour>();
+            foreach (MobBehaviour childBehaviour in this.childBehaviours)
+            {
+                auraBehaviours.Add(CreateInstance<MobBehaviour>(childBehaviour));
+            }
+            foreach (MobBehaviour behaviour in auraBehaviours)
+            {
+                behaviour.transform.SetParent(affectee.transform);
+                behaviour.transform.localPosition = Vector3.zero;
+                affectee.AddBehaviour(behaviour, this.Owner.GetIsIgnoringTimeScale(this));
+            }
+            this.affecteesAndBehaviours.Add(affectee, auraBehaviours);
+        }
+
+        private void RemoveAffectee(Mob affectee)
+        {
+            foreach (MobBehaviour behaviour in this.affecteesAndBehaviours[affectee])
+            {
+                affectee.RemoveBehaviour(behaviour);
+                behaviour.transform.SetParent(this.transform);
+                DestroyInstance(behaviour);
+            }
+            this.affecteesAndBehaviours.Remove(affectee);
         }
     }
 }

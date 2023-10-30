@@ -8,14 +8,6 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private string waitAnimationName;
 
-        public override HashSet<MobStateNode> ReferencedStateNodes
-        {
-            get
-            {
-                return new HashSet<MobStateNode>();
-            }
-        }
-
         public override bool AutoEnter
         {
             get
@@ -56,24 +48,46 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public override void Enter()
+        public override void EnterSelf()
         {
-            base.Enter();
+            base.EnterSelf();
             this.Owner.StopVelocities.Request();
-            this.Owner.StopDealingDamage.Request();
             this.Owner.StopReceivingDamage.Request();
             this.Owner.RequestPushMode(MobPushMode.IgnoreEverything);
 
             this.OwnerAnimatorBody.Play(this.waitAnimationName);
         }
 
-        public override void Exit()
+        public override void ExitSelf()
         {
-            base.Exit();
+            base.ExitSelf();
             this.Owner.StopVelocities.Release();
-            this.Owner.StopDealingDamage.Release();
             this.Owner.StopReceivingDamage.Release();
             this.Owner.ReleasePushMode(MobPushMode.IgnoreEverything);
+        }
+
+        protected override HashSet<MobStateNode> SpawnStateNodes
+        {
+            get
+            {
+                return new HashSet<MobStateNode>() { this };
+            }
+        }
+
+        protected override HashSet<MobStateNode> MoveStateNodes
+        {
+            get
+            {
+                return new HashSet<MobStateNode>() { this };
+            }
+        }
+
+        protected override HashSet<MobStateNode> ChildStateNodes
+        {
+            get
+            {
+                return new HashSet<MobStateNode>();
+            }
         }
     }
 }

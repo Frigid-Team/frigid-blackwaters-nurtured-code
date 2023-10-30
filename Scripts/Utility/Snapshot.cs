@@ -9,8 +9,8 @@ namespace FrigidBlackwaters.Utility
 {
     public static class Snapshot
     {
-        private const int DEPTH_BUFFER = 24;
-        private const string SNAPSHOT_PREFAB_PATH = "Assets/Prefabs/Editor/Snapshot.prefab";
+        private const string SnapshotPrefabPath = "Assets/Prefabs/Editor/Snapshot.prefab";
+        private const int DepthBuffer = 24;
 
         public static void SnapPrefab<T>(T prefab, Action<T> onSetup, out Texture2D texture, out Vector2 pivot) where T : MonoBehaviour
         {
@@ -35,14 +35,14 @@ namespace FrigidBlackwaters.Utility
                 }
             }
 
-            texture = Snap(Mathf.RoundToInt(bounds.size.x * FrigidConstants.PIXELS_PER_UNIT), Mathf.RoundToInt(bounds.size.y * FrigidConstants.PIXELS_PER_UNIT), bounds.center, scene);
-            pivot = bounds.center * FrigidConstants.PIXELS_PER_UNIT * new Vector2(1, -1);
+            texture = Snap(Mathf.RoundToInt(bounds.size.x * FrigidConstants.PixelsPerUnit), Mathf.RoundToInt(bounds.size.y * FrigidConstants.PixelsPerUnit), bounds.center, scene);
+            pivot = bounds.center * FrigidConstants.PixelsPerUnit * new Vector2(1, -1);
             EditorSceneManager.ClosePreviewScene(scene);
         }
 
         private static Texture2D Snap(int widthPixels, int heightPixels, Vector2 pos, Scene previewScene)
         {
-            PrefabUtility.LoadPrefabContentsIntoPreviewScene(SNAPSHOT_PREFAB_PATH, previewScene);
+            PrefabUtility.LoadPrefabContentsIntoPreviewScene(SnapshotPrefabPath, previewScene);
             foreach (GameObject rootGameObject in previewScene.GetRootGameObjects())
             {
                 if (rootGameObject.TryGetComponent<Camera>(out Camera camera))
@@ -53,15 +53,14 @@ namespace FrigidBlackwaters.Utility
 
                     camera.cullingMask = 1 << (int)FrigidLayer.Snapshot;
                     camera.orthographic = true;
-                    camera.orthographicSize = (float)heightPixels / FrigidConstants.PIXELS_PER_UNIT / 2f;
+                    camera.orthographicSize = (float)heightPixels / FrigidConstants.PixelsPerUnit / 2f;
                     camera.clearFlags = CameraClearFlags.SolidColor;
                     camera.backgroundColor = Color.clear;
                     camera.nearClipPlane = 0.0f;
                     camera.enabled = false;
                     camera.cameraType = CameraType.Preview;
                     camera.scene = previewScene;
-
-                    camera.targetTexture = RenderTexture.GetTemporary(widthPixels, heightPixels, DEPTH_BUFFER);
+                    camera.targetTexture = RenderTexture.GetTemporary(widthPixels, heightPixels, DepthBuffer);
                     camera.Render();
                     RenderTexture previouslyActiveRenderTexture = RenderTexture.active;
                     RenderTexture.active = camera.targetTexture;

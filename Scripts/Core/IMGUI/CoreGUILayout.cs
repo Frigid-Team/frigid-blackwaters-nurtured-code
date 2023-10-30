@@ -9,6 +9,34 @@ namespace FrigidBlackwaters.Core
 {
     public class CoreGUILayout
     {
+        public static object MaterialPropertyField(string label, MaterialProperties.Type propertyType, object value)
+        {
+            switch (propertyType)
+            {
+                case MaterialProperties.Type.Color:
+                    return EditorGUILayout.ColorField(label, (Color)value);
+                case MaterialProperties.Type.Boolean:
+                    return EditorGUILayout.Toggle(label, (bool)value);
+                case MaterialProperties.Type.Float:
+                    return EditorGUILayout.FloatField(label, (float)value);
+            }
+            return default;
+        }
+
+        public static object MaterialPropertySerializedReferenceField(string label, MaterialProperties.Type propertyType, object serializedReference)
+        {
+            switch (propertyType)
+            {
+                case MaterialProperties.Type.Color:
+                    return ColorSerializedReferenceField(label, (ColorSerializedReference)serializedReference);
+                case MaterialProperties.Type.Boolean:
+                    return BoolSerializedReferenceField(label, (BoolSerializedReference)serializedReference);
+                case MaterialProperties.Type.Float:
+                    return FloatSerializedReferenceField(label, (FloatSerializedReference)serializedReference);
+            }
+            return default;
+        }
+
         public static MaterialTweenOptionSetSerializedReference MaterialTweenTemplateSerializedReferenceField(string label, MaterialTweenOptionSetSerializedReference serializedReference)
         {
             return UtilityGUILayout.SerializedReferenceField<MaterialTweenOptionSetSerializedReference, MaterialTweenOptionSet>(
@@ -18,15 +46,18 @@ namespace FrigidBlackwaters.Core
                 );
         }
 
-        public static MaterialTweenOptionSet MaterialTweenOptionSetField(string label, MaterialTweenOptionSet template)
+        public static MaterialTweenOptionSet MaterialTweenOptionSetField(string label, MaterialTweenOptionSet materialTweenOptionSet)
         {
-            if (template == null) return null;
+            if (materialTweenOptionSet == null) return null;
 
-            TweenOptionSet tweenRoutine = template.TweenRoutine;
-            bool setToOriginValueAfterIteration = template.SetToOriginValueAfterIteration;
-            MaterialProperties.ColorProperty colorProperty = template.ColorProperty;
-            Color originColor = template.OriginColor;
-            Color targetColor = template.TargetColor;
+            TweenOptionSet tweenRoutine = materialTweenOptionSet.TweenRoutine;
+            bool setToOriginValueAfterIteration = materialTweenOptionSet.SetToOriginValueAfterIteration;
+            string propertyId = materialTweenOptionSet.PropertyId;
+            MaterialProperties.Type propertyType = materialTweenOptionSet.PropertyType;
+            Color originColor = materialTweenOptionSet.OriginColor;
+            Color targetColor = materialTweenOptionSet.TargetColor;
+            float originFloat = materialTweenOptionSet.OriginFloat;
+            float targetFloat = materialTweenOptionSet.TargetFloat;
 
             using (new EditorGUILayout.VerticalScope())
             {
@@ -36,12 +67,23 @@ namespace FrigidBlackwaters.Core
                 }
                 tweenRoutine = TweenOptionSetField("Tween Routine", tweenRoutine);
                 setToOriginValueAfterIteration = EditorGUILayout.Toggle("Set To Origin Value After Iteration", setToOriginValueAfterIteration);
-                colorProperty = (MaterialProperties.ColorProperty)EditorGUILayout.EnumPopup("Color Parameter", colorProperty);
-                originColor = EditorGUILayout.ColorField("Origin Color", originColor);
-                targetColor = EditorGUILayout.ColorField("Target Color", targetColor);
+
+                propertyId = EditorGUILayout.TextField("PropertyID", propertyId);
+                propertyType = (MaterialProperties.Type)EditorGUILayout.EnumPopup("Color Parameter", propertyType);
+                switch (propertyType)
+                {
+                    case MaterialProperties.Type.Color:
+                        originColor = EditorGUILayout.ColorField("Origin Color", originColor);
+                        targetColor = EditorGUILayout.ColorField("Target Color", targetColor);
+                        break;
+                    case MaterialProperties.Type.Float:
+                        originFloat = EditorGUILayout.FloatField("Origin Float", originFloat);
+                        targetFloat = EditorGUILayout.FloatField("Target Float", targetFloat);
+                        break;
+                }
             }
 
-            return new MaterialTweenOptionSet(tweenRoutine, setToOriginValueAfterIteration, colorProperty, originColor, targetColor);
+            return new MaterialTweenOptionSet(tweenRoutine, setToOriginValueAfterIteration, propertyId, propertyType, originColor, targetColor, originFloat, targetFloat);
         } 
 
         public static TweenOptionSetSerializedReference TweenOptionSetSerializedReferenceField(string label, TweenOptionSetSerializedReference serializedReference)
@@ -53,17 +95,17 @@ namespace FrigidBlackwaters.Core
                 );
         }
 
-        public static TweenOptionSet TweenOptionSetField(string label, TweenOptionSet template)
+        public static TweenOptionSet TweenOptionSetField(string label, TweenOptionSet tweenOptionSet)
         {
-            if (template == null) return null;
+            if (tweenOptionSet == null) return null;
 
-            FloatSerializedReference iterationDuration = template.IterationDurationByReference;
-            EasingType easingType = template.EasingType;
-            bool loopInfinitely = template.LoopInfinitely;
-            IntSerializedReference additionalNumberIterations = template.AdditionalNumberIterationsByReference;
-            FloatSerializedReference initialElapsedDuration = template.InitialElapsedDurationByReference;
-            FloatSerializedReference durationBetweenIterations = template.DurationBetweenIterationsByReference;
-            bool pingPong = template.PingPong;
+            FloatSerializedReference iterationDuration = tweenOptionSet.IterationDurationByReference;
+            EasingType easingType = tweenOptionSet.EasingType;
+            bool loopInfinitely = tweenOptionSet.LoopInfinitely;
+            IntSerializedReference additionalNumberIterations = tweenOptionSet.AdditionalNumberIterationsByReference;
+            FloatSerializedReference initialElapsedDuration = tweenOptionSet.InitialElapsedDurationByReference;
+            FloatSerializedReference durationBetweenIterations = tweenOptionSet.DurationBetweenIterationsByReference;
+            bool pingPong = tweenOptionSet.PingPong;
 
             using (new EditorGUILayout.VerticalScope())
             {
@@ -84,6 +126,15 @@ namespace FrigidBlackwaters.Core
             }
 
             return new TweenOptionSet(iterationDuration, easingType, loopInfinitely, additionalNumberIterations, initialElapsedDuration, durationBetweenIterations, pingPong);
+        }
+
+        public static BoolSerializedReference BoolSerializedReferenceField(string label, BoolSerializedReference serializedReference)
+        {
+            return UtilityGUILayout.SerializedReferenceField<BoolSerializedReference, bool>(
+                label,
+                serializedReference,
+                (string label, bool value) => { return EditorGUILayout.Toggle(label, value); ; }
+                );
         }
 
         public static IntSerializedReference IntSerializedReferenceField(string label, IntSerializedReference serializedReference)
@@ -153,17 +204,27 @@ namespace FrigidBlackwaters.Core
                 );
         }
 
+        public static Span<int> IntSliderSpanField(Span<int> span, int min, int max)
+        {
+            return SpanField<int>(span, (int first) => EditorGUILayout.IntSlider(first, min, max), (int second) => EditorGUILayout.IntSlider(second, min, max));
+        }
+
+        public static Span<float> FloatSliderSpanField(Span<float> span, float min, float max)
+        {
+            return SpanField<float>(span, (float first) => EditorGUILayout.Slider(first, min, max), (float second) => EditorGUILayout.Slider(second, min, max));
+        }
+
         public static Span<int> IntSpanField(Span<int> span)
         {
-            return SpanField(span, (int first) => EditorGUILayout.IntField(first), (int second) => EditorGUILayout.IntField(second));
+            return SpanField<int>(span, (int first) => EditorGUILayout.IntField(first), (int second) => EditorGUILayout.IntField(second));
         }
 
         public static Span<float> FloatSpanField(Span<float> span)
         {
-            return SpanField(span, (float first) => EditorGUILayout.FloatField(first), (float second) => EditorGUILayout.FloatField(second));
+            return SpanField<float>(span, (float first) => EditorGUILayout.FloatField(first), (float second) => EditorGUILayout.FloatField(second));
         }
 
-        public static Span<T> SpanField<T>(Span<T> span, Func<T, T> toDrawFirst, Func<T, T> toDrawSecond) where T : IComparable, IComparable<T>
+        private static Span<T> SpanField<T>(Span<T> span, Func<T, T> toDrawFirst, Func<T, T> toDrawSecond) where T : IComparable, IComparable<T>
         {
             using (new GUILayout.HorizontalScope())
             {

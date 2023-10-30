@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "DungeonGenerator", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.DUNGEON_GENERATION + "DungeonGenerator")]
+    [CreateAssetMenu(fileName = "DungeonGenerator", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.DungeonGeneration + "DungeonGenerator")]
     public class DungeonGenerator : FrigidScriptableObject
     {
         [SerializeField]
@@ -74,7 +74,7 @@ namespace FrigidBlackwaters.Game
             this.DesignateCompletionRooms(generatedDungeon, restrictedIndexPositions);
             this.PopulateRoomsPerLayouts(generatedDungeon);
 #if UNITY_EDITOR
-            Debug.Log("Dungeon layout dungeon generation finished!");
+            Debug.Log("Dungeon layout generation finished!");
 #endif
         }
 
@@ -349,7 +349,7 @@ namespace FrigidBlackwaters.Game
 
             this.PopulateRoomsPerContents(generatedDungeon);
 #if UNITY_EDITOR
-            Debug.Log("Room content dungeon generation finished!");
+            Debug.Log("Dungeon room content generation finished!");
 #endif
         }
 

@@ -8,8 +8,6 @@ namespace FrigidBlackwaters.Game
 {
     public abstract class AnimatorProperty : FrigidMonoBehaviour
     {
-        private const string NEW_PROPERTY_NAME = "New Property";
- 
         [SerializeField]
         [ReadOnly]
         private AnimatorBody body;
@@ -158,7 +156,7 @@ namespace FrigidBlackwaters.Game
 
         public static AnimatorProperty CreateProperty(AnimatorBody body, Transform parent, Type propertyType)
         {
-            GameObject propertyObject = FrigidEdit.CreateGameObject(NEW_PROPERTY_NAME, parent);
+            GameObject propertyObject = FrigidEdit.CreateGameObject("New Property", parent);
             AnimatorProperty newProperty = (AnimatorProperty)FrigidEdit.AddComponent(propertyObject, propertyType);
             FrigidEdit.RecordChanges(newProperty);
             newProperty.body = body;
@@ -455,13 +453,13 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public virtual Bounds? GetAreaOccupied()
+        public virtual Bounds? GetVisibleArea()
         {
             Bounds? areaOccupied = null;
             foreach (AnimatorProperty childProperty in this.childProperties)
             {
                 if (!childProperty.GetBinded(this.Body.CurrAnimationIndex)) continue;
-                Bounds? childAreaOccupied = childProperty.GetAreaOccupied();
+                Bounds? childAreaOccupied = childProperty.GetVisibleArea();
                 if (childAreaOccupied.HasValue)
                 {
                     if (!areaOccupied.HasValue)
@@ -475,17 +473,6 @@ namespace FrigidBlackwaters.Game
                 }
             }
             return areaOccupied;
-        }
-
-        public virtual bool GetLooped()
-        {
-            bool looped = false;
-            foreach (AnimatorProperty childProperty in this.childProperties)
-            {
-                if (!childProperty.GetBinded(this.Body.CurrAnimationIndex)) continue;
-                looped |= childProperty.GetLooped();
-            }
-            return looped;
         }
 
         public virtual float GetDuration()

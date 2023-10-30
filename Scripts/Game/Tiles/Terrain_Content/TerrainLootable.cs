@@ -40,10 +40,7 @@ namespace FrigidBlackwaters.Game
             this.chosenTier = this.lootableTiers.Retrieve();
             this.chosenAnimations = this.chosenTier.LootableAnimations[UnityEngine.Random.Range(0, this.chosenTier.LootableAnimations.Length)];
             this.itemStorage.SetStorageGridsFromContainers(this.chosenTier.ItemContainers);
-            foreach (ItemStorageGrid itemStorageGrid in this.itemStorage.StorageGrids)
-            {
-                itemStorageGrid.FillWithLootTable(this.chosenTier.ItemLootTableByReference.MutableValue);
-            }
+            this.chosenTier.ItemLootTableByReference.MutableValue.FillStorage(this.itemStorage);
             if (this.detectionRadius > 0)
             {
                 this.AnimatorBody.Play(this.chosenAnimations.ClosedAnimationName);

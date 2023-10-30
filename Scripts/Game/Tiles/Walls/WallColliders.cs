@@ -13,32 +13,27 @@ namespace FrigidBlackwaters.Game
 
         public void PositionColliders(Vector2Int mainAreaDimensions)
         {
-            if (this.wallSides.Count == 4)
-            {
-                this.wallSides[0].PushCollider.offset = new Vector2(0, (mainAreaDimensions.y + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE);
-                this.wallSides[0].PushCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UNIT_WORLD_SIZE, FrigidConstants.UNIT_WORLD_SIZE);
-                this.wallSides[0].BreakBoxCollider.offset = new Vector2(0, (mainAreaDimensions.y + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE + this.breakBoxInsetDistance / 2);
-                this.wallSides[0].BreakBoxCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UNIT_WORLD_SIZE, FrigidConstants.UNIT_WORLD_SIZE - this.breakBoxInsetDistance);
+            Debug.Assert(this.wallSides.Count == 4, "Invalid number of wall sides in WallColliders " + this.name + ".");
 
-                this.wallSides[1].PushCollider.offset = new Vector2(0, (-mainAreaDimensions.y - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE);
-                this.wallSides[1].PushCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UNIT_WORLD_SIZE, FrigidConstants.UNIT_WORLD_SIZE);
-                this.wallSides[1].BreakBoxCollider.offset = new Vector2(0, (-mainAreaDimensions.y - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE - this.breakBoxInsetDistance / 2);
-                this.wallSides[1].BreakBoxCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UNIT_WORLD_SIZE, FrigidConstants.UNIT_WORLD_SIZE - this.breakBoxInsetDistance);
+            this.wallSides[0].PushCollider.offset = new Vector2(0, (mainAreaDimensions.y + 1) / 2f * FrigidConstants.UnitWorldSize);
+            this.wallSides[0].PushCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UnitWorldSize, FrigidConstants.UnitWorldSize);
+            this.wallSides[0].BreakBoxCollider.offset = new Vector2(0, (mainAreaDimensions.y + 1) / 2f * FrigidConstants.UnitWorldSize + this.breakBoxInsetDistance / 2);
+            this.wallSides[0].BreakBoxCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UnitWorldSize, FrigidConstants.UnitWorldSize - this.breakBoxInsetDistance);
 
-                this.wallSides[2].PushCollider.offset = new Vector2((-mainAreaDimensions.x - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE, 0);
-                this.wallSides[2].PushCollider.size = new Vector2(FrigidConstants.UNIT_WORLD_SIZE, (mainAreaDimensions.y + 2) * FrigidConstants.UNIT_WORLD_SIZE);
-                this.wallSides[2].BreakBoxCollider.offset = new Vector2((-mainAreaDimensions.x - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE - this.breakBoxInsetDistance / 2, 0);
-                this.wallSides[2].BreakBoxCollider.size = new Vector2(FrigidConstants.UNIT_WORLD_SIZE - this.breakBoxInsetDistance, (mainAreaDimensions.y + 2) * FrigidConstants.UNIT_WORLD_SIZE);
+            this.wallSides[1].PushCollider.offset = new Vector2(0, (-mainAreaDimensions.y - 1) / 2f * FrigidConstants.UnitWorldSize);
+            this.wallSides[1].PushCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UnitWorldSize, FrigidConstants.UnitWorldSize);
+            this.wallSides[1].BreakBoxCollider.offset = new Vector2(0, (-mainAreaDimensions.y - 1) / 2f * FrigidConstants.UnitWorldSize - this.breakBoxInsetDistance / 2);
+            this.wallSides[1].BreakBoxCollider.size = new Vector2((mainAreaDimensions.x + 2) * FrigidConstants.UnitWorldSize, FrigidConstants.UnitWorldSize - this.breakBoxInsetDistance);
 
-                this.wallSides[3].PushCollider.offset = new Vector2((mainAreaDimensions.x + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE, 0);
-                this.wallSides[3].PushCollider.size = new Vector2(FrigidConstants.UNIT_WORLD_SIZE, (mainAreaDimensions.y + 2) * FrigidConstants.UNIT_WORLD_SIZE);
-                this.wallSides[3].BreakBoxCollider.offset = new Vector2((mainAreaDimensions.x + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE + this.breakBoxInsetDistance / 2, 0);
-                this.wallSides[3].BreakBoxCollider.size = new Vector2(FrigidConstants.UNIT_WORLD_SIZE - this.breakBoxInsetDistance, (mainAreaDimensions.y + 2) * FrigidConstants.UNIT_WORLD_SIZE);
-            }
-            else
-            {
-                Debug.LogError("Invalid number of wall sides in WallColliders " + this.name + ".");
-            }
+            this.wallSides[2].PushCollider.offset = new Vector2((-mainAreaDimensions.x - 1) / 2f * FrigidConstants.UnitWorldSize, 0);
+            this.wallSides[2].PushCollider.size = new Vector2(FrigidConstants.UnitWorldSize, (mainAreaDimensions.y + 2) * FrigidConstants.UnitWorldSize);
+            this.wallSides[2].BreakBoxCollider.offset = new Vector2((-mainAreaDimensions.x - 1) / 2f * FrigidConstants.UnitWorldSize - this.breakBoxInsetDistance / 2, 0);
+            this.wallSides[2].BreakBoxCollider.size = new Vector2(FrigidConstants.UnitWorldSize - this.breakBoxInsetDistance, (mainAreaDimensions.y + 2) * FrigidConstants.UnitWorldSize);
+
+            this.wallSides[3].PushCollider.offset = new Vector2((mainAreaDimensions.x + 1) / 2f * FrigidConstants.UnitWorldSize, 0);
+            this.wallSides[3].PushCollider.size = new Vector2(FrigidConstants.UnitWorldSize, (mainAreaDimensions.y + 2) * FrigidConstants.UnitWorldSize);
+            this.wallSides[3].BreakBoxCollider.offset = new Vector2((mainAreaDimensions.x + 1) / 2f * FrigidConstants.UnitWorldSize + this.breakBoxInsetDistance / 2, 0);
+            this.wallSides[3].BreakBoxCollider.size = new Vector2(FrigidConstants.UnitWorldSize - this.breakBoxInsetDistance, (mainAreaDimensions.y + 2) * FrigidConstants.UnitWorldSize);
         }
 
 #if UNITY_EDITOR

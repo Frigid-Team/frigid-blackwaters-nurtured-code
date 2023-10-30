@@ -11,8 +11,6 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Direction targetDirection;
         [SerializeField]
-        private FloatSerializedReference steerDuration;
-        [SerializeField]
         private float steerSpeedDegrees;
 
         protected override Vector2[] CustomRetrieve(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
@@ -23,18 +21,21 @@ namespace FrigidBlackwaters.Game
             Vector2[] directions = new Vector2[currDirections.Length];
             for (int i = 0; i < directions.Length; i++)
             {
-                directions[i] = currDirections[i];
-                if (elapsedDuration < this.steerDuration.ImmutableValue)
+                Vector2 steeredDirection = currDirections[i];
+                if (steeredDirection == Vector2.zero)
                 {
-                    Vector2 steeredDirection = currDirections[i];
-                    if (steeredDirection == Vector2.zero)
-                    {
-                        steeredDirection = startDirections[i];
-                    }
-                    float steeredAngleRad = steeredDirection.ComponentAngle0To360() * Mathf.Deg2Rad;
-                    steeredAngleRad = Vector2.SignedAngle(steeredDirection, targetDirections[i]) > 0 ? (steeredAngleRad + angleStep) : (steeredAngleRad - angleStep);
-                    directions[i] = new Vector2(Mathf.Cos(steeredAngleRad), Mathf.Sin(steeredAngleRad));
+                    steeredDirection = startDirections[i];
                 }
+                directions[i] = steeredDirection;
+
+                float angleDifference = Vector2.SignedAngle(steeredDirection, targetDirections[i]);
+                if (angleDifference == 0f)
+                {
+                    continue;
+                }
+                float steeredAngleRad = steeredDirection.ComponentAngle0To360() * Mathf.Deg2Rad;
+                steeredAngleRad = angleDifference > 0 ? (steeredAngleRad + angleStep) : (steeredAngleRad - angleStep);
+                directions[i] = new Vector2(Mathf.Cos(steeredAngleRad), Mathf.Sin(steeredAngleRad));
             }
             return directions;
         }

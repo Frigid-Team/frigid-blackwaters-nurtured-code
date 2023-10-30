@@ -1,5 +1,4 @@
 using UnityEngine;
-using System;
 using System.Collections.Generic;
 
 using FrigidBlackwaters.Core;
@@ -8,8 +7,6 @@ namespace FrigidBlackwaters.Game
 {
     public class TiledEntrance : FrigidMonoBehaviourWithPhysics
     {
-        private const float PLAYER_ANGLE_ENTRY_TOLERANCE = 2.5f;
-
         [SerializeField]
         private TiledAreaTransition transition;
         [SerializeField]
@@ -209,8 +206,9 @@ namespace FrigidBlackwaters.Game
 
             while (true)
             {
+                const float PlayerAngleEntryTolerance = 2.5f;
                 if (player.TraversableTerrain.Includes(this.entranceTerrain) && 
-                    CharacterInput.CurrentMovementVector.magnitude > 0 && Vector2.Angle(CharacterInput.CurrentMovementVector, this.EntryIndexDirection) <= PLAYER_ANGLE_ENTRY_TOLERANCE)
+                    CharacterInput.CurrentMovementVector.magnitude > 0 && Vector2.Angle(CharacterInput.CurrentMovementVector, this.EntryIndexDirection) <= PlayerAngleEntryTolerance)
                 {
                     this.entryDuration += Time.deltaTime;
                     if (this.entryDuration >= this.entryTime.ImmutableValue && player.CanMoveTo(this.connectedEntrance.EntryPosition, false) && 

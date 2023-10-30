@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 using FrigidBlackwaters.Core;
@@ -20,19 +21,7 @@ namespace FrigidBlackwaters.Game
 
         private bool isIgnoringDamageLastFixedTimeStep;
         private Action<I> onReceived;
-        private float lastReceiveTime;
-
-        public bool IsIgnoringDamage
-        {
-            get
-            {
-                return this.isIgnoringDamage;
-            }
-            set
-            {
-                this.isIgnoringDamage = value;
-            }
-        }
+        private Dictionary<DB, float> recentReceives;
 
         public DamageAlignment DamageAlignment
         {
@@ -58,6 +47,18 @@ namespace FrigidBlackwaters.Game
             }
         }
 
+        public bool IsIgnoringDamage
+        {
+            get
+            {
+                return this.isIgnoringDamage;
+            }
+            set
+            {
+                this.isIgnoringDamage = value;
+            }
+        }
+
         public Action<I> OnReceived
         {
             get
@@ -74,12 +75,12 @@ namespace FrigidBlackwaters.Game
         {
             if (this.isIgnoringDamageLastFixedTimeStep || 
                 !DamageDetectionTable.CanInteract(damageDealerBox.DamageAlignment, this.DamageAlignment, damageDealerBox.DamageChannel, this.DamageChannel) ||
-                Time.time - this.lastReceiveTime < this.bufferDuration.ImmutableValue)
+                this.recentReceives.ContainsKey(damageDealerBox))
             {
                 info = default(I);
                 return false;
             }
-            this.lastReceiveTime = Time.time;
+            this.recentReceives.Add(damageDealerBox, Time.fixedTime);
             info = this.ProcessDamage(damageDealerBox, position, direction, collision);
             this.onReceived?.Invoke(info);
             float pauseDuration = this.pauseDuration.MutableValue;
@@ -96,13 +97,32 @@ namespace FrigidBlackwaters.Game
         {
             base.Awake();
             this.isIgnoringDamageLastFixedTimeStep = this.isIgnoringDamage;
-            this.lastReceiveTime = 0;
+            this.recentReceives = new Dictionary<DB, float>();
         }
 
         protected override void FixedUpdate() 
         {
             base.FixedUpdate();
             this.isIgnoringDamageLastFixedTimeStep = this.isIgnoringDamage;
+
+            DB[] expiredDamageDealerBoxes = new DB[this.recentReceives.Count];
+            int numberExpired = 0;
+            float bufferDuration = this.bufferDuration.ImmutableValue;
+            foreach (KeyValuePair<DB, float> recentReceive in this.recentReceives)
+            {
+                DB damageDealerBox = recentReceive.Key;
+                float timeReceived = recentReceive.Value;
+
+                if (Time.fixedTime - timeReceived >= bufferDuration)
+                {
+                    expiredDamageDealerBoxes[numberExpired] = damageDealerBox;
+                    numberExpired++;
+                }
+            }
+            for (int i = 0; i < numberExpired; i++)
+            {
+                this.recentReceives.Remove(expiredDamageDealerBoxes[i]);
+            }
         }
 
 #if UNITY_EDITOR

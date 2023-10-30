@@ -40,16 +40,16 @@ namespace FrigidBlackwaters.Game
         {
             this.isSceneChanging.Request();
             this.queuedScene = scene;
-            LoadingOverlay.RequestLoad(() => FrigidCoroutine.Run(instance.Changeover(scene, LoadingOverlay.ReleaseLoad), instance.gameObject));
+            ActivelyBusy.Request(() => FrigidCoroutine.Run(instance.Changeover(scene, ActivelyBusy.Release), instance.gameObject));
         }
 
         protected override void Awake()
         {
             base.Awake();
+            DontDestroyInstanceOnLoad(this);
             instance = this;
             this.queuedScene = FrigidScene.Preloaded;
             this.isSceneChanging = new ControlCounter();
-            DontDestroyInstanceOnLoad(this);
         }
 
         private IEnumerator<FrigidCoroutine.Delay> Changeover(FrigidScene scene, Action onComplete)

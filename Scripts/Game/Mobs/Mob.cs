@@ -38,6 +38,7 @@ namespace FrigidBlackwaters.Game
 
         private ControlCounter deactivated;
         private Action onActiveChanged;
+        private FrigidCoroutine refreshRoutine;
 
         private TiledArea tiledArea;
         private Action<TiledArea, TiledArea> onTiledAreaChanged;
@@ -213,7 +214,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.RootStateNode.CurrentState.Size;
+                return this.rootStateNode.CurrentState.Size;
             }
         }
 
@@ -221,7 +222,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.RootStateNode.CurrentState.TileSize;
+                return this.rootStateNode.CurrentState.TileSize;
             }
         }
 
@@ -241,7 +242,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.RootStateNode.CurrentState.Height;
+                return this.rootStateNode.CurrentState.Height;
             }
         }
 
@@ -261,7 +262,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.RootStateNode.CurrentState.TraversableTerrain;
+                return this.rootStateNode.CurrentState.TraversableTerrain;
             }
         }
 
@@ -281,7 +282,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.RootStateNode.CurrentState.ShowDisplays;
+                return this.rootStateNode.CurrentState.ShowDisplays;
             }
         }
 
@@ -301,7 +302,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.RootStateNode.CurrentState.Status;
+                return this.rootStateNode.CurrentState.Status;
             }
         }
 
@@ -696,7 +697,7 @@ namespace FrigidBlackwaters.Game
 
         public static bool CanTraverseAt(TiledArea tiledArea, Vector2 position, Vector2 size, TraversableTerrain traversableTerrain)
         {
-            Vector2 testSize = new Vector2((Mathf.CeilToInt(size.x) - 1) * FrigidConstants.PIXELS_PER_UNIT + FrigidConstants.SMALLEST_WORLD_SIZE, (Mathf.CeilToInt(size.y) - 1) * FrigidConstants.PIXELS_PER_UNIT + FrigidConstants.SMALLEST_WORLD_SIZE);
+            Vector2 testSize = new Vector2((Mathf.CeilToInt(size.x) - 1) * FrigidConstants.PixelsPerUnit + FrigidConstants.WorldSizeEpsilon, (Mathf.CeilToInt(size.y) - 1) * FrigidConstants.PixelsPerUnit + FrigidConstants.WorldSizeEpsilon);
             bool allTraversable = true;
             return AreaTiling.VisitTileIndexPositionsInRect(
                 position,
@@ -713,16 +714,12 @@ namespace FrigidBlackwaters.Game
             {
                 return false;
             }
-            return this.RootStateNode.HasValidInitialState(tiledArea, spawnPosition);
+            return this.rootStateNode.CanSpawnAt(tiledArea, spawnPosition);
         }
 
         public void Spawn(Vector2 spawnPosition, Vector2 facingDirection)
         {
-            if (!this.CanSpawnAt(spawnPosition))
-            {
-                Debug.LogError("Mob " + this.name + " tried to be spawned on position that it can't traverse!");
-                return;
-            }
+            Debug.Assert(this.CanSpawnAt(spawnPosition), "Mob " + this.name + " tried to be spawned on position that it can't traverse!");
 
             if (!spawnedMobs.Current.Add(this))
             {
@@ -830,13 +827,8 @@ namespace FrigidBlackwaters.Game
 
             this.behaviourMap = new Dictionary<MobBehaviour, (bool, Action, bool)>();
 
-            this.VisitStateNodes(
-                (MobStateNode stateNode) =>
-                {
-                    stateNode.Link(this, this.animatorBody);
-                    stateNode.Init(); 
-                }
-                );
+            this.rootStateNode.OwnedBy(this, this.animatorBody);
+            this.rootStateNode.Spawn();
 
             this.contextualEquipPoints = new Dictionary<MobEquipContext, MobEquipPoint>();
             foreach (MobEquipPoint equipPoint in this.equipPoints)
@@ -850,10 +842,8 @@ namespace FrigidBlackwaters.Game
 
             if (this.hasOverheadDisplay) CreateInstance<MobOverheadDisplay>(this.overheadDisplayPrefab).Spawn(this);
 
-            this.RootStateNode.OnCurrentStateChanged += this.HandleNewState;
+            this.rootStateNode.OnCurrentStateChanged += this.HandleNewState;
             this.UpdatePushColliders();
-
-            FrigidCoroutine.Run(this.Refresh(), this.gameObject);
 
             onMobSpawned?.Invoke(this);
             this.OnActive();
@@ -872,11 +862,11 @@ namespace FrigidBlackwaters.Game
             }
             if (keepState)
             {
-                return this.RootStateNode.CurrentState.MovePositionSafe && (tiledArea == this.TiledArea || this.RootStateNode.CurrentState.MoveTiledAreaSafe);
+                return this.rootStateNode.CurrentState.MovePositionSafe && (tiledArea == this.TiledArea || this.rootStateNode.CurrentState.MoveTiledAreaSafe);
             }
             else
             {
-                return this.RootStateNode.HasValidMoveState(tiledArea, movePosition);
+                return this.rootStateNode.CanMoveTo(tiledArea, movePosition);
             }
         }
 
@@ -910,7 +900,7 @@ namespace FrigidBlackwaters.Game
             if (!keepState)
             {
                 this.EndRootStateNode();
-                this.VisitStateNodes((MobStateNode stateNode) => stateNode.Move());
+                this.rootStateNode.Move();
                 this.BeginRootStateNode();
             }
         }
@@ -998,7 +988,7 @@ namespace FrigidBlackwaters.Game
 
         public void RequestTimeScale(float timeScale)
         {
-            int timeScaleIndex = Mathf.RoundToInt(timeScale / FrigidConstants.SMALLEST_TIME_INTERVAL);
+            int timeScaleIndex = Mathf.RoundToInt(timeScale / FrigidConstants.TimeEpsilon);
             if (!this.timeScaleRequestCounts.ContainsKey(timeScaleIndex))
             {
                 this.timeScaleRequestCounts.Add(timeScaleIndex, 0);
@@ -1009,7 +999,7 @@ namespace FrigidBlackwaters.Game
 
         public void ReleaseTimeScale(float timeScale)
         {
-            int timeScaleIndex = Mathf.RoundToInt(timeScale / FrigidConstants.SMALLEST_TIME_INTERVAL);
+            int timeScaleIndex = Mathf.RoundToInt(timeScale / FrigidConstants.TimeEpsilon);
             this.timeScaleRequestCounts[timeScaleIndex]--;
             if (this.timeScaleRequestCounts[timeScaleIndex] == 0)
             {
@@ -1055,9 +1045,9 @@ namespace FrigidBlackwaters.Game
 
         public void StunForDuration(float duration)
         {
-            const float MINIMUM_STUN_DURATION = 0.1f;
+            const float MinimumStunDuration = 0.1f;
 
-            if (duration >= MINIMUM_STUN_DURATION)
+            if (duration >= MinimumStunDuration)
             {
                 this.elapsedStunDuration = Mathf.Max(this.elapsedStunDuration, duration);
                 if (!this.stunned)
@@ -1318,7 +1308,7 @@ namespace FrigidBlackwaters.Game
             if (!this.behaviourMap.ContainsKey(behaviour))
             {
                 this.behaviourMap.Add(behaviour, (ignoreTimeScale, onFinished, false));
-                behaviour.Assign(this, this.animatorBody);
+                behaviour.OwnedBy(this, this.animatorBody);
                 behaviour.Added();
                 this.BeginBehaviour(behaviour);
                 return true;
@@ -1332,7 +1322,7 @@ namespace FrigidBlackwaters.Game
             {
                 this.EndBehaviour(behaviour);
                 behaviour.Removed();
-                behaviour.Unassign();
+                behaviour.OwnedBy(null, null);
                 this.behaviourMap.Remove(behaviour);
                 return true;
             }
@@ -1370,11 +1360,13 @@ namespace FrigidBlackwaters.Game
                 this.BeginBehaviour(behaviour);
             }
             this.BeginRootStateNode();
+            this.refreshRoutine = FrigidCoroutine.Run(this.Refresh(), this.gameObject);
             this.onActiveChanged?.Invoke();
         }
 
         protected virtual void OnInactive()
         {
+            FrigidCoroutine.Kill(this.refreshRoutine);
             this.EndRootStateNode();
             foreach (MobBehaviour behaviour in this.behaviourMap.Keys)
             {
@@ -1453,7 +1445,7 @@ namespace FrigidBlackwaters.Game
             float newTimeScale = 1f;
             foreach (KeyValuePair<int, int> timeScaleRequestCount in this.timeScaleRequestCounts)
             {
-                float timeScaleInRequest = timeScaleRequestCount.Key * FrigidConstants.SMALLEST_TIME_INTERVAL;
+                float timeScaleInRequest = timeScaleRequestCount.Key * FrigidConstants.TimeEpsilon;
                 int numRequests = timeScaleRequestCount.Value;
                 newTimeScale *= Mathf.Pow(timeScaleInRequest, numRequests);
             }
@@ -1485,7 +1477,7 @@ namespace FrigidBlackwaters.Game
             foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = false;
             foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = false;
             foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = false;
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.ForceStop = false;
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.IsIgnoringDamage = false;
         }
 
         private void DisableDamageDealers()
@@ -1493,7 +1485,7 @@ namespace FrigidBlackwaters.Game
             foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = true;
             foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = true;
             foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = true;
-            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.ForceStop = true;
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.IsIgnoringDamage = true;
         }
 
         private void UpdateDamageBonusFromMightChange(int previousMight, int currentMight)
@@ -1611,32 +1603,13 @@ namespace FrigidBlackwaters.Game
         private void BeginRootStateNode()
         {
             if (!this.Active) return;
-            this.RootStateNode.Enter();
+            this.rootStateNode.Enter();
         }
 
         private void EndRootStateNode()
         {
             if (!this.Active) return;
-            this.RootStateNode.Exit();
-        }
-
-        private void VisitStateNodes(Action<MobStateNode> onVisited)
-        {
-            HashSet<MobStateNode> visitedStateNodes = new HashSet<MobStateNode>();
-            Queue<MobStateNode> nextStateNodes = new Queue<MobStateNode>();
-            nextStateNodes.Enqueue(this.rootStateNode);
-            while (nextStateNodes.TryDequeue(out MobStateNode stateNode))
-            {
-                if (!visitedStateNodes.Contains(stateNode))
-                {
-                    visitedStateNodes.Add(stateNode);
-                    foreach (MobStateNode referencedStateNode in stateNode.ReferencedStateNodes)
-                    {
-                        nextStateNodes.Enqueue(referencedStateNode);
-                    }
-                    onVisited.Invoke(stateNode);
-                }
-            }
+            this.rootStateNode.Exit();
         }
 
         private void HandleNewState(MobState previousState, MobState currentState)

@@ -8,14 +8,14 @@ namespace FrigidBlackwaters.Game
 {
     public class TiledArea : FrigidMonoBehaviour
     {
-        public const int MAX_WALL_DEPTH = 4;
+        public const int MaxWallDepth = 4;
 
         private static SceneVariable<HashSet<TiledArea>> spawnedAreas;
         private static Action<TiledArea, TiledAreaBlueprint> onAreaSpawned;
         private static SceneVariable<List<TiledArea>> areasOrderedByDurationOpened;
         private static Action onFocusedAreaChanged;
 
-        private const float TRANSITION_DURATION = 0.75f;
+        private const float TransitionDuration = 0.75f;
 
         [SerializeField]
         private Transform contentsTransform;
@@ -275,16 +275,16 @@ namespace FrigidBlackwaters.Game
 
             FrigidCoroutine.Run(
                 Tween.Delay(
-                    TRANSITION_DURATION,
+                    TransitionDuration,
                     () =>
                     {
                         this.AreaOpen();
                         this.isTransitioning = true;
                         this.onTransitionStarted?.Invoke();
-                        this.transitioner.PlayTransitionTo(transition, TRANSITION_DURATION, entryPosition);
+                        this.transitioner.PlayTransitionTo(transition, TransitionDuration, entryPosition);
                         FrigidCoroutine.Run(
                             Tween.Delay(
-                                TRANSITION_DURATION,
+                                TransitionDuration,
                                 () =>
                                 {
                                     this.onTransitionFinished?.Invoke();
@@ -309,10 +309,10 @@ namespace FrigidBlackwaters.Game
 
             this.isTransitioning = true;
             this.onTransitionStarted?.Invoke();
-            this.transitioner.PlayTransitionAway(transition, TRANSITION_DURATION, exitPosition);
+            this.transitioner.PlayTransitionAway(transition, TransitionDuration, exitPosition);
             FrigidCoroutine.Run(
                 Tween.Delay(
-                    TRANSITION_DURATION,
+                    TransitionDuration,
                     () =>
                     {
                         this.onTransitionFinished?.Invoke();
@@ -380,9 +380,9 @@ namespace FrigidBlackwaters.Game
             {
                 for (int y = 0; y < blueprint.MainAreaDimensions.y; y++)
                 {
-                    Vector2Int tileIndexPosition = new Vector2Int(x, y);
-                    TerrainTileAsset terrainTileAsset = blueprint.GetTerrainTileAssetAt(tileIndexPosition);
-                    if (terrainTileAsset == null) continue;
+                    Vector2Int originTileIndexPosition = new Vector2Int(x, y);
+                    TerrainTileAsset originTerrainTileAsset = blueprint.GetTerrainTileAssetAt(originTileIndexPosition);
+                    if (originTerrainTileAsset == null) continue;
                     List<Vector2Int> terrainTileCorners = new List<Vector2Int>() { new Vector2Int(2, 2), new Vector2Int(2, -2), new Vector2Int(-2, -2), new Vector2Int(-2, 2) };
 
                     Vector2Int currentPosition = Vector2Int.zero;
@@ -411,16 +411,14 @@ namespace FrigidBlackwaters.Game
                         if (i >= 2)
                         {
                             Vector2Int crossoverTileIndexPosition = new Vector2Int(x + previousPosition.x, y + previousPosition.y);
-                            Vector2 crossoverDirection = ((crossoverTileIndexPosition - tileIndexPosition) * new Vector2(1, -1)).normalized;
-                            if (AreaTiling.TileIndexPositionWithinBounds(crossoverTileIndexPosition, blueprint.MainAreaDimensions) && visitedTerrainTileAssets[1] != terrainTileAsset)
+                            Vector2 crossoverDirection = ((crossoverTileIndexPosition - originTileIndexPosition) * new Vector2(1, -1)).normalized;
+                            pushEnabled |= visitedTerrainTileAssets[1] != null && visitedTerrainTileAssets[1].Terrain != originTerrainTileAsset.Terrain;
+                            if (AreaTiling.TileIndexPositionWithinBounds(crossoverTileIndexPosition, blueprint.MainAreaDimensions))
                             {
-                                pushEnabled = true;
                                 if (i % 2 == 0)
                                 {
-                                    if (visitedTerrainTileAssets[0] != terrainTileAsset && visitedTerrainTileAssets[2] != terrainTileAsset)
+                                    if (visitedTerrainTileAssets[0] != originTerrainTileAsset && visitedTerrainTileAssets[2] != originTerrainTileAsset)
                                     {
-                                        SpawnTerrainCrossoverTile(crossoverTileIndexPosition, tileIndexPosition, false, crossoverDirection);
-
                                         int cornerIndex = 4 - (i % 8 / 2);
 
                                         float rightAngleCornerAngle = ((cornerIndex + 1) * 90 - 45) * Mathf.Deg2Rad;
@@ -444,31 +442,42 @@ namespace FrigidBlackwaters.Game
                                             terrainTileCorners.Insert(startingIndex, secondSlantPoint);
                                         }
                                     }
-                                    else if (visitedTerrainTileAssets[0] == terrainTileAsset && visitedTerrainTileAssets[2] == terrainTileAsset)
+
+                                    if (visitedTerrainTileAssets[0] != visitedTerrainTileAssets[2])
                                     {
-                                        SpawnTerrainCrossoverTile(crossoverTileIndexPosition, tileIndexPosition, true, crossoverDirection);
+                                        if (visitedTerrainTileAssets[0] != originTerrainTileAsset && visitedTerrainTileAssets[2] != originTerrainTileAsset)
+                                        {
+                                            SpawnTerrainCrossoverTile(originTerrainTileAsset, visitedTerrainTileAssets[1], crossoverTileIndexPosition, false, crossoverDirection);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        SpawnTerrainCrossoverTile(visitedTerrainTileAssets[0], visitedTerrainTileAssets[1], crossoverTileIndexPosition, true, crossoverDirection);
+                                        if (visitedTerrainTileAssets[0] != originTerrainTileAsset)
+                                        {
+                                            SpawnTerrainCrossoverTile(originTerrainTileAsset, visitedTerrainTileAssets[0], crossoverTileIndexPosition, false, crossoverDirection);
+                                        }
                                     }
                                 }
                                 else
                                 {
-                                    if ((visitedTerrainTileAssets[0] != terrainTileAsset && visitedTerrainTileAssets[2] != terrainTileAsset) ||
-                                        (visitedTerrainTileAssets[0] == null && visitedTerrainTileAssets[2] != terrainTileAsset) ||
-                                        (visitedTerrainTileAssets[0] != terrainTileAsset && visitedTerrainTileAssets[2] == null))
+                                    if ((visitedTerrainTileAssets[0] != originTerrainTileAsset && visitedTerrainTileAssets[2] != originTerrainTileAsset) ||
+                                        (visitedTerrainTileAssets[0] == null && visitedTerrainTileAssets[2] != originTerrainTileAsset) ||
+                                        (visitedTerrainTileAssets[0] != originTerrainTileAsset && visitedTerrainTileAssets[2] == null))
                                     {
-                                        SpawnTerrainCrossoverTile(crossoverTileIndexPosition, tileIndexPosition, false, crossoverDirection);
+                                        SpawnTerrainCrossoverTile(originTerrainTileAsset, visitedTerrainTileAssets[1], crossoverTileIndexPosition, false, crossoverDirection);
                                     }
                                 }
                             }
                         }
                     }
 
-                    SpawnTerrainTile(tileIndexPosition, pushEnabled, terrainTileCorners);
+                    SpawnTerrainTile(originTerrainTileAsset, originTileIndexPosition, pushEnabled, terrainTileCorners);
                 }
             }
 
-            void SpawnTerrainTile(Vector2Int tileIndexPosition, bool pushEnabled, List<Vector2Int> cornerPoints)
+            void SpawnTerrainTile(TerrainTileAsset terrainTileAsset, Vector2Int tileIndexPosition, bool pushEnabled, List<Vector2Int> cornerPoints)
             {
-                TerrainTileAsset terrainTileAsset = blueprint.GetTerrainTileAssetAt(tileIndexPosition);
                 TerrainTile spawnedTerrainTile = CreateInstance<TerrainTile>(
                     terrainTileAsset.TerrainTilePrefab,
                     AreaTiling.TilePositionFromIndexPosition(tileIndexPosition, this.CenterPosition, blueprint.MainAreaDimensions),
@@ -477,17 +486,16 @@ namespace FrigidBlackwaters.Game
                 spawnedTerrainTile.Populate(pushEnabled, cornerPoints, this.navigationGrid, tileIndexPosition);
             }
 
-            void SpawnTerrainCrossoverTile(Vector2Int crossoverTileIndexPosition, Vector2Int tileIndexPosition, bool isOuter, Vector2 direction)
+            void SpawnTerrainCrossoverTile(TerrainTileAsset terrainTileAsset, TerrainTileAsset crossoverTerrainTileAsset, Vector2Int crossoverTileIndexPosition, bool isInner, Vector2 direction)
             {
-                TerrainTileAsset terrainTileAsset = blueprint.GetTerrainTileAssetAt(tileIndexPosition);
-                if (terrainTileAsset.TryGetTerrainCrossoverTilePrefab(blueprint.GetTerrainTileAssetAt(crossoverTileIndexPosition), out TerrainCrossoverTile terrainCrossoverTilePrefab))
+                if (terrainTileAsset.TryGetTerrainCrossoverTilePrefab(crossoverTerrainTileAsset, out TerrainCrossoverTile terrainCrossoverTilePrefab))
                 {
                     TerrainCrossoverTile spawnedCrossoverTile = CreateInstance<TerrainCrossoverTile>(
                         terrainCrossoverTilePrefab,
-                        AreaTiling.TilePositionFromIndexPosition(crossoverTileIndexPosition, this.CenterPosition, blueprint.MainAreaDimensions),
+                        AreaTiling.TilePositionFromIndexPosition(crossoverTileIndexPosition, this.CenterPosition, blueprint.MainAreaDimensions) + Vector2.down * terrainTileAsset.ElevationFudgeFactor * FrigidConstants.WorldSizeEpsilon,
                         this.contentsTransform
                         );
-                    spawnedCrossoverTile.Populated(direction, isOuter);
+                    spawnedCrossoverTile.Populated(direction, isInner);
                 }
             }
         }
@@ -497,7 +505,7 @@ namespace FrigidBlackwaters.Game
         {
             if (!this.HasVisibleWalls) return;
 
-            for (int layer = 0; layer <= MAX_WALL_DEPTH; layer++)
+            for (int layer = 0; layer <= MaxWallDepth; layer++)
             {
                 Vector2Int layerBoundsDimensions = new Vector2Int(blueprint.MainAreaDimensions.x + 2 * (layer - 1), blueprint.MainAreaDimensions.y + 2 * (layer - 1));
                 Vector2Int[] wallIndexDirections = WallTiling.GetAllWallIndexDirections();
@@ -568,7 +576,7 @@ namespace FrigidBlackwaters.Game
                         {
                             Vector2Int dimensions = terrainContentAsset.GetDimensions(orientationDirection);
                             Vector2 tilePosition = AreaTiling.RectPositionFromIndexPosition(new Vector2Int(x, y), this.CenterPosition, blueprint.MainAreaDimensions, dimensions);
-                            TerrainContent terrainContent = CreateInstance<TerrainContent>(terrainContentPrefab, tilePosition + Vector2.up * (numSpawnedOnRowAtHeight[i] % 2 * FrigidConstants.SMALLEST_WORLD_SIZE), this.contentsTransform);
+                            TerrainContent terrainContent = CreateInstance<TerrainContent>(terrainContentPrefab, tilePosition + Vector2.up * (numSpawnedOnRowAtHeight[i] % 2 * FrigidConstants.WorldSizeEpsilon), this.contentsTransform);
                             List<Vector2Int> tileIndexPositions = new List<Vector2Int>();
                             AreaTiling.VisitTileIndexPositionsInTileRect(new Vector2Int(x, y), dimensions, blueprint.MainAreaDimensions, (Vector2Int tileIndexPosition) => tileIndexPositions.Add(tileIndexPosition));
                             terrainContent.Populate(orientationDirection, this.navigationGrid, tileIndexPositions);

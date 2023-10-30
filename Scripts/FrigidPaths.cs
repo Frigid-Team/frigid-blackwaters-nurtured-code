@@ -2,64 +2,56 @@ namespace FrigidBlackwaters
 {
     public static class FrigidPaths
     {
+#if UNITY_EDITOR
         public static class MenuItem
         {
-            public const string WINDOW = "Window/";
-            public const string JOBS = "Jobs/";
-            public const string EDIT_MODE = "Edit Mode/";
-            public const string HELP = "Help/";
+            public const string Window = "Window/";
+            public const string Jobs = "Jobs/";
+            public const string EditMode = "Edit Mode/";
+            public const string Help = "Help/";
         }
+#endif
 
+#if UNITY_EDITOR
         public static class ProjectFolder
         {
-            public const string ASSETS = "Assets/";
+            public const string Assets = "Assets/";
 
-            public const string PREFABS = "Prefabs/";
+            public const string Prefabs = "Prefabs/";
 
-            public const string SCRIPTABLE_OBJECTS = "Scriptable_Objects/";
-
-            public const string TILES = "Tiles/";
-            public const string BLUEPRINTS = "Blueprints/";
-            public const string MOB_GENERATION = "Mob_Generation/";
-            public const string PRESETS = "Presets/";
-
-            public const string UNIVERSAL = "Universal/";
-            public const string FIRST_DUNGEON_LEVEL = "First_Dungeon_Level/";
-            public const string EDITOR = "Editor/";
-
-            public const string ITEMS = "Items/";
-            public const string STORAGE = "Storage/";
-            public const string STORABLES = "Storables/";
-
-            public const string MOBS = "Mobs/";
-            public const string SPAWNING = "Spawning/";
+            public const string ScriptableObjects = "Scriptable_Objects/";
         }
+#endif
 
         public static class CreateAssetMenu
         {
-            public const string CORE = "Core/";
+            public const string Core = "Core/";
 
-            public const string PRIMITIVES = "Primitives/";
-            public const string UNITY = "Unity/";
-            public const string RENDERING = "Rendering/";
+            public const string Primitives = "Primitives/";
+            public const string Unity = "Unity/";
+            public const string Rendering = "Rendering/";
 
-            public const string GAME = "Game/";
+            public const string Game = "Game/";
 
-            public const string ANIMATION = "Animation/";
-            public const string TILES = "Tiles/";
-            public const string DAMAGE = "Damage/";
-            public const string DUNGEON_GENERATION = "Dungeon Generation/";
-            public const string MOBS = "Mobs/";
-            public const string ITEMS = "Items/";
-            public const string MENUS = "Menus/";
-            public const string SCENE_CHANGE = "Scene Change/";
-            public const string EXPEDITIONS = "Expeditions/";
+            public const string Animation = "Animation/";
+            public const string Tiles = "Tiles/";
+            public const string Damage = "Damage/";
+            public const string DungeonGeneration = "Dungeon Generation/";
+            public const string Mobs = "Mobs/";
+            public const string Items = "Items/";
+            public const string Menus = "Menus/";
+            public const string SceneChange = "Scene Change/";
+            public const string Expeditions = "Expeditions/";
+            public const string Boons = "Boons/";
         }
 
+#if UNITY_EDITOR
         public static class Scenes
         {
-            public const string FIRST_DUNGEON_LEVEL = "Assets/Scenes/Build_Scenes/First_Dungeon_Level.unity";
-            public const string PORT_CITY = "Assets/Scenes/Build_Scenes/Port_City.unity";
+            public const string Preloaded = "Assets/Scenes/Build_Scenes/Preloaded.unity";
+            public const string Dungeon = "Assets/Scenes/Build_Scenes/Dungeon.unity";
+            public const string PortCity = "Assets/Scenes/Build_Scenes/Port_City.unity";
         }
+#endif
     }
 }

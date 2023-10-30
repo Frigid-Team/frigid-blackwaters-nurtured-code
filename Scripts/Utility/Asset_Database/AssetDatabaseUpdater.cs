@@ -8,9 +8,29 @@ namespace FrigidBlackwaters.Utility
 {
     public static class AssetDatabaseUpdater
     {
+        public static string[] FindPrefabGUIDs()
+        {
+            return FindPrefabGUIDs(string.Empty);
+        }
+
+        public static string[] FindPrefabGUIDs(string filter)
+        {
+            return AssetDatabase.FindAssets(filter + " t:prefab", new string[] { FrigidPaths.ProjectFolder.Assets });
+        }
+
+        public static string[] FindAssetGUIDs<T>() where T : UnityEngine.Object
+        {
+            return FindAssetGUIDs<T>(string.Empty);
+        }
+
+        public static string[] FindAssetGUIDs<T>(string filter) where T : UnityEngine.Object
+        {
+            return AssetDatabase.FindAssets(filter + " t:" + typeof(T).Name, new string[] { FrigidPaths.ProjectFolder.Assets });
+        }
+
         public static void EditPrefabs<T>(Action<T> onVisited) where T : Component
         {
-            string[] guids = AssetDatabase.FindAssets("t:Prefab", new string[] { FrigidPaths.ProjectFolder.ASSETS + FrigidPaths.ProjectFolder.PREFABS });
+            string[] guids = FindPrefabGUIDs();
             foreach (string guid in guids)
             {
                 using (PrefabUtility.EditPrefabContentsScope editPrefabContentsScope = new PrefabUtility.EditPrefabContentsScope(AssetDatabase.GUIDToAssetPath(guid)))
@@ -25,7 +45,7 @@ namespace FrigidBlackwaters.Utility
 
         public static void EditPrefabComponents<T>(Action<T> onVisited) where T : Component
         {
-            string[] guids = AssetDatabase.FindAssets("t:Prefab", new string[] { FrigidPaths.ProjectFolder.ASSETS + FrigidPaths.ProjectFolder.PREFABS });
+            string[] guids = FindPrefabGUIDs();
             foreach (string guid in guids)
             {
                 using (PrefabUtility.EditPrefabContentsScope editPrefabContentsScope = new PrefabUtility.EditPrefabContentsScope(AssetDatabase.GUIDToAssetPath(guid)))
@@ -40,7 +60,7 @@ namespace FrigidBlackwaters.Utility
 
         public static void EditAssets<T>(Action<T> onVisited) where T : UnityEngine.Object
         {
-            string[] guids = AssetDatabase.FindAssets("t:" + typeof(T).Name, new string[] { FrigidPaths.ProjectFolder.ASSETS });
+            string[] guids = FindAssetGUIDs<T>();
             foreach (string guid in guids)
             {
                 T asset = AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid));
@@ -65,7 +85,7 @@ namespace FrigidBlackwaters.Utility
 
         public static T[] FindPrefabComponents<T>(string filter, Func<T, bool> predicate) where T : Component
         {
-            string[] guids = AssetDatabase.FindAssets(filter + " t:prefab");
+            string[] guids = FindPrefabGUIDs(filter);
             List<T> components = new List<T>();
             foreach (string guid in guids)
             {
@@ -96,7 +116,7 @@ namespace FrigidBlackwaters.Utility
 
         public static T[] FindPrefabs<T>(string filter, Func<T, bool> predicate) where T : Component
         {
-            string[] guids = AssetDatabase.FindAssets(filter + " t:prefab");
+            string[] guids = FindPrefabGUIDs(filter);
             T[] prefabs = new T[guids.Length];
             int numFound = 0;
             foreach (string guid in guids)
@@ -146,7 +166,7 @@ namespace FrigidBlackwaters.Utility
 
         public static T[] FindAssets<T>(string filter, Func<T, bool> predicate) where T : UnityEngine.Object
         {
-            string[] guids = AssetDatabase.FindAssets(filter + " t:" + typeof(T).Name);
+            string[] guids = FindAssetGUIDs<T>(filter);
             T[] assets = new T[guids.Length];
             int numFound = 0;
             foreach (string guid in guids)
@@ -184,7 +204,7 @@ namespace FrigidBlackwaters.Utility
             return false;
         }
 
-        [MenuItem(FrigidPaths.MenuItem.JOBS + "Asset Database Updater/Find Assets")]
+        [MenuItem(FrigidPaths.MenuItem.Jobs + "Asset Database Updater/Find Assets")]
         private static void FindAssets()
         {
             List<Type> assetTypes = TypeUtility.GetCompleteTypesDerivedFrom(typeof(UnityEngine.Object));
@@ -198,13 +218,14 @@ namespace FrigidBlackwaters.Utility
                     (int index) =>
                     {
                         Type assetType = assetTypes[index];
-                        string[] guids = AssetDatabase.FindAssets("");
+                        string[] guids = FindAssetGUIDs<UnityEngine.Object>();
                         foreach (string guid in guids)
                         {
-                            UnityEngine.Object asset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(guid), assetType);
+                            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                            UnityEngine.Object asset = AssetDatabase.LoadAssetAtPath(assetPath, assetType);
                             if (asset != null)
                             {
-                                Debug.Log(AssetDatabase.GetAssetPath(asset.GetInstanceID()));
+                                Debug.Log(assetPath);
                             }
                         }
                     }
@@ -212,7 +233,7 @@ namespace FrigidBlackwaters.Utility
                 );
         }
 
-        [MenuItem(FrigidPaths.MenuItem.JOBS + "Asset Database Updater/Find Prefab Components")]
+        [MenuItem(FrigidPaths.MenuItem.Jobs + "Asset Database Updater/Find Prefab Components")]
         private static void FindPrefabComponents()
         {
             List<Type> componentTypes = TypeUtility.GetCompleteTypesDerivedFrom(typeof(Component));
@@ -226,7 +247,7 @@ namespace FrigidBlackwaters.Utility
                     (int index) => 
                     {
                         Type componentType = componentTypes[index];
-                        string[] guids = AssetDatabase.FindAssets(" t:prefab");
+                        string[] guids = FindPrefabGUIDs();
                         foreach (string guid in guids)
                         {
                             GameObject gameObject = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
@@ -243,16 +264,16 @@ namespace FrigidBlackwaters.Utility
                 );
         }
 
-        [MenuItem(FrigidPaths.MenuItem.JOBS + "Asset Database Updater/Force Reserialize All Assets")]
+        [MenuItem(FrigidPaths.MenuItem.Jobs + "Asset Database Updater/Force Reserialize All Assets")]
         private static void ForceReserializeAllAssets()
         {
             AssetDatabase.ForceReserializeAssets();
         }
 
-        [MenuItem(FrigidPaths.MenuItem.JOBS + "Asset Database Updater/Force Reserialize Prefabs")]
+        [MenuItem(FrigidPaths.MenuItem.Jobs + "Asset Database Updater/Force Reserialize Prefabs")]
         private static void ForceReserializePrefabs()
         {
-            string[] guids = AssetDatabase.FindAssets("t:Prefab");
+            string[] guids = FindPrefabGUIDs();
             string[] prefabPaths = new string[guids.Length];
             for (int i = 0; i < guids.Length; i++)
             {
@@ -261,10 +282,10 @@ namespace FrigidBlackwaters.Utility
             AssetDatabase.ForceReserializeAssets(prefabPaths);
         }
 
-        [MenuItem(FrigidPaths.MenuItem.JOBS + "Asset Database Updater/Force Reserialize Scriptable Objects")]
+        [MenuItem(FrigidPaths.MenuItem.Jobs + "Asset Database Updater/Force Reserialize Scriptable Objects")]
         private static void ForceReserializeScriptableObjects()
         {
-            string[] guids = AssetDatabase.FindAssets("t:ScriptableObject");
+            string[] guids = FindAssetGUIDs<ScriptableObject>();
             string[] scriptableObjectPaths = new string[guids.Length];
             for (int i = 0; i < guids.Length; i++)
             {

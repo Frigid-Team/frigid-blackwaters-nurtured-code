@@ -4,6 +4,6 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Core
 {
-    [CreateAssetMenu(fileName = "IntScriptableVariable", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.EXPEDITIONS + "IntScriptableVariable")]
+    [CreateAssetMenu(fileName = "IntScriptableVariable", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Expeditions + "IntScriptableVariable")]
     public class IntScriptableVariable : ScriptableVariable<int> { }
 }

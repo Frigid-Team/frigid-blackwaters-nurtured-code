@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "TerrainContentAsset", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TerrainContentAsset")]
+    [CreateAssetMenu(fileName = "TerrainContentAsset", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TerrainContentAsset")]
     public class TerrainContentAsset : FrigidScriptableObject
     {
         [SerializeField]

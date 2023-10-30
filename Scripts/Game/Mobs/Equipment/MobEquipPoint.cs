@@ -119,7 +119,7 @@ namespace FrigidBlackwaters.Game
                 this.equipments.Add(equipment);
                 equipment.transform.SetParent(this.transform);
                 equipment.transform.localPosition = Vector2.zero;
-                equipment.Assign(this);
+                equipment.OwnedBy(this);
                 this.UpdateEquippedEquipment(Mathf.Clamp(this.equipIndex, 0, this.equipments.Count - 1));
                 return true;
             }
@@ -139,7 +139,7 @@ namespace FrigidBlackwaters.Game
                 {
                     this.UpdateEquippedEquipment((equipmentIndex + 1) % (this.equipments.Count - 1));
                 }
-                equipment.Unassign();
+                equipment.OwnedBy(null);
                 equipment.transform.SetParent(null);
                 equipment.transform.localPosition = Vector2.zero;
                 this.equipments.RemoveAt(equipmentIndex);

@@ -1,46 +1,17 @@
-using UnityEngine;
-
-using FrigidBlackwaters.Core;
+using System.Collections.Generic;
 
 namespace FrigidBlackwaters.Game
 {
-    public class MobThreatReceivedConditional : Conditional
+    public class MobThreatReceivedConditional : MobDamageInfoConditional<ThreatInfo>
     {
-        [SerializeField]
-        private MobSerializedHandle mob;
-        [SerializeField]
-        private FloatSerializedReference lastingDuration;
-        [SerializeField]
-        private IntSerializedReference numberThreatsRequired;
-        [SerializeField]
-        private FloatSerializedReference chanceOfNotOccuring;
-
-        protected override bool CustomEvaluate(float elapsedDuration, float elapsedDurationDelta)
+        protected override LinkedList<ThreatInfo> GetDamageInfos(Mob mob)
         {
-            return this.Tally(elapsedDuration, elapsedDurationDelta) > 0;
+            return mob.ThreatsReceived;
         }
 
-        protected override int CustomTally(float elapsedDuration, float elapsedDurationDelta)
+        protected override int TallyDamageInfo(ThreatInfo threatInfo)
         {
-            if (!this.mob.TryGetValue(out Mob mob))
-            {
-                return 0;
-            }
-
-            int numberThreats = 0;
-            foreach (ThreatInfo threatInfo in mob.ThreatsReceived)
-            {
-                if (Time.time - threatInfo.TimeWarned >= this.lastingDuration.ImmutableValue + Time.deltaTime)
-                {
-                    break;
-                }
-                if ((this.numberThreatsRequired.ImmutableValue == 0 || mob.HitsReceived.Count % this.numberThreatsRequired.ImmutableValue == 0) &&
-                    Random.Range(0f, 1f) >= this.chanceOfNotOccuring.ImmutableValue)
-                {
-                    numberThreats++;
-                }
-            }
-            return numberThreats;
+            return 1;
         }
     }
 }

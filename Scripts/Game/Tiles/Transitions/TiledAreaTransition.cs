@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "TiledAreaTransition", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TiledAreaTransition")]
+    [CreateAssetMenu(fileName = "TiledAreaTransition", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TiledAreaTransition")]
     public class TiledAreaTransition : FrigidScriptableObject
     {
         [SerializeField]

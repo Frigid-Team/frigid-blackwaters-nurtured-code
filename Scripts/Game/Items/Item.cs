@@ -1,3 +1,4 @@
+using UnityEngine;
 using System.Collections.Generic;
 using System;
 
@@ -11,11 +12,12 @@ namespace FrigidBlackwaters.Game
         private bool storageChangeable;
         private Action onStorageChangeableChanged;
 
-        private HashSet<ItemNode> activeRootNodes;
-        private Dictionary<ItemNode, FrigidCoroutine> enteredRootNodeRoutines;
+        private HashSet<ItemEffectNode> currentRootEffectNodes;
+        private Dictionary<ItemEffectNode, FrigidCoroutine> currentRootEffectNodeRoutines;
+        private List<AbilityResource> abilityResources;
 
+        private HashSet<MobBehaviour> effectBehaviours;
         private Action onInEffectChanged;
-        private Action onActiveAbilityResourcesChanged;
 
         public ItemStorage Storage
         {
@@ -88,15 +90,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                bool inEffect = false;
-                foreach (ItemNode activeRootNode in this.activeRootNodes)
-                {
-                    foreach (ItemNode currentNode in activeRootNode.CurrentNodes)
-                    {
-                        inEffect |= currentNode.InEffect;
-                    }
-                }
-                return inEffect;
+                return this.effectBehaviours.Count > 0;
             }
         }
 
@@ -112,221 +106,229 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public List<AbilityResource> ActiveAbilityResources
+        public List<AbilityResource> AbilityResources
         {
             get
             {
-                List<AbilityResource> allActiveAbilityResources = new List<AbilityResource>();
-                foreach (ItemNode activeRootNode in this.activeRootNodes)
-                {
-                    foreach (ItemNode currentNode in activeRootNode.CurrentNodes)
-                    {
-                        allActiveAbilityResources.AddRange(currentNode.ActiveAbilityResources);
-                    }
-                }
-                return allActiveAbilityResources;
+                return this.abilityResources;
             }
         }
 
-        public Action OnActiveAbilityResourcesChanged
+        public virtual void Created()
         {
-            get
+            this.inUse = false;
+            this.storageChangeable = true;
+            this.currentRootEffectNodes = new HashSet<ItemEffectNode>();
+            this.currentRootEffectNodeRoutines = new Dictionary<ItemEffectNode, FrigidCoroutine>();
+            this.currentRootEffectNodes = new HashSet<ItemEffectNode>(this.InitialRootEffectNodes);
+            this.abilityResources = new List<AbilityResource>();
+            foreach (ItemEffectNode rootEffectNode in this.ReferencedRootEffectNodes)
             {
-                return this.onActiveAbilityResourcesChanged;
+                rootEffectNode.OwnedBy(this);
+                rootEffectNode.CollectAbilityResources(ref this.abilityResources);
+                rootEffectNode.Created();
+                rootEffectNode.gameObject.SetActive(false);
             }
-            set
+
+            this.effectBehaviours = new HashSet<MobBehaviour>();
+        }
+
+        public virtual void Discarded()
+        {
+            foreach (ItemEffectNode rootEffectNode in this.ReferencedRootEffectNodes)
             {
-                this.onActiveAbilityResourcesChanged = value;
+                rootEffectNode.Discarded();
+                rootEffectNode.OwnedBy(null);
+                rootEffectNode.gameObject.SetActive(false);
             }
         }
 
-        public void Assign(ItemStorage storage)
+        public void StoredBy(ItemStorage storage)
         {
             this.storage = storage;
-        }
-
-        public void Unassign()
-        {
-            this.storage = null;
         }
  
         public virtual void Stored() 
         {
-            foreach (ItemNode activeRootNode in this.activeRootNodes)
+            if (this.Storage.TryGetUsingMob(out Mob usingMob))
             {
-                this.EnterRootNode(activeRootNode);
+                usingMob.OnStatusChanged += this.EnterOrExitRootEffectNodesOnStatusChange;
+                if (usingMob.Status != MobStatus.Dead)
+                {
+                    foreach (ItemEffectNode currentRootEffectNode in this.currentRootEffectNodes)
+                    {
+                        this.EnterRootEffectNode(currentRootEffectNode);
+                    }
+                }
             }
         }
 
         public virtual void Unstored() 
         {
-            foreach (ItemNode activeRootNode in this.activeRootNodes)
+            if (this.Storage.TryGetUsingMob(out Mob usingMob))
             {
-                this.ExitRootNode(activeRootNode);
+                usingMob.OnStatusChanged -= this.EnterOrExitRootEffectNodesOnStatusChange;
+                if (usingMob.Status != MobStatus.Dead)
+                {
+                    foreach (ItemEffectNode currentRootEffectNode in this.currentRootEffectNodes)
+                    {
+                        this.ExitRootEffectNode(currentRootEffectNode);
+                    }
+                }
             }
         }
         
         public virtual bool Used() { return false; }
 
-        public void AddBehaviourToMob(MobBehaviour behaviour)
+        public void AddStatusTagToMob(MobStatusTag statusTag)
         {
             if (this.Storage.TryGetUsingMob(out Mob usingMob))
             {
-                usingMob.AddBehaviour(behaviour, true);
+                usingMob.AddStatusTag(statusTag);
             }
         }
 
-        public void RemoveBehaviourFromMob(MobBehaviour behaviour)
+        public void RemoveStatusTagFromMob(MobStatusTag statusTag)
         {
             if (this.Storage.TryGetUsingMob(out Mob usingMob))
             {
-                usingMob.RemoveBehaviour(behaviour);
+                usingMob.RemoveStatusTag(statusTag);
             }
         }
 
-        protected abstract HashSet<ItemNode> RootNodes { get; }
-
-        protected override void Awake()
+        public void AddEffectBehaviour(MobBehaviour behaviour, Action onFinished = null)
         {
-            base.Awake();
-            this.inUse = false;
-            this.storageChangeable = true;
-            this.activeRootNodes = new HashSet<ItemNode>();
-            this.enteredRootNodeRoutines = new Dictionary<ItemNode, FrigidCoroutine>();
-            foreach (ItemNode rootNode in this.RootNodes)
+            if (!this.Storage.TryGetUsingMob(out Mob usingMob))
             {
-                this.VisitRootAndChildren(
-                    rootNode, 
-                    (ItemNode node) => 
+                onFinished?.Invoke();
+                return;
+            }
+
+            this.effectBehaviours.Add(behaviour);
+            bool success = usingMob.AddBehaviour(
+                behaviour,
+                true,
+                () =>
+                {
+                    this.effectBehaviours.Remove(behaviour);
+                    onFinished?.Invoke();
+                    if (this.effectBehaviours.Count == 0)
                     {
-                        node.Link(this);
-                        node.Init();
+                        this.onInEffectChanged?.Invoke();
                     }
-                    );
-                rootNode.gameObject.SetActive(false);
-            }
-        }
-
-        protected void ActivateRootNode(ItemNode rootNode)
-        {
-            if (!this.activeRootNodes.Contains(rootNode))
-            {
-                this.activeRootNodes.Add(rootNode);
-                rootNode.gameObject.SetActive(true);
-                this.EnterRootNode(rootNode);
-            }
-        }
-
-        protected void DeactivateRootNode(ItemNode rootNode)
-        {
-            if (this.activeRootNodes.Contains(rootNode))
-            {
-                this.ExitRootNode(rootNode);
-                this.activeRootNodes.Remove(rootNode);
-                rootNode.gameObject.SetActive(false);
-            }
-        }
-
-        private void EnterRootNode(ItemNode rootNode)
-        {
-            if (!this.enteredRootNodeRoutines.ContainsKey(rootNode) && this.Storage.TryGetUsingMob(out _))
-            {
-                this.enteredRootNodeRoutines.Add(rootNode, FrigidCoroutine.Run(this.NodeRefresh(rootNode), this.gameObject));
-                rootNode.OnCurrentNodeAdded += this.HandleCurrentNodeAddition;
-                rootNode.OnCurrentNodeRemoved += this.HandleCurrentNodeRemoval;
-                foreach (ItemNode currentNode in rootNode.CurrentNodes)
-                {
-                    this.HandleCurrentNodeAddition(currentNode);
                 }
-                rootNode.Enter();
+                );
+            if (!success)
+            {
+                this.effectBehaviours.Remove(behaviour);
+                onFinished?.Invoke();
+                return;
+            }
+
+            if (this.effectBehaviours.Count == 1)
+            {
+                this.onInEffectChanged?.Invoke();
             }
         }
 
-        private void ExitRootNode(ItemNode rootNode)
+        public void RemoveEffectBehaviour(MobBehaviour behaviour)
         {
-            if (this.enteredRootNodeRoutines.TryGetValue(rootNode, out FrigidCoroutine refreshRoutine) && this.Storage.TryGetUsingMob(out _))
+            if (!this.Storage.TryGetUsingMob(out Mob usingMob))
             {
-                this.enteredRootNodeRoutines.Remove(rootNode);
-                rootNode.Exit();
-                rootNode.OnCurrentNodeAdded -= this.HandleCurrentNodeAddition;
-                rootNode.OnCurrentNodeRemoved -= this.HandleCurrentNodeRemoval;
-                foreach (ItemNode currentNode in rootNode.CurrentNodes)
+                return;
+            }
+
+            if (!usingMob.RemoveBehaviour(behaviour))
+            {
+                return;
+            }
+            this.effectBehaviours.Remove(behaviour);
+
+            if (this.effectBehaviours.Count == 0)
+            {
+                this.onInEffectChanged?.Invoke();
+            }
+        }
+
+        protected abstract HashSet<ItemEffectNode> InitialRootEffectNodes { get; }
+
+        protected abstract HashSet<ItemEffectNode> ReferencedRootEffectNodes { get; }
+
+        protected void AddRootEffectNode(ItemEffectNode rootEffectNode)
+        {
+            if (!this.currentRootEffectNodes.Contains(rootEffectNode))
+            {
+                rootEffectNode.gameObject.SetActive(true);
+                this.currentRootEffectNodes.Add(rootEffectNode);
+                if (this.Storage.TryGetUsingMob(out Mob usingMob) && usingMob.Status != MobStatus.Dead)
                 {
-                    this.HandleCurrentNodeRemoval(currentNode);
+                    this.EnterRootEffectNode(rootEffectNode);
                 }
+            }
+            else
+            {
+                Debug.LogError("ItemEffectNode " + rootEffectNode.name + " is already a current root effect node in item " + this.name + "!");
+            }
+        }
+
+        protected void RemoveRootEffectNode(ItemEffectNode rootEffectNode)
+        {
+            if (this.currentRootEffectNodes.Contains(rootEffectNode))
+            {
+                if (this.Storage.TryGetUsingMob(out Mob usingMob) && usingMob.Status != MobStatus.Dead)
+                {
+                    this.ExitRootEffectNode(rootEffectNode);
+                }
+                this.currentRootEffectNodes.Remove(rootEffectNode);
+                rootEffectNode.gameObject.SetActive(false);
+            }
+            else
+            {
+                Debug.LogError("ItemEffectNode " + rootEffectNode.name + " is not a current root effect node in item " + this.name + "!");
+            }
+        }
+
+        private void EnterOrExitRootEffectNodesOnStatusChange()
+        {
+            this.Storage.TryGetUsingMob(out Mob usingMob);
+            foreach (ItemEffectNode currentRootEffectNode in this.currentRootEffectNodes)
+            {
+                if (usingMob.Status != MobStatus.Dead)
+                {
+                    this.EnterRootEffectNode(currentRootEffectNode);
+                }
+                else
+                {
+                    this.ExitRootEffectNode(currentRootEffectNode);
+                }
+            }
+        }
+
+        private void EnterRootEffectNode(ItemEffectNode rootEffectNode)
+        {
+            if (!this.currentRootEffectNodeRoutines.ContainsKey(rootEffectNode) && this.Storage.TryGetUsingMob(out _))
+            {
+                this.currentRootEffectNodeRoutines.Add(rootEffectNode, FrigidCoroutine.Run(this.NodeRefresh(rootEffectNode), this.gameObject));
+                rootEffectNode.Enter();
+            }
+        }
+
+        private void ExitRootEffectNode(ItemEffectNode rootEffectNode)
+        {
+            if (this.currentRootEffectNodeRoutines.TryGetValue(rootEffectNode, out FrigidCoroutine refreshRoutine) && this.Storage.TryGetUsingMob(out _))
+            {
+                this.currentRootEffectNodeRoutines.Remove(rootEffectNode);
+                rootEffectNode.Exit();
                 FrigidCoroutine.Kill(refreshRoutine);
             }
         }
 
-        private IEnumerator<FrigidCoroutine.Delay> NodeRefresh(ItemNode node)
+        private IEnumerator<FrigidCoroutine.Delay> NodeRefresh(ItemEffectNode effectNode)
         {
             while (true)
             {
-                node.Refresh();
+                effectNode.Refresh();
                 yield return null;
-            }
-        }
-
-        private void VisitRootAndChildren(ItemNode rootNode, Action<ItemNode> onVisited)
-        {
-            HashSet<ItemNode> visitedNodes = new HashSet<ItemNode>();
-            Queue<ItemNode> nextNodes = new Queue<ItemNode>();
-            nextNodes.Enqueue(rootNode);
-            while (nextNodes.TryDequeue(out ItemNode nextNode))
-            {
-                if (!visitedNodes.Contains(nextNode))
-                {
-                    visitedNodes.Add(nextNode);
-                    foreach (ItemNode referencedNode in nextNode.ReferencedNodes)
-                    {
-                        nextNodes.Enqueue(referencedNode);
-                    }
-                    onVisited.Invoke(nextNode);
-                }
-            }
-        }
-
-        private void HandleCurrentNodeAddition(ItemNode addedNode)
-        {
-            if (addedNode.ActiveAbilityResources.Count > 0)
-            {
-                this.onActiveAbilityResourcesChanged?.Invoke();
-            }
-            if (addedNode.InEffect)
-            {
-                foreach (ItemNode activeRootNode in this.activeRootNodes)
-                {
-                    foreach (ItemNode currentNode in activeRootNode.CurrentNodes)
-                    {
-                        if (currentNode != addedNode && currentNode.InEffect)
-                        {
-                            return;
-                        }
-                    }
-                }
-                this.onInEffectChanged?.Invoke();
-            }
-        }
-
-        private void HandleCurrentNodeRemoval(ItemNode removedNode)
-        {
-            if (removedNode.ActiveAbilityResources.Count > 0)
-            {
-                this.onActiveAbilityResourcesChanged?.Invoke();
-            }
-            if (removedNode.InEffect)
-            {
-                foreach (ItemNode activeRootNode in this.activeRootNodes)
-                {
-                    foreach (ItemNode currentNode in activeRootNode.CurrentNodes)
-                    {
-                        if (currentNode.InEffect)
-                        {
-                            return;
-                        }
-                    }
-                }
-                this.onInEffectChanged?.Invoke();
             }
         }
 

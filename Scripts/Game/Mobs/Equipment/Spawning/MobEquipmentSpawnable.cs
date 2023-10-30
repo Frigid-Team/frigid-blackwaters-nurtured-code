@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "MobEquipmentSpawnable", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.MOBS + "MobEquipmentSpawnable")]
+    [CreateAssetMenu(fileName = "MobEquipmentSpawnable", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Mobs + "MobEquipmentSpawnable")]
     public class MobEquipmentSpawnable : FrigidScriptableObject
     {
         // Much like MobSpawnables, this class will eventually be filled out with information that help determine what kind of equipment to spawn.

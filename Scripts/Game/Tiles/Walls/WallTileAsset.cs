@@ -4,11 +4,11 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "WallTileAsset", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "WallTileAsset")]
+    [CreateAssetMenu(fileName = "WallTileAsset", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "WallTileAsset")]
     public class WallTileAsset : FrigidScriptableObject
     {
         [SerializeField]
-        [Range(0, TiledArea.MAX_WALL_DEPTH)]
+        [Range(0, TiledArea.MaxWallDepth)]
         private int depth;
         [SerializeField]
         private List<WallTile> wallTilePrefabs;
@@ -27,11 +27,8 @@ namespace FrigidBlackwaters.Game
 
         public WallTile GetWallTilePrefab(int depth)
         {
-            if (depth >= 1 && depth <= this.depth) 
-            {
-                return this.wallTilePrefabs[depth - 1];
-            }
-            throw new Exception("Wall tile depth is not within bounds!");
+            Debug.Assert(depth >= 1 && depth <= this.depth, "Wall tile depth is not within bounds!");
+            return this.wallTilePrefabs[depth - 1];
         }
 
         public bool TryGetWallBoundaryTilePrefab(TerrainTileAsset terrainTileAsset, out WallBoundaryTile wallBoundaryTilePrefab)

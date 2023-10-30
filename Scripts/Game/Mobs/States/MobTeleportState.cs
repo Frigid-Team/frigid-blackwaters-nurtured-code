@@ -25,7 +25,7 @@ namespace FrigidBlackwaters.Game
             return this.EnteredSelf;
         }
 
-        protected override void EnterSelf()
+        public override void EnterSelf()
         {
             this.teleportPosition = this.teleportTargeter.Retrieve(this.Owner.Position, this.SelfEnterDuration, this.SelfEnterDurationDelta);
             this.OwnerAnimatorBody.OnFrameUpdated += this.TeleportOnDesignatedFrame;
@@ -33,7 +33,7 @@ namespace FrigidBlackwaters.Game
             this.TeleportOnDesignatedFrame(0, this.OwnerAnimatorBody.CurrFrameIndex);
         }
 
-        protected override void ExitSelf()
+        public override void ExitSelf()
         {
             base.ExitSelf();
             this.OwnerAnimatorBody.OnFrameUpdated -= this.TeleportOnDesignatedFrame;

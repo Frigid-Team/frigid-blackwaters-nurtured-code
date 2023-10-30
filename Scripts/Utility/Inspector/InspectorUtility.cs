@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Utility
 {
     public static class InspectorUtility
     {
-        public const BindingFlags SEARCH_FLAGS = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+        public const BindingFlags SearchFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
         private static Dictionary<Type, InspectorFieldDrawer> inspectorFieldDrawersToAttributeTypes;
 
@@ -80,7 +80,7 @@ namespace FrigidBlackwaters.Utility
 
                 while (currType != null && currType != typeof(FrigidMonoBehaviour) && currType != typeof(FrigidScriptableObject))
                 {
-                    FieldInfo fieldInfo = currType.GetField(name, SEARCH_FLAGS);
+                    FieldInfo fieldInfo = currType.GetField(name, SearchFlags);
                     if (fieldInfo != null) return fieldInfo.GetValue(obj);
                     currType = currType.BaseType;
                 }
@@ -124,13 +124,13 @@ namespace FrigidBlackwaters.Utility
             FieldInfo GetFieldViaPath(Type type, string path)
             {
                 Type currType = type;
-                FieldInfo fieldInfo = currType.GetField(path, SEARCH_FLAGS);
+                FieldInfo fieldInfo = currType.GetField(path, SearchFlags);
                 string[] elements = path.Split('.');
 
                 int i = 0;
                 while (i < elements.Length)
                 {
-                    fieldInfo = currType.GetField(elements[i], SEARCH_FLAGS);
+                    fieldInfo = currType.GetField(elements[i], SearchFlags);
                     if (fieldInfo != null)
                     {
                         i++;

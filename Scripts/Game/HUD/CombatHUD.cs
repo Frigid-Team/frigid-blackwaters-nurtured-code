@@ -103,17 +103,25 @@ namespace FrigidBlackwaters.Game
         private void UpdateEquippedEquipmentOnHUD(bool hasPrevious, MobEquipment previousEquippedEquipment, bool hasCurrent, MobEquipment currentEquippedEquipment)
         {
             FrigidCoroutine.Kill(this.equipmentHUDRoutine);
-            this.equipmentBarHUD.Transition(Mathf.FloorToInt(hasCurrent ? currentEquippedEquipment.ActiveAbilityResource.Progress * 100 : 0), 100);
-            IEnumerator<FrigidCoroutine.Delay> ShowEquipmentOnHUD()
+            if (hasCurrent && currentEquippedEquipment.AbilityResources.Count > 0)
             {
-                while (true)
+                AbilityResource abilityResource = currentEquippedEquipment.AbilityResources[0];
+                this.equipmentBarHUD.Transition(Mathf.FloorToInt(abilityResource.Progress * 100), 100);
+                IEnumerator<FrigidCoroutine.Delay> ShowEquipmentOnHUD()
                 {
-                    this.equipmentBarHUD.SetCurrent(Mathf.FloorToInt(hasCurrent ? currentEquippedEquipment.ActiveAbilityResource.Progress * 100 : 0));
-                    this.equipmentQuantityText.text = hasCurrent ? (currentEquippedEquipment.ActiveAbilityResource.Quantity >= 0 ? currentEquippedEquipment.ActiveAbilityResource.Quantity.ToString() : "-") : string.Empty;
-                    yield return null;
+                    while (true)
+                    {
+                        this.equipmentBarHUD.SetCurrent(Mathf.FloorToInt(abilityResource.Progress * 100));
+                        this.equipmentQuantityText.text = abilityResource.Quantity >= 0 ? abilityResource.Quantity.ToString() : "-";
+                        yield return null;
+                    }
                 }
+                this.equipmentHUDRoutine = FrigidCoroutine.Run(ShowEquipmentOnHUD());
+                return;
             }
-            this.equipmentHUDRoutine = FrigidCoroutine.Run(ShowEquipmentOnHUD());
+            this.equipmentBarHUD.Transition(0, 100);
+            this.equipmentQuantityText.text = string.Empty;
+            this.equipmentHUDRoutine = null;
         }
 
         private void UpdateDashResourceOnHUD(AbilityResource previousDashResource, AbilityResource currentDashResource)

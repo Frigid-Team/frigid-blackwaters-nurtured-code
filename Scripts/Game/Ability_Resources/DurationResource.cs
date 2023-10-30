@@ -54,23 +54,15 @@ namespace FrigidBlackwaters.Game
             this.nextRefillDurationThreshold = Mathf.Max(0, this.refillDuration.MutableValue);
         }
 
-        protected override void UpdateInUse()
+        protected override void Update()
         {
-            base.UpdateInUse();
-            if (this.refillInUse) this.UpdateCooldownRefill();
-        }
-
-        protected override void UpdateOutOfUse()
-        {
-            base.UpdateOutOfUse();
-            this.UpdateCooldownRefill();
-        }
-
-        private void UpdateCooldownRefill()
-        {
-            if (this.currentRefillDuration < this.nextRefillDurationThreshold)
+            base.Update();
+            if (this.refillInUse || !this.InUse)
             {
-                this.currentRefillDuration += Time.deltaTime * this.LocalTimeScale;
+                if (this.currentRefillDuration < this.nextRefillDurationThreshold)
+                {
+                    this.currentRefillDuration += this.LocalDeltaTime;
+                }
             }
         }
     }

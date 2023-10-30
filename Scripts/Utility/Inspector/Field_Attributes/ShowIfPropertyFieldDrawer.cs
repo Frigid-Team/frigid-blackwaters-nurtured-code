@@ -11,7 +11,7 @@ namespace FrigidBlackwaters.Utility
         protected override bool EvaluateWithRootObject(ShowIfAttribute showIfAttribute, SerializedObject rootObject, List<InspectorDrawnFieldRecord> drawnFieldRecords)
         {
             ShowIfPropertyAttribute showIfPropertyAttribute = (ShowIfPropertyAttribute)showIfAttribute;
-            PropertyInfo propertyInfo = rootObject.targetObject.GetType().GetDerivedProperty(showIfPropertyAttribute.PropertyName, InspectorUtility.SEARCH_FLAGS);
+            PropertyInfo propertyInfo = rootObject.targetObject.GetType().GetDerivedProperty(showIfPropertyAttribute.PropertyName, InspectorUtility.SearchFlags);
             return propertyInfo == null || propertyInfo.PropertyType != typeof(bool) || (bool)propertyInfo.GetValue(rootObject.targetObject);
         }
 
@@ -19,7 +19,7 @@ namespace FrigidBlackwaters.Utility
         {
             FieldInfo propertyFieldInfo = InspectorUtility.GetFieldFromSerializedProperty(rootProperty);
             ShowIfPropertyAttribute showIfPropertyAttribute = (ShowIfPropertyAttribute)showIfAttribute;
-            PropertyInfo propertyInfo = propertyFieldInfo.DeclaringType.GetDerivedProperty(showIfPropertyAttribute.PropertyName, InspectorUtility.SEARCH_FLAGS);
+            PropertyInfo propertyInfo = propertyFieldInfo.DeclaringType.GetDerivedProperty(showIfPropertyAttribute.PropertyName, InspectorUtility.SearchFlags);
             return propertyInfo == null || propertyInfo.PropertyType != typeof(bool) || (bool)propertyInfo.GetValue(InspectorUtility.GetObjectFromSerializedProperty(rootProperty));
         }
     }

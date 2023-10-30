@@ -7,7 +7,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "CombatantsTiledAreaMobSpawner", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "CombatantsTiledAreaMobSpawner")]
+    [CreateAssetMenu(fileName = "CombatantsTiledAreaMobSpawner", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "CombatantsTiledAreaMobSpawner")]
     public class CombatantsTiledAreaMobSpawner : TiledAreaMobSpawner
     {
         [SerializeField]

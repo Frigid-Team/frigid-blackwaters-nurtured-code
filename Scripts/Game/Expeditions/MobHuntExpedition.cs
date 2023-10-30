@@ -7,7 +7,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "MobHuntExpedition", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.EXPEDITIONS + "MobHuntExpedition")]
+    [CreateAssetMenu(fileName = "MobHuntExpedition", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Expeditions + "MobHuntExpedition")]
     public class MobHuntExpedition : SubGoalsExpedition<MobHuntExpedition.HuntSubGoal>
     {
         [Serializable]

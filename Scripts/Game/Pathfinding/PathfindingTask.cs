@@ -75,8 +75,8 @@ namespace FrigidBlackwaters.Game
                     this.currentTiledArea.NavigationGrid.IsTraversable(newTargetIndexPosition, this.currentRectDimensions, this.currentTraversableTerrain, this.currentTraversableResistance))
                 {
                     bool startTooFar = true;
-                    if (Mathf.Abs(newStartPosition.x - previousStartingPosition.x) > FrigidConstants.UNIT_WORLD_SIZE / 2 + exitExtents.x ||
-                        Mathf.Abs(newStartPosition.y - previousStartingPosition.y) > FrigidConstants.UNIT_WORLD_SIZE / 2 + exitExtents.y)
+                    if (Mathf.Abs(newStartPosition.x - previousStartingPosition.x) > FrigidConstants.UnitWorldSize / 2 + exitExtents.x ||
+                        Mathf.Abs(newStartPosition.y - previousStartingPosition.y) > FrigidConstants.UnitWorldSize / 2 + exitExtents.y)
                     {
                         List<Vector2Int> adjacentIndexPositionsToStart = this.currentTiledArea.NavigationGrid.GetAdjacentTraversableIndexPositions(newStartIndexPosition, this.currentRectDimensions, this.currentTraversableTerrain, this.currentTraversableResistance);
                         for (int i = this.currentPathIndexPositions.Count - 1; i >= 0; i--)
@@ -105,8 +105,8 @@ namespace FrigidBlackwaters.Game
                     }
 
                     bool targetTooFar = true;
-                    if (Mathf.Abs(newTargetPosition.x - previousTargetPosition.x) > FrigidConstants.UNIT_WORLD_SIZE / 2 + exitExtents.x ||
-                        Mathf.Abs(newTargetPosition.y - previousTargetPosition.y) > FrigidConstants.UNIT_WORLD_SIZE / 2 + exitExtents.y)
+                    if (Mathf.Abs(newTargetPosition.x - previousTargetPosition.x) > FrigidConstants.UnitWorldSize / 2 + exitExtents.x ||
+                        Mathf.Abs(newTargetPosition.y - previousTargetPosition.y) > FrigidConstants.UnitWorldSize / 2 + exitExtents.y)
                     {
                         List<Vector2Int> adjacentIndexPositionsToTarget = this.currentTiledArea.NavigationGrid.GetAdjacentTraversableIndexPositions(newTargetIndexPosition, this.currentRectDimensions, this.currentTraversableTerrain, this.currentTraversableResistance);
                         for (int i = 0; i < this.currentPathIndexPositions.Count; i++)

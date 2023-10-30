@@ -13,36 +13,11 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private ReturnToStartingNodeBehaviour returnToStartingNodeBehaviour;
 
-        private MobEquipmentStateNode chosenStateNode;
-
-        public override MobEquipmentState InitialState
-        {
-            get
-            {
-                return this.startingStateNode.InitialState;
-            }
-        }
-
-        public override HashSet<MobEquipmentStateNode> ReferencedStateNodes
-        {
-            get
-            {
-                HashSet<MobEquipmentStateNode> referencedStateNodes = new HashSet<MobEquipmentStateNode>();
-                referencedStateNodes.Add(this.startingStateNode);
-                foreach (Transition transition in this.transitions)
-                {
-                    referencedStateNodes.Add(transition.FromStateNode);
-                    referencedStateNodes.Add(transition.NextStateNode);
-                }
-                return referencedStateNodes;
-            }
-        }
-
         public override bool AutoEnter
         {
             get
             {
-                return this.chosenStateNode.AutoEnter;
+                return this.ChosenStateNode.AutoEnter;
             }
         }
 
@@ -50,23 +25,18 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.chosenStateNode.AutoExit;
+                return this.ChosenStateNode.AutoExit;
             }
-        }
-
-        public override void Init()
-        {
-            base.Init();
-            this.chosenStateNode = this.startingStateNode;
         }
 
         public override void Equipped()
         {
-            base.Equipped();
             if (this.returnToStartingNodeBehaviour == ReturnToStartingNodeBehaviour.OnEquipped)
             {
                 this.SetChosenStateNode(this.startingStateNode);
             }
+            base.Equipped();
+            this.CheckTransitions();
         }
 
         public override void Enter()
@@ -76,25 +46,35 @@ namespace FrigidBlackwaters.Game
                 this.SetChosenStateNode(this.startingStateNode);
             }
             base.Enter();
-            this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
-            this.chosenStateNode.Enter();
-
             this.CheckTransitions();
-        }
-
-        public override void Exit()
-        {
-            base.Exit();
-            this.chosenStateNode.Exit();
-            this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
         }
 
         public override void Refresh()
         {
             base.Refresh();
-
             this.CheckTransitions();
-            this.chosenStateNode.Refresh();
+        }
+
+        protected override MobEquipmentStateNode SpawnStateNode
+        {
+            get
+            {
+                return this.startingStateNode;
+            }
+        }
+
+        protected override HashSet<MobEquipmentStateNode> ChildStateNodes
+        {
+            get
+            {
+                HashSet<MobEquipmentStateNode> childStateNodes = new HashSet<MobEquipmentStateNode>() { this.startingStateNode };
+                foreach (Transition transition in this.transitions)
+                {
+                    childStateNodes.Add(transition.FromStateNode);
+                    childStateNodes.Add(transition.NextStateNode);
+                }
+                return childStateNodes;
+            }
         }
 
         private void CheckTransitions()
@@ -104,8 +84,8 @@ namespace FrigidBlackwaters.Game
             List<Transition> validTransitions = new List<Transition>();
             foreach (Transition transition in this.transitions)
             {
-                if (transition.FromStateNode == this.chosenStateNode && 
-                    (transition.FromStateNode.AutoExit || transition.NextStateNode.AutoEnter || transition.TransitionCondition.Evaluate(this.EnterDuration, this.EnterDurationDelta)))
+                if (transition.FromStateNode == this.ChosenStateNode && 
+                    (transition.FromStateNode.AutoExit || transition.NextStateNode.AutoEnter || transition.TriggerCondition.Evaluate(this.EnterDuration, this.EnterDurationDelta)))
                 {
                     validTransitions.Add(transition);
                 }
@@ -118,49 +98,21 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        private void SetChosenStateNode(MobEquipmentStateNode chosenStateNode)
-        {
-            if (this.Entered)
-            {
-                this.chosenStateNode.Exit();
-                this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
-            }
-
-            this.chosenStateNode = chosenStateNode;
-            this.SetCurrentStateFromChosenStateNode();
-
-            if (this.Entered)
-            {
-                this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
-                this.chosenStateNode.Enter();
-            }
-        }
-
-        private void SetCurrentStateFromChosenStateNode(MobEquipmentState previousState, MobEquipmentState currentState)
-        {
-            this.SetCurrentStateFromChosenStateNode();
-        }
-
-        private void SetCurrentStateFromChosenStateNode()
-        {
-            this.CurrentState = this.chosenStateNode.CurrentState;
-        }
-
         [Serializable]
         private struct Transition
         {
             [SerializeField]
-            private Conditional transitionCondition;
+            private Conditional triggerCondition;
             [SerializeField]
             private MobEquipmentStateNode fromStateNode;
             [SerializeField]
             private MobEquipmentStateNode nextStateNode;
 
-            public Conditional TransitionCondition
+            public Conditional TriggerCondition
             {
                 get
                 {
-                    return this.transitionCondition;
+                    return this.triggerCondition;
                 }
             }
 

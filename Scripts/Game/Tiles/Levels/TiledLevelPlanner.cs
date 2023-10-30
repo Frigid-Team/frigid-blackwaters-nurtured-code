@@ -1,6 +1,6 @@
-using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace FrigidBlackwaters.Game
 {
@@ -67,10 +67,7 @@ namespace FrigidBlackwaters.Game
                         }
                     }
 
-                    if (availableConnectionTerrains.Count == 0)
-                    {
-                        throw new Exception("It is impossible to pick a connection TileTerrain for " + this.name + ".");
-                    }
+                    Debug.Assert(availableConnectionTerrains.Count > 0, "It is impossible to pick a connection TileTerrain for " + this.name + ".");
 
                     planConnection.ConnectionTerrain = availableConnectionTerrains[UnityEngine.Random.Range(0, availableConnectionTerrains.Count)];
                 }
@@ -126,10 +123,9 @@ namespace FrigidBlackwaters.Game
             foreach (TiledLevelPlanArea planArea in tiledLevelPlan.Areas)
             {
                 List<TiledAreaBlueprint> blueprints = planArea.BlueprintGroup.GetMatchingEntranceTerrainBlueprints(planArea.EntranceTerrains);
-                if (blueprints.Count == 0) 
-                {
-                    throw new Exception("It is impossible to choose a TiledAreaBlueprint for " + this.name + ".");
-                }
+
+                Debug.Assert(blueprints.Count > 0, "It is impossible to choose a TiledAreaBlueprint for " + this.name + ".");
+
                 TiledAreaBlueprint chosenBlueprint = blueprints[UnityEngine.Random.Range(0, blueprints.Count)];
                 planArea.ChosenBlueprint = chosenBlueprint;
             }

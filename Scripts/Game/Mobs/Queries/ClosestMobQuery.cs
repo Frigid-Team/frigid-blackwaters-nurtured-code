@@ -14,7 +14,7 @@ namespace FrigidBlackwaters.Game
         {
             Vector2 originPosition = this.originTargeter.Retrieve(Vector2.zero, 0, 0);
             List<Mob> sortMobs = this.sortQuery.Execute();
-            sortMobs.Sort((Mob l, Mob r) => Mathf.RoundToInt(Vector2.SqrMagnitude(l.Position - originPosition) / FrigidConstants.SMALLEST_WORLD_SIZE) - Mathf.RoundToInt(Vector2.SqrMagnitude(r.Position - originPosition) / FrigidConstants.SMALLEST_WORLD_SIZE));
+            sortMobs.Sort((Mob l, Mob r) => Mathf.RoundToInt(Vector2.SqrMagnitude(l.Position - originPosition) / FrigidConstants.WorldSizeEpsilon) - Mathf.RoundToInt(Vector2.SqrMagnitude(r.Position - originPosition) / FrigidConstants.WorldSizeEpsilon));
             return sortMobs;
         }
     }

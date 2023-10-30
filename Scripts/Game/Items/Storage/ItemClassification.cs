@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game 
 {
-    [CreateAssetMenu(fileName = "ItemClassification", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.ITEMS + "ItemClassification")]
+    [CreateAssetMenu(fileName = "ItemClassification", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Items + "ItemClassification")]
     public class ItemClassification : FrigidScriptableObject
     {
         [SerializeField]

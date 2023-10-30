@@ -3,15 +3,13 @@ using System;
 using System.Collections.Generic;
 
 using FrigidBlackwaters.Core;
-using UnityEngine.SceneManagement;
 
 namespace FrigidBlackwaters.Game
 {
     public abstract class Expedition : FrigidScriptableObject
     {
         private static Expedition activeExpedition;
-        private static Action<Expedition> onExpeditionDeparted;
-        private static Action<Expedition> onExpeditionReturned;
+        private static BoonLoadout activeExpeditionBoonLoadout;
 
         [SerializeField]
         private List<LevelConfiguration> levelConfigurations;
@@ -35,42 +33,12 @@ namespace FrigidBlackwaters.Game
         private IntSerializedReference numberStampsAwarded;
         [SerializeField]
         private List<Expedition> expeditionsUnlockedOnCompletion;
+        [SerializeField]
+        private List<Boon> boonsUnlockedOnCompletion;
 
         static Expedition()
         {
             activeExpedition = null;
-        }
-
-        public static bool IsDepartedOnExpedition
-        {
-            get
-            {
-                return activeExpedition != null && SceneChanger.Instance.ActiveOrQueuedScene == FrigidScene.Dungeon;
-            }
-        }
-
-        public static Action<Expedition> OnExpeditionDeparted
-        {
-            get
-            {
-                return onExpeditionDeparted;
-            }
-            set
-            {
-                onExpeditionDeparted = value;
-            }
-        }
-
-        public static Action<Expedition> OnExpeditionReturned
-        {
-            get
-            {
-                return onExpeditionReturned;
-            }
-            set
-            {
-                onExpeditionReturned = value;
-            }
         }
 
         public string ExpeditionName
@@ -121,7 +89,7 @@ namespace FrigidBlackwaters.Game
             }
         }
         
-        public List<Expedition> ExpeditionsUnlockedOnComplete
+        public List<Expedition> ExpeditionsUnlockedOnCompletion
         {
             get
             {
@@ -129,14 +97,23 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public bool Depart(Action onComplete)
+        public List<Boon> BoonsUnlockedOnCompletion
         {
-            if (SceneChanger.Instance.ActiveOrQueuedScene == FrigidScene.Dungeon || activeExpedition != null)
+            get
+            {
+                return this.boonsUnlockedOnCompletion;
+            }
+        }
+
+        public bool Depart(BoonLoadout boonLoadout, Action onComplete)
+        {
+            if (activeExpedition != null)
             {
                 return false;
             }
 
             activeExpedition = this;
+            activeExpeditionBoonLoadout = new BoonLoadout(boonLoadout);
             foreach (LevelConfiguration levelConfiguration in this.levelConfigurations)
             {
                 levelConfiguration.Depart();
@@ -145,21 +122,22 @@ namespace FrigidBlackwaters.Game
             {
                 mobConfiguration.Depart();
             }
+            activeExpeditionBoonLoadout.Activate();
+
             SceneChanger.Instance.ChangeScene(FrigidScene.Dungeon);
             this.Departed(onComplete);
-            onExpeditionDeparted?.Invoke(this);
 
             return true;
         }
 
         public bool Return()
         {
-            if (SceneChanger.Instance.ActiveOrQueuedScene == FrigidScene.PortCity || activeExpedition != this)
+            if (activeExpedition != this)
             {
                 return false;
             }
 
-            activeExpedition = null;
+            activeExpeditionBoonLoadout.Deactivate();
             foreach (LevelConfiguration levelConfiguration in this.levelConfigurations)
             {
                 levelConfiguration.Return();
@@ -168,9 +146,11 @@ namespace FrigidBlackwaters.Game
             {
                 mobConfiguration.Return();
             }
+            activeExpedition = null;
+            activeExpeditionBoonLoadout = null;
+
             SceneChanger.Instance.ChangeScene(FrigidScene.PortCity);
             this.Returned();
-            onExpeditionReturned?.Invoke(this);
 
             return true;
         }

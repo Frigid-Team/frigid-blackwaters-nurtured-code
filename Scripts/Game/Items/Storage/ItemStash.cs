@@ -1,5 +1,6 @@
-using System.Collections.Generic;
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
@@ -118,7 +119,10 @@ namespace FrigidBlackwaters.Game
 
         public bool CanUseTopmostItem()
         {
-            return this.stackedItems.Count > 0 && this.stackedItems[this.stackedItems.Count - 1].IsUsable;
+            return 
+                this.stackedItems.Count > 0 && 
+                this.stackedItems[this.stackedItems.Count - 1].IsUsable && 
+                (!this.storable.IsUniqueUse || this.AnyInUse || !this.Storage.ItemStores.Any(((ItemStorable storable, Item item) itemStore) => itemStore.storable == this.storable && itemStore.item.InUse));
         }
 
         public bool UseTopmostItem()

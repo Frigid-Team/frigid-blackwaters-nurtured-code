@@ -25,9 +25,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private bool revolveClockwise;
 
-        protected override List<ProjectileSpawnParameters> GetProjectileSpawnParameters(TiledArea tiledArea, float elapsedDuration)
+        public override List<ProjectileSpawnSetting> GetSpawnSettings(TiledArea tiledArea, float elapsedDuration)
         {
-            List<ProjectileSpawnParameters> spawnParameters = new List<ProjectileSpawnParameters>();
+            List<ProjectileSpawnSetting> spawnSettings = new List<ProjectileSpawnSetting>();
 
             int currNumberRings = this.numberRings.MutableValue;
             Vector2[] centerPositions = this.centerTargeter.Retrieve(new Vector2[currNumberRings], elapsedDuration, 0);
@@ -42,13 +42,14 @@ namespace FrigidBlackwaters.Game
                 {
                     float launchAngleRad = angleBetweenRad * i * (this.revolveClockwise ? -1 : 1) + angleOffsetRad;
                     Vector2 launchDirection = new Vector2(Mathf.Cos(launchAngleRad), Mathf.Sin(launchAngleRad));
-                    Vector2 projectileSpawnPosition = centerPosition + launchDirection * this.distanceFromSpawnPosition.ImmutableValue;
-                    spawnParameters.Add(new ProjectileSpawnParameters(projectileSpawnPosition, launchDirection, delayDuration, this.projectilePrefab));
+                    Vector2 spawnPosition = centerPosition + launchDirection * this.distanceFromSpawnPosition.ImmutableValue;
+
+                    spawnSettings.Add(new ProjectileSpawnSetting(spawnPosition, delayDuration, this.projectilePrefab, launchDirection));
                     delayDuration += this.durationBetween.MutableValue;
                 }
             }
 
-            return spawnParameters;
+            return spawnSettings;
         }
     }
 }

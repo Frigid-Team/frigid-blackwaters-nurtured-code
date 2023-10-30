@@ -7,6 +7,8 @@ namespace FrigidBlackwaters.Game
     {
         [SerializeField]
         private DamageAlignment damageAlignment;
+        [SerializeField]
+        private bool isIgnoringDamage;
 
         private int damageBonus;
         private Action<HitInfo> onHitDealt;
@@ -73,6 +75,24 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public abstract void Perform(float elapsedDuration, Action onComplete = null);
+        public bool IsIgnoringDamage
+        {
+            get
+            {
+                return this.isIgnoringDamage;
+            }
+            set
+            {
+                this.isIgnoringDamage = value;
+            }
+        }
+
+        public void Perform(float elapsedDuration, Action onComplete)
+        {
+            Action toDoNothing = null;
+            this.Perform(elapsedDuration, ref toDoNothing, onComplete);
+        }
+
+        public abstract void Perform(float elapsedDuration, ref Action toForceComplete, Action onComplete);
     }
 }

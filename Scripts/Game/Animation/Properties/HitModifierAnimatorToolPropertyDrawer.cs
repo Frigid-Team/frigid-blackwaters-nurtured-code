@@ -51,7 +51,7 @@ namespace FrigidBlackwaters.Game
                 hitModifierProperty.GetNumberHurtBoxProperties(),
                 hitModifierProperty.AddHurtBoxProperty,
                 hitModifierProperty.RemoveHurtBoxProperty,
-                (int index) => hitModifierProperty.SetHurtBoxProperty(index, (HurtBoxAnimatorProperty)EditorGUILayout.ObjectField(hitModifierProperty.GetHurtBoxProperty(index), typeof(HurtBoxAnimatorProperty), true))
+                (int propertyIndex) => hitModifierProperty.SetHurtBoxProperty(propertyIndex, (HurtBoxAnimatorProperty)EditorGUILayout.ObjectField(hitModifierProperty.GetHurtBoxProperty(propertyIndex), typeof(HurtBoxAnimatorProperty), true))
                 );
             hitModifierProperty.PlayAudioWhenModified = EditorGUILayout.Toggle("Play Audio When Modified", hitModifierProperty.PlayAudioWhenModified);
             if (hitModifierProperty.PlayAudioWhenModified)

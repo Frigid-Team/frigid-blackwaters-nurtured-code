@@ -17,28 +17,22 @@ namespace FrigidBlackwaters.Game
         private Mob owner;
         private AnimatorBody ownerAnimatorBody;
 
-        private MobState currentState;
+        private MobStateNode chosenStateNode;
         private Action<MobState, MobState> onCurrentStateChanged;
 
         private bool entered;
         private float enterDuration;
         private float enterDurationDelta;
 
-        public abstract HashSet<MobState> InitialStates
-        {
-            get;
-        }
-
-        public abstract HashSet<MobState> MoveStates
-        {
-            get;
-        }
-
         public MobState CurrentState
         {
             get
             {
-                return this.currentState;
+                if (this.chosenStateNode != this)
+                {
+                    return this.chosenStateNode.CurrentState;
+                }
+                return (MobState)this;
             }
         }
 
@@ -52,11 +46,6 @@ namespace FrigidBlackwaters.Game
             {
                 this.onCurrentStateChanged = value;
             }
-        }
-
-        public abstract HashSet<MobStateNode> ReferencedStateNodes
-        {
-            get;
         }
 
         public abstract bool AutoEnter
@@ -79,46 +68,68 @@ namespace FrigidBlackwaters.Game
             get;
         }
 
-        public bool HasValidInitialState(TiledArea tiledArea, Vector2 position)
+        public bool CanSpawnAt(TiledArea tiledArea, Vector2 position)
         {
-            return this.TryGetInitialState(tiledArea, position, out _);
+            return this.TryGetChosenStateNodeForSpawn(tiledArea, position, out _);
         }
 
-        public bool HasValidMoveState(TiledArea tiledArea, Vector2 position)
+        public bool CanMoveTo(TiledArea tiledArea, Vector2 position)
         {
-            return this.TryGetMoveState(tiledArea, position, out _);
+            return this.TryGetChosenStateNodeForMove(tiledArea, position, out _);
         }
 
-        public void Link(Mob owner, AnimatorBody ownerAnimatorBody)
+        public void OwnedBy(Mob owner, AnimatorBody ownerAnimatorBody)
         {
             this.owner = owner;
             this.ownerAnimatorBody = ownerAnimatorBody;
+
+            foreach (MobStateNode childStateNode in this.ChildStateNodes)
+            {
+                childStateNode.OwnedBy(owner, ownerAnimatorBody);
+            }
         }
 
-        public virtual void Init() 
+        public virtual void Spawn() 
         {
             this.entered = false;
 
             this.Owner.OnRequestedTimeScaleChanged += this.HandleOwnerTimeScaleChange;
             this.HandleOwnerTimeScaleChange();
 
-            if (this.TryGetInitialState(this.Owner.TiledArea, this.Owner.Position, out MobState initialState)) this.currentState = initialState;
-            else this.currentState = this.InitialStates.First();
+            HashSet<MobStateNode> spawnStateNodes = this.SpawnStateNodes;
+            Debug.Assert(spawnStateNodes.Count > 0, "No spawn state nodes when trying to spawn!");
+
+            this.chosenStateNode = spawnStateNodes.First();
+
+            foreach (MobStateNode childStateNode in this.ChildStateNodes)
+            {
+                childStateNode.Spawn();
+            }
+
+            MobStateNode chosenStateNode;
+            if (!this.TryGetChosenStateNodeForSpawn(this.Owner.TiledArea, this.Owner.Position, out chosenStateNode))
+            {
+                chosenStateNode = spawnStateNodes.First();
+            }
+            this.SetChosenStateNode(chosenStateNode);
         }
 
         public virtual void Move()
         {
-            MobState bestMoveState;
-            if (!this.TryGetMoveState(this.Owner.TiledArea, this.Owner.Position, out bestMoveState))
+            HashSet<MobStateNode> moveStateNodes = this.MoveStateNodes;
+            Debug.Assert(moveStateNodes.Count > 0, "No move state nodes when trying to move!");
+
+            foreach (MobStateNode childStateNode in this.ChildStateNodes)
             {
-                bestMoveState = this.MoveStates.First();
+                childStateNode.Move();
             }
-            if (this.currentState != bestMoveState)
+
+            MobStateNode chosenStateNode;
+            if (!this.TryGetChosenStateNodeForMove(this.Owner.TiledArea, this.Owner.Position, out chosenStateNode))
             {
-                MobState previousState = this.currentState;
-                this.currentState = bestMoveState;
-                this.onCurrentStateChanged?.Invoke(previousState, this.currentState);
+                chosenStateNode = moveStateNodes.First();
             }
+            this.SetChosenStateNode(chosenStateNode);
         }
 
         public virtual void Enter() 
@@ -129,6 +140,15 @@ namespace FrigidBlackwaters.Game
             foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources) inUseAbilityResource.InUse.Request();
             this.enterDuration = 0;
             this.enterDurationDelta = 0;
+
+            if (this.chosenStateNode != this)
+            {
+                this.chosenStateNode.Enter();
+            }
+            else
+            {
+                ((MobState)this).EnterSelf();
+            }
         }
 
         public virtual void Exit() 
@@ -137,12 +157,53 @@ namespace FrigidBlackwaters.Game
             foreach (MobStatusTag statusTag in this.statusTags) this.Owner.RemoveStatusTag(statusTag);
             foreach (MobBehaviour behaviour in this.behaviours) this.Owner.RemoveBehaviour(behaviour);
             foreach (AbilityResource inUseAbilityResource in this.inUseAbilityResources) inUseAbilityResource.InUse.Release();
+
+            if (this.chosenStateNode != this)
+            {
+                this.chosenStateNode.Exit();
+            }
+            else
+            {
+                ((MobState)this).ExitSelf();
+            }
         }
 
         public virtual void Refresh()
         {
             this.enterDurationDelta = Time.deltaTime * this.Owner.RequestedTimeScale;
             this.enterDuration += this.enterDurationDelta;
+
+            if (this.chosenStateNode != this)
+            {
+                this.chosenStateNode.Refresh();
+            }
+            else
+            {
+                ((MobState)this).RefreshSelf();
+            }
+        }
+
+        protected abstract HashSet<MobStateNode> SpawnStateNodes
+        {
+            get;
+        }
+
+        protected abstract HashSet<MobStateNode> MoveStateNodes
+        {
+            get;
+        }
+
+        protected abstract HashSet<MobStateNode> ChildStateNodes
+        {
+            get;
+        }
+
+        protected MobStateNode ChosenStateNode
+        {
+            get
+            {
+                return this.chosenStateNode;
+            }
         }
 
         protected Mob Owner
@@ -192,53 +253,123 @@ namespace FrigidBlackwaters.Game
         }
 #endif
 
-        protected bool CanSetCurrentState(MobState newState)
+        private bool TryGetChosenStateNodeForSpawn(TiledArea tiledArea, Vector2 position, out MobStateNode chosenStateNode)
         {
+            chosenStateNode = null;
+            foreach (MobStateNode spawnStateNode in this.SpawnStateNodes)
+            {
+                chosenStateNode = spawnStateNode;
+                if (chosenStateNode != this)
+                {
+                    if (chosenStateNode.TryGetChosenStateNodeForSpawn(tiledArea, position, out _))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    Debug.Assert(this is MobState, "MobStateNode chooses itself yet is not a state!");
+                    MobState state = (MobState)this;
+                    if (Mob.CanTraverseAt(tiledArea, position, state.Size, state.TraversableTerrain))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private bool TryGetChosenStateNodeForMove(TiledArea tiledArea, Vector2 position, out MobStateNode chosenStateNode)
+        {
+            chosenStateNode = null;
+            foreach (MobStateNode moveStateNode in this.MoveStateNodes)
+            {
+                chosenStateNode = moveStateNode;
+                if (chosenStateNode != this)
+                {
+                    if (chosenStateNode.TryGetChosenStateNodeForMove(tiledArea, position, out _))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    Debug.Assert(this is MobState, "MobStateNode chooses itself yet is not a state!");
+                    MobState state = (MobState)this;
+                    if (Mob.CanTraverseAt(tiledArea, position, state.Size, state.TraversableTerrain))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        protected bool CanSetChosenStateNode(MobStateNode stateNode)
+        {
+            MobState newState;
+            if (stateNode != this)
+            {
+                newState = stateNode.CurrentState;
+            }
+            else
+            {
+                Debug.Assert(this is MobState, "MobStateNode chooses itself yet is not a state!");
+                newState = (MobState)this;
+            }
+            MobState currentState = this.CurrentState;
+
             return
-                newState.TileSize == this.CurrentState.TileSize && newState.TraversableTerrain >= this.CurrentState.TraversableTerrain || 
+                newState.TileSize == currentState.TileSize && newState.TraversableTerrain >= currentState.TraversableTerrain ||
                 Mob.CanTraverseAt(this.Owner.TiledArea, this.Owner.Position, newState.Size, newState.TraversableTerrain);
         }
 
-        protected void SetCurrentState(MobState newState)
+        protected void SetChosenStateNode(MobStateNode stateNode)
         {
-            if (!this.CanSetCurrentState(newState))
+            Debug.Assert(stateNode == this || this.ChildStateNodes.Contains(stateNode), "Chosen state node must be itself or a child state node!");
+            Debug.Assert(this.CanSetChosenStateNode(stateNode), "MobStateNode " + this.name + " is trying to set a MobStateNode that is unviable.");
+
+            MobState previousState;
+            if (this.chosenStateNode != this)
             {
-                Debug.LogError("MobStateNode " + this.name + " is trying to set a MobState that is unviable.");
-                return;
+                this.chosenStateNode.OnCurrentStateChanged -= this.CurrentStateChanged;
+
+                if (this.Entered) this.chosenStateNode.Exit();
+                previousState = this.chosenStateNode.CurrentState;
+            }
+            else
+            {
+                Debug.Assert(this is MobState, "MobStateNode chooses itself yet is not a state!");
+                previousState = (MobState)this;
+                if (this.Entered) previousState.ExitSelf();
             }
 
-            if (newState == this.currentState) return;
-            MobState previousState = this.currentState;
-            this.currentState = newState;
-            this.onCurrentStateChanged?.Invoke(previousState, this.currentState);
+            this.chosenStateNode = stateNode;
+
+            MobState currentState;
+            if (this.chosenStateNode != this)
+            {
+                if (this.Entered) this.chosenStateNode.Enter();
+                currentState = this.chosenStateNode.CurrentState;
+
+                this.chosenStateNode.OnCurrentStateChanged += this.CurrentStateChanged;
+            }
+            else
+            {
+                Debug.Assert(this is MobState, "MobStateNode chooses itself yet is not a state!");
+                currentState = (MobState)this;
+                if (this.Entered) currentState.EnterSelf();
+            }
+
+            if (previousState != currentState)
+            {
+                this.CurrentStateChanged(previousState, currentState);
+            }
         }
 
-        private bool TryGetInitialState(TiledArea tiledArea, Vector2 position, out MobState initialState)
+        private void CurrentStateChanged(MobState previousState, MobState currentState)
         {
-            initialState = null;
-            foreach (MobState potentialInitialState in this.InitialStates)
-            {
-                initialState = potentialInitialState;
-                if (Mob.CanTraverseAt(tiledArea, position, initialState.Size, initialState.TraversableTerrain))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private bool TryGetMoveState(TiledArea tiledArea, Vector2 position, out MobState moveState)
-        {
-            moveState = null;
-            foreach (MobState potentialMoveState in this.MoveStates)
-            {
-                moveState = potentialMoveState;
-                if (Mob.CanTraverseAt(tiledArea, position, moveState.Size, moveState.TraversableTerrain))
-                {
-                    return true;
-                }
-            }
-            return false;
+            this.onCurrentStateChanged?.Invoke(previousState, currentState);
         }
 
         private void HandleOwnerTimeScaleChange()

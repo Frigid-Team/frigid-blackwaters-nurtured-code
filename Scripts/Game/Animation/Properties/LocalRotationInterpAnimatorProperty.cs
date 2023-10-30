@@ -1,6 +1,6 @@
 namespace FrigidBlackwaters.Game
 {
-    public class LocalRotationInterpAnimatorProperty : FrameInterpAnimatorProperty
+    public class LocalRotationInterpAnimatorProperty : InterpAnimatorProperty<AnimatorProperty>
     {
         private float startLocalRotation;
         private float finishLocalRotation;
@@ -16,7 +16,7 @@ namespace FrigidBlackwaters.Game
                 if (this.startLocalRotation != value)
                 {
                     this.startLocalRotation = value;
-                    this.InterpolateProperties();
+                    this.InterpolateValuesInProperties();
                 }
             }
         }
@@ -32,14 +32,14 @@ namespace FrigidBlackwaters.Game
                 if (this.finishLocalRotation != value)
                 {
                     this.finishLocalRotation = value;
-                    this.InterpolateProperties();
+                    this.InterpolateValuesInProperties();
                 }
             }
         }
 
-        protected override void InterpolateValue(AnimatorProperty interpolatedProperty, int animationIndex, int frameIndex, int orientationIndex, float progress01)
+        protected override void InterpolateValue(int propertyIndex, int animationIndex, int frameIndex, int orientationIndex, float progress01)
         {
-            interpolatedProperty.SetLocalRotation(animationIndex, frameIndex, orientationIndex, this.StartLocalRotation + (this.FinishLocalRotation - this.StartLocalRotation) * progress01);
+            this.GetParameteredProperty(propertyIndex).SetLocalRotation(animationIndex, frameIndex, orientationIndex, this.StartLocalRotation + (this.FinishLocalRotation - this.StartLocalRotation) * progress01);
         }
     }
 }

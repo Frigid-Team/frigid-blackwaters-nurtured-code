@@ -25,9 +25,8 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Dropdown qualityDropdown;
 
-        private const float LOG_TRANSLATION_VALUE = 1.05925372518f;
-        private const string PLAYER_PREF_VOLUME_SETTING = "VolumeSetting";
-        private const string PLAYER_PREF_QUALITY_SETTING = "QualityLevel";
+        private const string VolumeSettingKey = "VolumeSetting";
+        private const string QualitySettingKey = "QualityLevel";
 
         public override bool WantsToOpen()
         {
@@ -77,16 +76,16 @@ namespace FrigidBlackwaters.Game
             base.Start();
             for (int i = 0; i < this.audioSliders.Count; i++)
             {
-                if (PlayerPrefs.HasKey(PLAYER_PREF_VOLUME_SETTING + i))
+                if (PlayerPrefs.HasKey(VolumeSettingKey + i))
                 {
-                    this.audioSliders[i].value = PlayerPrefs.GetFloat(PLAYER_PREF_VOLUME_SETTING + i);
+                    this.audioSliders[i].value = PlayerPrefs.GetFloat(VolumeSettingKey + i);
                 }
                 this.UpdateVolume(i, this.audioSliders[i].value);
             }
 
-            if (PlayerPrefs.HasKey(PLAYER_PREF_QUALITY_SETTING))
+            if (PlayerPrefs.HasKey(QualitySettingKey))
             {
-                int qualityLevel = PlayerPrefs.GetInt(PLAYER_PREF_QUALITY_SETTING);
+                int qualityLevel = PlayerPrefs.GetInt(QualitySettingKey);
                 this.UpdateQuality(qualityLevel);
                 this.qualityDropdown.SetValueWithoutNotify(qualityLevel);
             }
@@ -98,14 +97,15 @@ namespace FrigidBlackwaters.Game
 
         private void UpdateVolume(int sliderIndex, float slider01)
         {
-            this.audioMixer.SetFloat(PLAYER_PREF_VOLUME_SETTING + sliderIndex, Mathf.Log(slider01, LOG_TRANSLATION_VALUE) - 80);
-            PlayerPrefs.SetFloat(PLAYER_PREF_VOLUME_SETTING + sliderIndex, slider01);
+            const float LogTranslationValue = 1.05925372518f;
+            this.audioMixer.SetFloat(VolumeSettingKey + sliderIndex, Mathf.Log(slider01, LogTranslationValue) - 80);
+            PlayerPrefs.SetFloat(VolumeSettingKey + sliderIndex, slider01);
         }
 
         private void UpdateQuality(int qualityLevel)
         {
             QualitySettings.SetQualityLevel(qualityLevel, true);
-            PlayerPrefs.SetInt(PLAYER_PREF_QUALITY_SETTING, qualityLevel);
+            PlayerPrefs.SetInt(QualitySettingKey, qualityLevel);
         }
 
         private void ExitGame()

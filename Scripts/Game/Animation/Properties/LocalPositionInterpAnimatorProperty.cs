@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    public class LocalPositionInterpAnimatorProperty : FrameInterpAnimatorProperty
+    public class LocalPositionInterpAnimatorProperty : InterpAnimatorProperty<AnimatorProperty>
     {
         private Vector2 startLocalPosition;
         private Vector2 finishLocalPosition;
@@ -18,7 +18,7 @@ namespace FrigidBlackwaters.Game
                 if (this.startLocalPosition != value)
                 {
                     this.startLocalPosition = value;
-                    this.InterpolateProperties();
+                    this.InterpolateValuesInProperties();
                 }
             }
         }
@@ -34,14 +34,14 @@ namespace FrigidBlackwaters.Game
                 if (this.finishLocalPosition != value)
                 {
                     this.finishLocalPosition = value;
-                    this.InterpolateProperties();
+                    this.InterpolateValuesInProperties();
                 }
             }
         }
 
-        protected override void InterpolateValue(AnimatorProperty interpolatedProperty, int animationIndex, int frameIndex, int orientationIndex, float progress01)
+        protected override void InterpolateValue(int propertyIndex, int animationIndex, int frameIndex, int orientationIndex, float progress01)
         {
-            interpolatedProperty.SetLocalPosition(animationIndex, frameIndex, orientationIndex, this.StartLocalPosition + (this.FinishLocalPosition - this.StartLocalPosition) * progress01);
+            this.GetParameteredProperty(propertyIndex).SetLocalPosition(animationIndex, frameIndex, orientationIndex, this.StartLocalPosition + (this.FinishLocalPosition - this.StartLocalPosition) * progress01);
         }
     }
 }

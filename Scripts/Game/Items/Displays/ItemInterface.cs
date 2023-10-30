@@ -90,16 +90,16 @@ namespace FrigidBlackwaters.Game
             {
                 ItemInterfaceGrid interfaceGrid = this.mappedGrids[storage.StorageGrids[this.gridIndexes[storage]]];
                 this.mappedGrids.Remove(storage.StorageGrids[this.gridIndexes[storage]]);
-                interfaceGrid.TransitionOffScreen(true, () => this.gridPool.Pool(interfaceGrid));
+                interfaceGrid.TransitionOffScreen(true, () => this.gridPool.Return(interfaceGrid));
 
                 ItemInterfaceBar interfaceBar = this.mappedBars[storage];
                 this.mappedBars.Remove(storage);
-                interfaceBar.TransitionOffScreen(() => this.barPool.Pool(interfaceBar));
+                interfaceBar.TransitionOffScreen(() => this.barPool.Return(interfaceBar));
             }
 
-            this.gridPool.Pool(this.mappedGrids.Values.ToList());
+            this.gridPool.Return(this.mappedGrids.Values.ToList());
             this.mappedGrids.Clear();
-            this.barPool.Pool(this.mappedBars.Values.ToList());
+            this.barPool.Return(this.mappedBars.Values.ToList());
             this.mappedBars.Clear();
 
             this.handSlot.gameObject.SetActive(false);
@@ -118,16 +118,16 @@ namespace FrigidBlackwaters.Game
             this.currentStorages = new List<ItemStorage>();
 
             this.gridPool = new RecyclePool<ItemInterfaceGrid>(
-                this.numberGridsPreparedInAdvance,
                 () => CreateInstance<ItemInterfaceGrid>(this.gridPrefab, this.gridsTransform, false),
                 (ItemInterfaceGrid grid) => DestroyInstance(grid)
                 );
+            this.gridPool.Reserve(this.numberGridsPreparedInAdvance);
 
             this.barPool = new RecyclePool<ItemInterfaceBar>(
-                this.numberBarsPreparedInAdvance,
                 () => CreateInstance<ItemInterfaceBar>(this.barPrefab, this.barsTransform, false),
                 (ItemInterfaceBar bar) => DestroyInstance(bar)
                 );
+            this.barPool.Reserve(this.numberBarsPreparedInAdvance);
 
             this.mappedGrids = new Dictionary<ItemStorageGrid, ItemInterfaceGrid>();
             this.mappedBars = new Dictionary<ItemStorage, ItemInterfaceBar>();

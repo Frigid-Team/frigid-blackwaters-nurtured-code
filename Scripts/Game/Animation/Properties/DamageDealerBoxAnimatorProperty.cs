@@ -46,18 +46,6 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Action<I> OnDealt
-        {
-            get
-            {
-                return this.damageDealerBox.OnDealt;
-            }
-            set
-            {
-                this.damageDealerBox.OnDealt = value;
-            }
-        }
-
         public bool IsIgnoringDamage
         {
             get
@@ -67,6 +55,18 @@ namespace FrigidBlackwaters.Game
             set
             {
                 this.damageDealerBox.IsIgnoringDamage = value;
+            }
+        }
+
+        public Action<I> OnDealt
+        {
+            get
+            {
+                return this.damageDealerBox.OnDealt;
+            }
+            set
+            {
+                this.damageDealerBox.OnDealt = value;
             }
         }
 
@@ -107,29 +107,29 @@ namespace FrigidBlackwaters.Game
             return this.materialTweensOnDealt.Count;
         }
 
-        public void AddMaterialTweenOnDealtAt(int index)
+        public void AddMaterialTweenOnDealtAt(int tweenIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.materialTweensOnDealt.Insert(index, new MaterialTweenOptionSetSerializedReference());
+            this.materialTweensOnDealt.Insert(tweenIndex, new MaterialTweenOptionSetSerializedReference());
         }
 
-        public void RemoveMaterialTweenOnDealtAt(int index)
+        public void RemoveMaterialTweenOnDealtAt(int tweenIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.materialTweensOnDealt.RemoveAt(index);
+            this.materialTweensOnDealt.RemoveAt(tweenIndex);
         }
 
-        public MaterialTweenOptionSetSerializedReference GetMaterialTweenOnDealtByReferenceAt(int index)
+        public MaterialTweenOptionSetSerializedReference GetMaterialTweenOnDealtByReferenceAt(int tweenIndex)
         {
-            return this.materialTweensOnDealt[index];
+            return this.materialTweensOnDealt[tweenIndex];
         }
 
-        public void SetMaterialTweenOnDealtByReferenceAt(int index, MaterialTweenOptionSetSerializedReference materialEffectOnDealt)
+        public void SetMaterialTweenOnDealtByReferenceAt(int tweenIndex, MaterialTweenOptionSetSerializedReference materialEffectOnDealt)
         {
-            if (this.materialTweensOnDealt[index] != materialEffectOnDealt)
+            if (this.materialTweensOnDealt[tweenIndex] != materialEffectOnDealt)
             {
                 FrigidEdit.RecordChanges(this);
-                this.materialTweensOnDealt[index] = materialEffectOnDealt;
+                this.materialTweensOnDealt[tweenIndex] = materialEffectOnDealt;
             }
         }
 

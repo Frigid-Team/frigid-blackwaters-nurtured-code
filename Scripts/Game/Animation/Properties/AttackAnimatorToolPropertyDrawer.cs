@@ -31,7 +31,7 @@ namespace FrigidBlackwaters.Game
 
         public override float[] CalculateChildPreviewOrders(int animationIndex, int frameIndex, int orientationIndex)
         {
-            return new float[] { GUI_PREVIEW_ORDER };
+            return new float[] { GUIPreviewOrder };
         }
 
         public override void DrawGeneralEditFields()
@@ -60,14 +60,18 @@ namespace FrigidBlackwaters.Game
         public override void DrawFrameEditFields(int animationIndex, int frameIndex)
         {
             AttackAnimatorProperty attackProperty = (AttackAnimatorProperty)this.Property;
-            attackProperty.SetAttackThisFrame(animationIndex, frameIndex, EditorGUILayout.Toggle("Attack This Frame", attackProperty.GetAttackThisFrame(animationIndex, frameIndex)));
+            attackProperty.SetAttackBehaviour(animationIndex, frameIndex, (AttackAnimatorProperty.AttackBehaviour)EditorGUILayout.EnumPopup(attackProperty.GetAttackBehaviour(animationIndex, frameIndex)));
+            using (new EditorGUI.DisabledScope(attackProperty.GetAttackBehaviour(animationIndex, frameIndex) == AttackAnimatorProperty.AttackBehaviour.NoAttack))
+            {
+                attackProperty.SetForceCompleteBehaviour(animationIndex, frameIndex, (AttackAnimatorProperty.ForceCompleteBehaviour)EditorGUILayout.EnumPopup(attackProperty.GetForceCompleteBehaviour(animationIndex, frameIndex)));
+            }
             base.DrawFrameEditFields(animationIndex, frameIndex);
         }
 
         public override void DrawFrameCellPreview(Vector2 cellSize, int animationIndex, int frameIndex)
         {
             AttackAnimatorProperty attackProperty = (AttackAnimatorProperty)this.Property;
-            if (attackProperty.GetAttackThisFrame(animationIndex, frameIndex))
+            if (attackProperty.GetAttackBehaviour(animationIndex, frameIndex) != AttackAnimatorProperty.AttackBehaviour.NoAttack)
             {
                 using (new UtilityGUI.ColorScope(this.AccentColor))
                 {

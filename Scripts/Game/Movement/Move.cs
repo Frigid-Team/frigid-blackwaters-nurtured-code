@@ -29,14 +29,9 @@ namespace FrigidBlackwaters.Game
             get;
         }
 
-        public void Assign(Mover mover)
+        public void MovedBy(Mover mover)
         {
             this.mover = mover;
-        }
-
-        public void Unassign()
-        {
-            this.mover = null;
         }
 
         public virtual void StartMoving() 

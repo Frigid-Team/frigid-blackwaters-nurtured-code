@@ -1,10 +1,40 @@
 using System;
 using UnityEngine;
 
+using FrigidBlackwaters.Core;
+
 namespace FrigidBlackwaters.Game
 {
     public static class AreaTiling
     {
+        public static Vector2 EdgePositionTowardDirection(Vector2 position, Vector2 direction, Vector2 centerPosition, Vector2Int boundsDimensions)
+        {
+            return LocalEdgePositionTowardDirection(position - centerPosition, direction, boundsDimensions) + centerPosition;
+        }
+
+        public static Vector2 LocalEdgePositionTowardDirection(Vector2 localPosition, Vector2 direction, Vector2Int boundsDimensions)
+        {
+            Vector2[] cornerPositions = new Vector2[4]
+            {
+                new Vector2(-boundsDimensions.x / 2f, -boundsDimensions.y / 2f) * FrigidConstants.UnitWorldSize,
+                new Vector2(boundsDimensions.x / 2f, -boundsDimensions.y / 2f) * FrigidConstants.UnitWorldSize,
+                new Vector2(boundsDimensions.x / 2f, boundsDimensions.y / 2f) * FrigidConstants.UnitWorldSize,
+                new Vector2(-boundsDimensions.x / 2f, boundsDimensions.y / 2f) * FrigidConstants.UnitWorldSize
+            };
+
+            Vector2 startPosition = localPosition;
+            Vector2 endPosition = localPosition + direction * (boundsDimensions.x + boundsDimensions.y) * FrigidConstants.UnitWorldSize;
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (Geometry.LineToLineIntersection(cornerPositions[i], cornerPositions[(i + 1) % 4], startPosition, endPosition, out Vector2 edgePosition))
+                {
+                    return edgePosition;
+                }
+            }
+            return localPosition;
+        }
+        
         public static Vector2 RandomTilePosition(Vector2 centerPosition, Vector2Int boundsDimensions)
         {
             return RandomTileLocalPosition(boundsDimensions) + centerPosition;
@@ -13,8 +43,8 @@ namespace FrigidBlackwaters.Game
         public static Vector2 RandomTileLocalPosition(Vector2Int boundsDimensions)
         {
             return new Vector2(
-                UnityEngine.Random.Range(-boundsDimensions.x / 2f, boundsDimensions.x / 2f) * FrigidConstants.UNIT_WORLD_SIZE,
-                UnityEngine.Random.Range(-boundsDimensions.y / 2f, boundsDimensions.y / 2f) * FrigidConstants.UNIT_WORLD_SIZE
+                UnityEngine.Random.Range(-boundsDimensions.x / 2f, boundsDimensions.x / 2f) * FrigidConstants.UnitWorldSize,
+                UnityEngine.Random.Range(-boundsDimensions.y / 2f, boundsDimensions.y / 2f) * FrigidConstants.UnitWorldSize
                 );
         }
 
@@ -31,8 +61,8 @@ namespace FrigidBlackwaters.Game
         public static Vector2 TileLocalPositionFromIndexPosition(Vector2Int indexPosition, Vector2Int boundsDimensions)
         {
             return new Vector2(
-                -boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE + FrigidConstants.UNIT_WORLD_SIZE / 2 + indexPosition.x * FrigidConstants.UNIT_WORLD_SIZE,
-                boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE - FrigidConstants.UNIT_WORLD_SIZE / 2 - indexPosition.y * FrigidConstants.UNIT_WORLD_SIZE
+                -boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize + FrigidConstants.UnitWorldSize / 2 + indexPosition.x * FrigidConstants.UnitWorldSize,
+                boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize - FrigidConstants.UnitWorldSize / 2 - indexPosition.y * FrigidConstants.UnitWorldSize
                 );
         }
 
@@ -43,8 +73,8 @@ namespace FrigidBlackwaters.Game
 
         public static Vector2Int TileIndexPositionFromLocalPosition(Vector2 localPosition, Vector2Int boundsDimensions)
         {
-            int x = Mathf.FloorToInt(localPosition.x / FrigidConstants.UNIT_WORLD_SIZE + boundsDimensions.x / 2f);
-            int y = Mathf.FloorToInt(boundsDimensions.y / 2f - localPosition.y / FrigidConstants.UNIT_WORLD_SIZE);
+            int x = Mathf.FloorToInt(localPosition.x / FrigidConstants.UnitWorldSize + boundsDimensions.x / 2f);
+            int y = Mathf.FloorToInt(boundsDimensions.y / 2f - localPosition.y / FrigidConstants.UnitWorldSize);
             return new Vector2Int(x, y);
         }
 
@@ -61,10 +91,10 @@ namespace FrigidBlackwaters.Game
         public static bool TileLocalPositionWithinBounds(Vector2 localPosition, Vector2Int boundsDimensions)
         {
             return
-                localPosition.x > (-boundsDimensions.x - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE &&
-                localPosition.x < (boundsDimensions.x + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE &&
-                localPosition.y > (-boundsDimensions.y - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE &&
-                localPosition.y < (boundsDimensions.y + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
+                localPosition.x > (-boundsDimensions.x - 1) / 2f * FrigidConstants.UnitWorldSize &&
+                localPosition.x < (boundsDimensions.x + 1) / 2f * FrigidConstants.UnitWorldSize &&
+                localPosition.y > (-boundsDimensions.y - 1) / 2f * FrigidConstants.UnitWorldSize &&
+                localPosition.y < (boundsDimensions.y + 1) / 2f * FrigidConstants.UnitWorldSize;
         }
 
         public static Vector2Int ClampTileIndexPosition(Vector2Int indexPosition, Vector2Int boundsDimensions)
@@ -80,8 +110,8 @@ namespace FrigidBlackwaters.Game
         public static Vector2 ClampTileLocalPosition(Vector2 localPosition, Vector2Int boundsDimensions)
         {
             return new Vector2(
-                Mathf.Clamp(localPosition.x, -boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE, boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE),
-                Mathf.Clamp(localPosition.y, -boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE, boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE)
+                Mathf.Clamp(localPosition.x, -boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize, boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize),
+                Mathf.Clamp(localPosition.y, -boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize, boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize)
                 );
         }
 
@@ -150,7 +180,7 @@ namespace FrigidBlackwaters.Game
 
         public static Vector2 RectLocalPositionFromIndexPosition(Vector2Int indexPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
         {
-            return TileLocalPositionFromIndexPosition(indexPosition, boundsDimensions) + new Vector2(-(rectDimensions.x - 1) * FrigidConstants.UNIT_WORLD_SIZE / 2, (rectDimensions.y - 1) * FrigidConstants.UNIT_WORLD_SIZE / 2);
+            return TileLocalPositionFromIndexPosition(indexPosition, boundsDimensions) + new Vector2(-(rectDimensions.x - 1) * FrigidConstants.UnitWorldSize / 2, (rectDimensions.y - 1) * FrigidConstants.UnitWorldSize / 2);
         }
 
         public static Vector2Int RectIndexPositionFromPosition(Vector2 position, Vector2 centerPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
@@ -161,7 +191,7 @@ namespace FrigidBlackwaters.Game
         public static Vector2Int RectIndexPositionFromLocalPosition(Vector2 localPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
         {
             return TileIndexPositionFromLocalPosition(
-                localPosition + new Vector2((rectDimensions.x - 1) * FrigidConstants.UNIT_WORLD_SIZE / 2, -(rectDimensions.y - 1) * FrigidConstants.UNIT_WORLD_SIZE / 2),
+                localPosition + new Vector2((rectDimensions.x - 1) * FrigidConstants.UnitWorldSize / 2, -(rectDimensions.y - 1) * FrigidConstants.UnitWorldSize / 2),
                 boundsDimensions
                 );
         }
@@ -194,8 +224,8 @@ namespace FrigidBlackwaters.Game
         public static Vector2 ClampRectLocalPosition(Vector2 localPosition, Vector2Int boundsDimensions, Vector2Int rectDimensions)
         {
             return new Vector2(
-                Mathf.Clamp(localPosition.x, (-boundsDimensions.x + rectDimensions.x - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE, (boundsDimensions.x - rectDimensions.x + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE),
-                Mathf.Clamp(localPosition.y, (-boundsDimensions.y + rectDimensions.y - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE, (boundsDimensions.y - rectDimensions.y + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE)
+                Mathf.Clamp(localPosition.x, (-boundsDimensions.x + rectDimensions.x - 1) / 2f * FrigidConstants.UnitWorldSize, (boundsDimensions.x - rectDimensions.x + 1) / 2f * FrigidConstants.UnitWorldSize),
+                Mathf.Clamp(localPosition.y, (-boundsDimensions.y + rectDimensions.y - 1) / 2f * FrigidConstants.UnitWorldSize, (boundsDimensions.y - rectDimensions.y + 1) / 2f * FrigidConstants.UnitWorldSize)
                 );
         }
     }

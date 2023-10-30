@@ -9,7 +9,7 @@ namespace FrigidBlackwaters.Game
         public override float[] CalculateChildPreviewOrders(int animationIndex, int frameIndex, int orientationIndex)
         {
             SortingOrderedAnimatorProperty sortingOrderedProperty = (SortingOrderedAnimatorProperty)this.Property;
-            return new float[] { WORLD_OBJECT_PREVIEW_ORDER, sortingOrderedProperty.GetSortingOrder(animationIndex, frameIndex, orientationIndex) };
+            return new float[] { WorldObjectPreviewOrder, sortingOrderedProperty.GetSortingOrder(animationIndex, frameIndex, orientationIndex) };
         }
 
         public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)

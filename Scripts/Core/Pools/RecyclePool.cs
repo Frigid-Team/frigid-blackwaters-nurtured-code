@@ -17,24 +17,22 @@ namespace FrigidBlackwaters.Core
             this.toDestroyInstance = toDestroyInstance;
         }
 
-        public RecyclePool(int numPreparedInAdvance, Func<T> toCreateInstance, Action<T> toDestroyInstance)
-        {
-            this.pooledObjects = new Queue<T>();
-            this.toCreateInstance = toCreateInstance;
-            this.toDestroyInstance = toDestroyInstance;
-            for (int i = 0; i < numPreparedInAdvance; i++)
-            {
-                T instance = this.toCreateInstance?.Invoke();
-                this.pooledObjects.Enqueue(instance);
-                instance.gameObject.SetActive(false);
-            }
-        }
-
         ~RecyclePool()
         {
             foreach (T pooledObject in this.pooledObjects)
             {
                 this.toDestroyInstance?.Invoke(pooledObject);
+            }
+        }
+
+        public void Reserve(int numberReserved)
+        {
+            numberReserved = Mathf.Max(numberReserved, numberReserved - this.pooledObjects.Count);
+            for (int i = 0; i < numberReserved; i++)
+            {
+                T instance = this.toCreateInstance?.Invoke();
+                this.pooledObjects.Enqueue(instance);
+                instance.gameObject.SetActive(false);
             }
         }
 
@@ -63,7 +61,7 @@ namespace FrigidBlackwaters.Core
             return instances;
         }
 
-        public void Pool(T instanceToPool)
+        public void Return(T instanceToPool)
         {
             instanceToPool.gameObject.SetActive(false);
             if (!this.pooledObjects.Contains(instanceToPool))
@@ -72,11 +70,11 @@ namespace FrigidBlackwaters.Core
             }
         }
 
-        public void Pool (List<T> instancesToPool)
+        public void Return(List<T> instancesToPool)
         {
             foreach (T instance in instancesToPool)
             {
-                this.Pool(instance);
+                this.Return(instance);
             }
         }
 
@@ -84,7 +82,7 @@ namespace FrigidBlackwaters.Core
         {
             while (unPooledInstances.Count > neededQuantity)
             {
-                this.Pool(unPooledInstances[unPooledInstances.Count - 1]);
+                this.Return(unPooledInstances[unPooledInstances.Count - 1]);
                 unPooledInstances.RemoveAt(unPooledInstances.Count - 1);
             }
 

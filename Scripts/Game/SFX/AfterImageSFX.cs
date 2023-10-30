@@ -38,7 +38,7 @@ namespace FrigidBlackwaters.Game
 
         private IEnumerator<FrigidCoroutine.Delay> SpawnAfterImages(AnimatorBody animatorBody)
         {
-            float distanceThreshold = 1f / Mathf.Max(FrigidConstants.SMALLEST_TIME_INTERVAL, this.spawnRateOverDistance.ImmutableValue);
+            float distanceThreshold = 1f / Mathf.Max(FrigidConstants.TimeEpsilon, this.spawnRateOverDistance.ImmutableValue);
             float distanceTraveled = distanceThreshold;
             Vector3 lastPosition = animatorBody.transform.position;
             while (true)
@@ -83,7 +83,7 @@ namespace FrigidBlackwaters.Game
 
                                     particleInstance.transform.SetParent(this.transform);
                                     particleInstance.transform.localPosition = Vector2.zero;
-                                    this.particlePool.Pool(particleInstance);
+                                    this.particlePool.Return(particleInstance);
                                 }
                                 ),
                             spriteProperty.gameObject

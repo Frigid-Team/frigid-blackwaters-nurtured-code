@@ -4,7 +4,7 @@ using UnityEngine;
 namespace FrigidBlackwaters.Game
 {
     [CustomAnimatorToolPropertyDrawer(typeof(LocalRotationInterpAnimatorProperty))]
-    public class LocalRotationInterpAnimatorToolPropertyDrawer : FrameInterpAnimatorToolPropertyDrawer
+    public class LocalRotationInterpAnimatorToolPropertyDrawer : InterpAnimatorToolPropertyDrawer<AnimatorProperty>
     {
         public override string LabelName
         {

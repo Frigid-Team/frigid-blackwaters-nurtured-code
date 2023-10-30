@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
@@ -14,21 +13,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private bool showDisplays;
 
-        public override HashSet<MobState> InitialStates
-        {
-            get
-            {
-                return new HashSet<MobState> { this };
-            }
-        }
-
-        public override HashSet<MobState> MoveStates
-        {
-            get
-            {
-                return new HashSet<MobState> { this };
-            }
-        }
+        private bool enteredSelf;
+        private float selfEnterDuration;
+        private float selfEnterDurationDelta;
 
         public Vector2 Size
         {
@@ -88,6 +75,54 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return true;
+            }
+        }
+
+        public override void Spawn()
+        {
+            base.Spawn();
+            this.enteredSelf = false;
+        }
+
+        public virtual void EnterSelf() 
+        {
+            this.enteredSelf = true;
+            this.selfEnterDuration = 0f;
+            this.selfEnterDurationDelta = 0f;
+        }
+
+        public virtual void ExitSelf()
+        {
+            this.enteredSelf = false;
+        }
+
+        public virtual void RefreshSelf() 
+        {
+            this.selfEnterDurationDelta = Time.deltaTime * this.Owner.RequestedTimeScale;
+            this.selfEnterDuration += this.selfEnterDurationDelta;
+        }
+
+        protected bool EnteredSelf
+        {
+            get
+            {
+                return this.enteredSelf;
+            }
+        }
+
+        protected float SelfEnterDuration
+        {
+            get
+            {
+                return this.selfEnterDuration;
+            }
+        }
+
+        protected float SelfEnterDurationDelta
+        {
+            get
+            {
+                return this.selfEnterDurationDelta;
             }
         }
     }

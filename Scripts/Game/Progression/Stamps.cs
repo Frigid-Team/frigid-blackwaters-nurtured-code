@@ -1,29 +1,49 @@
+using System;
+
 public static class Stamps
 {
-    private static int currentStamps;
-    private static int totalStamps;
+    private static int currentAmount;
+    private static int totalAmount;
 
-    public static int CurrentStamps
+    private static Action<int> onCurrentQuantityChanged;
+
+    public static int CurrentAmount
     {
         get
         {
-            return currentStamps;
+            return currentAmount;
         }
         set
         {
-            currentStamps = value;
+            if (currentAmount != value)
+            {
+                onCurrentQuantityChanged?.Invoke(value);
+            }
+            currentAmount = value;
         }
     }
 
-    public static int TotalStamps
+    public static int TotalAmount
     {
         get
         {
-            return totalStamps;
+            return totalAmount;
         }
         set
         {
-            totalStamps = value;
+            totalAmount = value;
+        }
+    }
+
+    public static Action<int> OnCurrentQuantityChanged
+    {
+        get
+        {
+            return onCurrentQuantityChanged;
+        }
+        set
+        {
+            onCurrentQuantityChanged = value;
         }
     }
 }

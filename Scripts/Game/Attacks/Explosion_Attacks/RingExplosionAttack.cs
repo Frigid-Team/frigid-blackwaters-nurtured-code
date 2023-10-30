@@ -25,9 +25,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private bool revolveClockwise;
 
-        protected override List<ExplosionSpawnParameters> GetExplosionSpawnParameters(TiledArea tiledArea, float elapsedDuration)
+        public override List<ExplosionSpawnSetting> GetSpawnSettings(TiledArea tiledArea, float elapsedDuration)
         {
-            List<ExplosionSpawnParameters> explosionSpawnParameters = new List<ExplosionSpawnParameters>();
+            List<ExplosionSpawnSetting> spawnSettings = new List<ExplosionSpawnSetting>();
 
             int currNumberRings = this.numberRings.MutableValue;
             Vector2[] centerPositions = this.centerTargeter.Retrieve(new Vector2[currNumberRings], elapsedDuration, 0);
@@ -42,19 +42,14 @@ namespace FrigidBlackwaters.Game
                 for (int i = 0; i < currNumberExplosions; i++)
                 {
                     float angleRad = Mathf.PI * 2 / currNumberExplosions * i * (this.revolveClockwise ? -1f : 1f) + currStartingAngleRad;
-                    explosionSpawnParameters.Add(
-                        new ExplosionSpawnParameters(
-                            centerPosition + new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * currRingRadius,
-                            angleRad * Mathf.Rad2Deg,
-                            delayDuration,
-                            this.explosionPrefab
-                            )
-                        );
+                    Vector2 spawnPosition = centerPosition + new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * currRingRadius;
+
+                    spawnSettings.Add(new ExplosionSpawnSetting(spawnPosition, delayDuration,this.explosionPrefab, angleRad * Mathf.Rad2Deg));
                     delayDuration += this.durationBetween.MutableValue;
                 }
             }
 
-            return explosionSpawnParameters;
+            return spawnSettings;
         }
     }
 }

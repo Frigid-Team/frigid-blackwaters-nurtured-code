@@ -158,15 +158,15 @@ namespace FrigidBlackwaters.Game
 
         public static bool EdgeTileLocalPositionWithinBounds(Vector2 localPosition, Vector2Int boundsDimensions)
         {
-            if (localPosition.x > -boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (-boundsDimensions.x - 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE ||
-                localPosition.x > boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (boundsDimensions.x + 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE)
+            if (localPosition.x > -boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize && localPosition.x < (-boundsDimensions.x - 2) / 2f * FrigidConstants.UnitWorldSize ||
+                localPosition.x > boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize && localPosition.x < (boundsDimensions.x + 2) / 2f * FrigidConstants.UnitWorldSize)
             {
-                return localPosition.y > (-boundsDimensions.y - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.y < (boundsDimensions.y + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
+                return localPosition.y > (-boundsDimensions.y - 1) / 2f * FrigidConstants.UnitWorldSize && localPosition.y < (boundsDimensions.y + 1) / 2f * FrigidConstants.UnitWorldSize;
             }
-            else if (localPosition.y > -boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.y < (-boundsDimensions.y - 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE ||
-                     localPosition.y > boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.y < (boundsDimensions.y + 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE)
+            else if (localPosition.y > -boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize && localPosition.y < (-boundsDimensions.y - 2) / 2f * FrigidConstants.UnitWorldSize ||
+                     localPosition.y > boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize && localPosition.y < (boundsDimensions.y + 2) / 2f * FrigidConstants.UnitWorldSize)
             {
-                return localPosition.x > (-boundsDimensions.x - 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (boundsDimensions.x + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
+                return localPosition.x > (-boundsDimensions.x - 1) / 2f * FrigidConstants.UnitWorldSize && localPosition.x < (boundsDimensions.x + 1) / 2f * FrigidConstants.UnitWorldSize;
             }
             return false;
         }
@@ -189,19 +189,19 @@ namespace FrigidBlackwaters.Game
         {
             if (wallIndexDirection == Vector2Int.right)
             {
-                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) + new Vector2(0, (width - 1) / 2f) * FrigidConstants.UNIT_WORLD_SIZE;
+                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) + new Vector2(0, (width - 1) / 2f) * FrigidConstants.UnitWorldSize;
             }
             else if (wallIndexDirection == Vector2Int.up)
             {
-                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) - new Vector2((width - 1) / 2f, 0) * FrigidConstants.UNIT_WORLD_SIZE;
+                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) - new Vector2((width - 1) / 2f, 0) * FrigidConstants.UnitWorldSize;
             }
             else if (wallIndexDirection == Vector2Int.left)
             {
-                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) - new Vector2(0, (width - 1) / 2f) * FrigidConstants.UNIT_WORLD_SIZE;
+                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) - new Vector2(0, (width - 1) / 2f) * FrigidConstants.UnitWorldSize;
             }
             else if (wallIndexDirection == Vector2Int.down)
             {
-                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) + new Vector2((width - 1) / 2f, 0) * FrigidConstants.UNIT_WORLD_SIZE;
+                return EdgeTileLocalPositionFromWallIndexDirectionAndTileIndex(wallIndexDirection, extentIndex, boundsDimensions) + new Vector2((width - 1) / 2f, 0) * FrigidConstants.UnitWorldSize;
             }
             return Vector2.zero;
         }
@@ -217,19 +217,19 @@ namespace FrigidBlackwaters.Game
             Vector2Int tileIndexPosition = AreaTiling.TileIndexPositionFromLocalPosition(localPosition, extendedBoundsDimensions);
             if (tileIndexPosition.x == extendedBoundsDimensions.x - 1)
             {
-                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition - new Vector2(0, (width - 1) / 2f) * FrigidConstants.UNIT_WORLD_SIZE, boundsDimensions);
+                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition - new Vector2(0, (width - 1) / 2f) * FrigidConstants.UnitWorldSize, boundsDimensions);
             }
             else if (tileIndexPosition.y == 0)
             {
-                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition + new Vector2((width - 1) / 2f, 0) * FrigidConstants.UNIT_WORLD_SIZE, boundsDimensions);
+                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition + new Vector2((width - 1) / 2f, 0) * FrigidConstants.UnitWorldSize, boundsDimensions);
             }
             else if (tileIndexPosition.x == 0)
             {
-                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition + new Vector2(0, (width - 1) / 2f) * FrigidConstants.UNIT_WORLD_SIZE, boundsDimensions);
+                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition + new Vector2(0, (width - 1) / 2f) * FrigidConstants.UnitWorldSize, boundsDimensions);
             }
             else if (tileIndexPosition.y == extendedBoundsDimensions.y - 1)
             {
-                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition - new Vector2((width - 1) / 2f, 0) * FrigidConstants.UNIT_WORLD_SIZE, boundsDimensions);
+                return WallIndexDirectionAndEdgeTileIndexFromLocalPosition(localPosition - new Vector2((width - 1) / 2f, 0) * FrigidConstants.UnitWorldSize, boundsDimensions);
             }
             return (Vector2Int.zero, -1);
         }
@@ -247,13 +247,13 @@ namespace FrigidBlackwaters.Game
         public static bool EdgeExtentLocalPositionWithinBounds(Vector2 localPosition, Vector2Int boundsDimensions, int width)
         {
             int edgeLength;
-            if (localPosition.x > -boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (-boundsDimensions.x - 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE ||
-                localPosition.x > boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (boundsDimensions.x + 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE)
+            if (localPosition.x > -boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize && localPosition.x < (-boundsDimensions.x - 2) / 2f * FrigidConstants.UnitWorldSize ||
+                localPosition.x > boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize && localPosition.x < (boundsDimensions.x + 2) / 2f * FrigidConstants.UnitWorldSize)
             {
                 edgeLength = boundsDimensions.y;
             }
-            else if (localPosition.y > -boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.y < (-boundsDimensions.y - 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE ||
-                     localPosition.y > boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.y < (boundsDimensions.y + 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE)
+            else if (localPosition.y > -boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize && localPosition.y < (-boundsDimensions.y - 2) / 2f * FrigidConstants.UnitWorldSize ||
+                     localPosition.y > boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize && localPosition.y < (boundsDimensions.y + 2) / 2f * FrigidConstants.UnitWorldSize)
             {
                 edgeLength = boundsDimensions.x;
             }
@@ -261,7 +261,7 @@ namespace FrigidBlackwaters.Game
             {
                 return false;
             }
-            return localPosition.x > ((-edgeLength - 1) / 2f + width) * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (edgeLength + 1) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
+            return localPosition.x > ((-edgeLength - 1) / 2f + width) * FrigidConstants.UnitWorldSize && localPosition.x < (edgeLength + 1) / 2f * FrigidConstants.UnitWorldSize;
         }
 
         public static Vector2 CornerTilePositionFromWallIndexDirections(Vector2Int wallIndexDirection1, Vector2Int wallIndexDirection2, Vector2 centerPosition, Vector2Int boundsDimensions)
@@ -331,10 +331,10 @@ namespace FrigidBlackwaters.Game
 
         public static bool CornerTileLocalPositionWithinBounds(Vector2 localPosition, Vector2Int boundsDimensions)
         {
-            bool leftEdge = localPosition.x > -boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (-boundsDimensions.x - 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
-            bool rightEdge = localPosition.x > boundsDimensions.x / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.x < (boundsDimensions.x + 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
-            bool bottomEdge = localPosition.y > -boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.y < (-boundsDimensions.y - 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
-            bool topEdge = localPosition.y > boundsDimensions.y / 2f * FrigidConstants.UNIT_WORLD_SIZE && localPosition.y < (boundsDimensions.y + 2) / 2f * FrigidConstants.UNIT_WORLD_SIZE;
+            bool leftEdge = localPosition.x > -boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize && localPosition.x < (-boundsDimensions.x - 2) / 2f * FrigidConstants.UnitWorldSize;
+            bool rightEdge = localPosition.x > boundsDimensions.x / 2f * FrigidConstants.UnitWorldSize && localPosition.x < (boundsDimensions.x + 2) / 2f * FrigidConstants.UnitWorldSize;
+            bool bottomEdge = localPosition.y > -boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize && localPosition.y < (-boundsDimensions.y - 2) / 2f * FrigidConstants.UnitWorldSize;
+            bool topEdge = localPosition.y > boundsDimensions.y / 2f * FrigidConstants.UnitWorldSize && localPosition.y < (boundsDimensions.y + 2) / 2f * FrigidConstants.UnitWorldSize;
             return rightEdge && topEdge || topEdge && leftEdge || leftEdge && bottomEdge || bottomEdge && rightEdge;
         }
     }

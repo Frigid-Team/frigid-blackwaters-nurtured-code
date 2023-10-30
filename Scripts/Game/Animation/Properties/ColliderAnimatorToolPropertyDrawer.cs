@@ -12,7 +12,7 @@ namespace FrigidBlackwaters.Game
     {
         public override float[] CalculateChildPreviewOrders(int animationIndex, int frameIndex, int orientationIndex)
         {
-            return new float[] { GUI_PREVIEW_ORDER };
+            return new float[] { GUIPreviewOrder };
         }
 
         public override void DrawGeneralEditFields()
@@ -25,7 +25,7 @@ namespace FrigidBlackwaters.Game
         public override void DrawAnimationEditFields(int animationIndex)
         {
             ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
-            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon)
+            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon || colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Line)
             {
                 if (GUILayout.Button("Rotate Points In Animation"))
                 {
@@ -38,10 +38,13 @@ namespace FrigidBlackwaters.Game
                                 {
                                     for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
                                     {
-                                        for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                        for (int pathIndex = 0; pathIndex < colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex); pathIndex++) 
                                         {
-                                            Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                            colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                            for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex); pointIndex++)
+                                            {
+                                                Vector2 currPoint = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex);
+                                                colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                            }
                                         }
                                     }
                                 }
@@ -60,10 +63,13 @@ namespace FrigidBlackwaters.Game
                                 {
                                     for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
                                     {
-                                        for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                        for (int pathIndex = 0; pathIndex < colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex); pathIndex++)
                                         {
-                                            Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                            colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, origin + (currPoint - origin) * scale);
+                                            for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex); pointIndex++)
+                                            {
+                                                Vector2 currPoint = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex);
+                                                colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex, origin + (currPoint - origin) * scale);
+                                            }
                                         }
                                     }
                                 }
@@ -78,7 +84,7 @@ namespace FrigidBlackwaters.Game
         public override void DrawFrameEditFields(int animationIndex, int frameIndex)
         {
             ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
-            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon)
+            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon || colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Line)
             {
                 if (GUILayout.Button("Rotate Points In Frame"))
                 {
@@ -89,10 +95,13 @@ namespace FrigidBlackwaters.Game
                             {
                                 for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
                                 {
-                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                    for (int pathIndex = 0; pathIndex < colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex); pathIndex++)
                                     {
-                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                        for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex); pointIndex++)
+                                        {
+                                            Vector2 currPoint = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex);
+                                            colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                        }
                                     }
                                 }
                             }
@@ -108,10 +117,13 @@ namespace FrigidBlackwaters.Game
                             {
                                 for (int orientationIndex = 0; orientationIndex < this.Body.GetOrientationCount(animationIndex); orientationIndex++)
                                 {
-                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
+                                    for (int pathIndex = 0; pathIndex < colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex); pathIndex++)
                                     {
-                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, origin + (currPoint - origin) * scale);
+                                        for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex); pointIndex++)
+                                        {
+                                            Vector2 currPoint = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex);
+                                            colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex, origin + (currPoint - origin) * scale);
+                                        }
                                     }
                                 }
                             }
@@ -125,52 +137,84 @@ namespace FrigidBlackwaters.Game
         public override void DrawOrientationEditFields(int animationIndex, int frameIndex, int orientationIndex)
         {
             ColliderAnimatorProperty colliderProperty = (ColliderAnimatorProperty)this.Property;
+
+            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon || colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Line)
+            {
+                if (GUILayout.Button("Rotate Points In Orientation"))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(),
+                        new RotatePolygonPopup(
+                            (Vector2 origin, float angle) =>
+                            {
+                                for (int pathIndex = 0; pathIndex < colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex); pathIndex++)
+                                {
+                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex); pointIndex++)
+                                    {
+                                        Vector2 currPoint = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex);
+                                        colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex, currPoint.RotateAround(origin, angle));
+                                    }
+                                }
+                            }
+                            )
+                        );
+                }
+                if (GUILayout.Button("Scale Points In Orientation"))
+                {
+                    FrigidPopup.Show(
+                        GUILayoutUtility.GetLastRect(),
+                        new ScalePolygonPopup(
+                            (Vector2 origin, float scale) =>
+                            {
+                                for (int pathIndex = 0; pathIndex < colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex); pathIndex++)
+                                {
+                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex); pointIndex++)
+                                    {
+                                        Vector2 currPoint = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex);
+                                        colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex, origin + (currPoint - origin) * scale);
+                                    }
+                                }
+                            }
+                            )
+                        );
+                }
+            }
+
             switch (colliderProperty.ShapeType)
             {
                 case ColliderAnimatorPropertyShapeType.Polygon:
+                case ColliderAnimatorPropertyShapeType.Line:
+
                     UtilityGUILayout.IndexedList(
-                        "Points",
-                        colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex),
-                        (int index) => colliderProperty.AddPolygonPointAt(animationIndex, frameIndex, orientationIndex, index, Vector2.zero),
-                        (int index) => colliderProperty.RemovePolygonPointAt(animationIndex, frameIndex, orientationIndex, index),
-                        (int index) => colliderProperty.SetPolygonPointAt(
+                        "Paths",
+                        colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex),
+                        (int pathIndex) => colliderProperty.AddPathAt(animationIndex, frameIndex, orientationIndex, pathIndex),
+                        (int pathIndex) => colliderProperty.RemovePathAt(animationIndex, frameIndex, orientationIndex, pathIndex),
+                        (int pathIndex) =>
+                        {
+                            UtilityGUILayout.IndexedList(
+                                "Points",
+                                colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex),
+                                (int pointIndex) => colliderProperty.AddPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex),
+                                (int pointIndex) => colliderProperty.RemovePointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex),
+                                (int pointIndex) => colliderProperty.SetPointAt(
+                                    animationIndex,
+                                    frameIndex,
+                                    orientationIndex,
+                                    pathIndex,
+                                    pointIndex,
+                                    EditorGUILayout.Vector2Field("", colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex))
+                                    )
+                                );
+                        }
+                        );
+                    if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Line)
+                    {
+                        colliderProperty.SetRadius(
                             animationIndex,
                             frameIndex,
                             orientationIndex,
-                            index,
-                            EditorGUILayout.Vector2Field("", colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, index))
-                            )
-                        );
-                    if (GUILayout.Button("Rotate Points In Orientation"))
-                    {
-                        FrigidPopup.Show(
-                            GUILayoutUtility.GetLastRect(), 
-                            new RotatePolygonPopup(
-                                (Vector2 origin, float angle) => 
-                                {
-                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
-                                    {
-                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, currPoint.RotateAround(origin, angle));
-                                    }
-                                }
-                                )
-                            );
-                    }
-                    if (GUILayout.Button("Scale Points In Orientation"))
-                    {
-                        FrigidPopup.Show(
-                            GUILayoutUtility.GetLastRect(),
-                            new ScalePolygonPopup(
-                                (Vector2 origin, float scale) =>
-                                {
-                                    for (int pointIndex = 0; pointIndex < colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex); pointIndex++)
-                                    {
-                                        Vector2 currPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                        colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, origin + (currPoint - origin) * scale);
-                                    }
-                                }
-                                )
+                            EditorGUILayout.FloatField("Width", colliderProperty.GetRadius(animationIndex, frameIndex, orientationIndex))
                             );
                     }
                     break;
@@ -227,82 +271,102 @@ namespace FrigidBlackwaters.Game
             Vector2 handleSize = new Vector2(this.Config.HandleLength, this.Config.HandleLength);
             Vector2 grabSize = new Vector2(this.Config.HandleGrabLength, this.Config.HandleGrabLength);
 
+            float lineDrawWidth = colliderProperty.GetRadius(animationIndex, frameIndex, orientationIndex) * worldToWindowScalingFactor;
+
             switch (colliderProperty.ShapeType)
             {
                 case ColliderAnimatorPropertyShapeType.Polygon:
-                    Vector2[] points = new Vector2[colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex)];
-                    for (int pointIndex = 0; pointIndex < points.Length; pointIndex++)
+                case ColliderAnimatorPropertyShapeType.Line:
+                    for (int pathIndex = 0; pathIndex < colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex); pathIndex++)
                     {
-                        points[pointIndex] = previewSize / 2 + colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex) * new Vector2(1, -1) * worldToWindowScalingFactor;
-                    }
-
-                    using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
-                    {
-                        UtilityGUI.DrawLinePolygon(points);
-                    }
-
-                    if (propertySelected)
-                    {
-                        bool drawAdd = true;
-                        for (int pointIndex = 0; pointIndex < points.Length; pointIndex++)
+                        Vector2[] drawPoints = new Vector2[colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex)];
+                        for (int pointIndex = 0; pointIndex < drawPoints.Length; pointIndex++)
                         {
-                            Rect handleRect = new Rect(points[pointIndex] - handleSize / 2, handleSize);
-                            Rect grabRect = new Rect(points[pointIndex] - grabSize / 2, grabSize);
+                            drawPoints[pointIndex] = previewSize / 2 + colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex) * new Vector2(1, -1) * worldToWindowScalingFactor;
+                        }
 
-                            Color handleColor = UtilityGUIUtility.Darken(this.AccentColor);
-                            if (grabRect.Contains(Event.current.mousePosition))
+                        if (drawPoints.Length == 0) continue;
+
+                        using (new UtilityGUI.ColorScope(propertySelected ? this.AccentColor : UtilityGUIUtility.Darken(this.AccentColor)))
+                        {
+                            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon)
                             {
-                                handleColor = this.AccentColor;
-                                drawAdd = false;
-
-                                if (Event.current.type == EventType.MouseDown && Event.current.button == 1)
+                                UtilityGUI.DrawLinePolygon(drawPoints);
+                            }
+                            else
+                            {
+                                for (int pointIndex = 0; pointIndex < drawPoints.Length - 1; pointIndex++)
                                 {
-                                    colliderProperty.RemovePolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex);
-                                    break;
+                                    UtilityGUI.DrawLinePolygon(Geometry.GetRectAlongLine(drawPoints[pointIndex], drawPoints[pointIndex + 1], lineDrawWidth));
                                 }
-                            }
-
-                            using (new UtilityGUI.ColorScope(handleColor))
-                            {
-                                UtilityGUI.DrawSolidBox(handleRect);
-                            }
-
-                            if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && grabRect.Contains(Event.current.mousePosition - Event.current.delta))
-                            {
-                                Vector2 newPolygonPoint = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor;
-                                colliderProperty.SetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex, newPolygonPoint);
-                                Event.current.Use();
                             }
                         }
 
-                        if (points.Length > 1 && drawAdd)
+                        if (propertySelected)
                         {
-                            int addIndex = -1;
-                            Vector2 addPoint = Vector2.zero;
-                            float shortestDistance = float.MaxValue;
-                            for (int pointIndex = 0; pointIndex < points.Length; pointIndex++)
+                            bool drawAdd = true;
+                            for (int pointIndex = 0; pointIndex < drawPoints.Length; pointIndex++)
                             {
-                                Vector2 nearestPoint = Geometry.FindNearestPointOnLine(points[pointIndex], points[(pointIndex + 1) % points.Length], Event.current.mousePosition);
-                                float distance = Vector2.Distance(Event.current.mousePosition, nearestPoint);
-                                if (Vector2.Distance(nearestPoint, Event.current.mousePosition) < this.Config.HandleGrabLength / 2 && distance < shortestDistance)
-                                {
-                                    addIndex = pointIndex + 1;
-                                    addPoint = nearestPoint;
-                                    shortestDistance = distance;
-                                }
-                            }
+                                Rect handleRect = new Rect(drawPoints[pointIndex] - handleSize / 2, handleSize);
+                                Rect grabRect = new Rect(drawPoints[pointIndex] - grabSize / 2, grabSize);
 
-                            if (addIndex != -1)
-                            {
-                                Rect handleRect = new Rect(addPoint - handleSize / 2, handleSize);
-                                using (new UtilityGUI.ColorScope(this.AccentColor))
+                                Color handleColor = UtilityGUIUtility.Darken(this.AccentColor);
+                                if (grabRect.Contains(Event.current.mousePosition))
+                                {
+                                    handleColor = this.AccentColor;
+                                    drawAdd = false;
+
+                                    if (Event.current.type == EventType.MouseDown && Event.current.button == 1)
+                                    {
+                                        colliderProperty.RemovePointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex);
+                                        break;
+                                    }
+                                }
+
+                                using (new UtilityGUI.ColorScope(handleColor))
                                 {
                                     UtilityGUI.DrawSolidBox(handleRect);
                                 }
-                                if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
+
+                                if (Event.current.button == 0 && Event.current.type == EventType.MouseDrag && grabRect.Contains(Event.current.mousePosition - Event.current.delta))
                                 {
-                                    colliderProperty.AddPolygonPointAt(animationIndex, frameIndex, orientationIndex, addIndex, (addPoint - previewSize / 2) * new Vector2(1, -1) / worldToWindowScalingFactor);
+                                    Vector2 newPolygonPoint = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex) + Event.current.delta * new Vector2(1, -1) / worldToWindowScalingFactor;
+                                    colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex, newPolygonPoint);
                                     Event.current.Use();
+                                }
+                            }
+
+                            if (drawPoints.Length > 1 && drawAdd)
+                            {
+                                int addIndex = -1;
+                                Vector2 addPoint = Vector2.zero;
+                                float shortestDistance = float.MaxValue;
+                                int numberLineSegments = drawPoints.Length - (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon ? 0 : 1);
+                                for (int pointIndex = 0; pointIndex < numberLineSegments; pointIndex++)
+                                {
+                                    Vector2 nearestPoint = Geometry.FindNearestPointOnLine(drawPoints[pointIndex], drawPoints[(pointIndex + 1) % drawPoints.Length], Event.current.mousePosition);
+                                    float distance = Vector2.Distance(Event.current.mousePosition, nearestPoint);
+                                    if (Vector2.Distance(nearestPoint, Event.current.mousePosition) < this.Config.HandleGrabLength / 2 && distance < shortestDistance)
+                                    {
+                                        addIndex = pointIndex + 1;
+                                        addPoint = nearestPoint;
+                                        shortestDistance = distance;
+                                    }
+                                }
+
+                                if (addIndex != -1)
+                                {
+                                    Rect handleRect = new Rect(addPoint - handleSize / 2, handleSize);
+                                    using (new UtilityGUI.ColorScope(this.AccentColor))
+                                    {
+                                        UtilityGUI.DrawSolidBox(handleRect);
+                                    }
+                                    if (Event.current.type == EventType.MouseDown && Event.current.button == 0)
+                                    {
+                                        colliderProperty.AddPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, addIndex);
+                                        colliderProperty.SetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, addIndex, (addPoint - previewSize / 2) * new Vector2(1, -1) / worldToWindowScalingFactor);
+                                        Event.current.Use();
+                                    }
                                 }
                             }
                         }
@@ -440,15 +504,21 @@ namespace FrigidBlackwaters.Game
             switch (colliderProperty.ShapeType) 
             {
                 case ColliderAnimatorPropertyShapeType.Polygon:
-                    if (colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex) > 0)
+                case ColliderAnimatorPropertyShapeType.Line:
+
+                    Bounds bounds = new Bounds(Vector2.zero, Vector2.zero);
+                    Vector2[][] pathDrawPoints = new Vector2[colliderProperty.GetNumberPaths(animationIndex, frameIndex, orientationIndex)][];
+                    for (int pathIndex = 0; pathIndex < pathDrawPoints.Length; pathIndex++)
                     {
-                        Vector2[] drawPoints = new Vector2[colliderProperty.GetNumberPolygonPoints(animationIndex, frameIndex, orientationIndex)];
-                        Bounds bounds = new Bounds(Vector2.zero, Vector2.zero);
-                        for (int pointIndex = 0; pointIndex < drawPoints.Length; pointIndex++)
+                        pathDrawPoints[pathIndex] = new Vector2[colliderProperty.GetNumberPoints(animationIndex, frameIndex, orientationIndex, pathIndex)];
+                        for (int pointIndex = 0; pointIndex < pathDrawPoints[pathIndex].Length; pointIndex++)
                         {
-                            drawPoints[pointIndex] = colliderProperty.GetPolygonPointAt(animationIndex, frameIndex, orientationIndex, pointIndex) * new Vector2(1, -1);
-                            bounds.Encapsulate(drawPoints[pointIndex]);
+                            pathDrawPoints[pathIndex][pointIndex] = colliderProperty.GetPointAt(animationIndex, frameIndex, orientationIndex, pathIndex, pointIndex) * new Vector2(1, -1);
+                            bounds.Encapsulate(pathDrawPoints[pathIndex][pointIndex]);
                         }
+                    }
+                    foreach (Vector2[] drawPoints in pathDrawPoints)
+                    {
                         float scalingFactor;
                         if (bounds.size.x > bounds.size.y)
                         {
@@ -465,7 +535,14 @@ namespace FrigidBlackwaters.Game
 
                         using (new UtilityGUI.ColorScope(this.AccentColor))
                         {
-                            UtilityGUI.DrawLinePolygon(drawPoints);
+                            if (colliderProperty.ShapeType == ColliderAnimatorPropertyShapeType.Polygon)
+                            {
+                                UtilityGUI.DrawLinePolygon(drawPoints);
+                            }
+                            else
+                            {
+                                UtilityGUI.DrawLineSegments(drawPoints);
+                            }
                         }
                     }
                     break;

@@ -32,7 +32,7 @@ namespace FrigidBlackwaters.Game
                 Vector2 targetPosition = mobToLead.Position;
                 Vector2 originPosition = origins[i];
                 Vector2 incidentDelta = targetPosition - originPosition;
-                if (targetVelocity.magnitude <= FrigidConstants.SMALLEST_WORLD_SIZE)
+                if (targetVelocity.magnitude <= FrigidConstants.WorldSizeEpsilon)
                 {
                     positions[i] = targetPosition;
                     continue;
@@ -57,7 +57,7 @@ namespace FrigidBlackwaters.Game
                 Vector2 leadDelta = leadPosition - originPosition;
 
                 float coneHalfAngle = this.coneAngle.ImmutableValue / 2;
-                float halfAngleInterval = FrigidConstants.UNIT_WORLD_SIZE / incidentDelta.magnitude * Mathf.Rad2Deg;
+                float halfAngleInterval = FrigidConstants.UnitWorldSize / incidentDelta.magnitude * Mathf.Rad2Deg;
                 do
                 {
                     float clampedHalfAngleRad = Mathf.Clamp(Vector2.SignedAngle(incidentDelta, leadDelta), -coneHalfAngle, coneHalfAngle) * Mathf.Deg2Rad;

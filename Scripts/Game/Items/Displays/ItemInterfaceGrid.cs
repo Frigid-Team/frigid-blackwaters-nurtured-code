@@ -115,10 +115,10 @@ namespace FrigidBlackwaters.Game
             base.Awake();
             this.currentSlots = new List<ItemInterfaceStashSlot>();
             this.slotPool = new RecyclePool<ItemInterfaceStashSlot>(
-                this.numberSlotsPreparedInAdvance,
                 () => CreateInstance<ItemInterfaceStashSlot>(this.slotPrefab, this.slotsTransform, false),
                 (ItemInterfaceStashSlot stashSlot) => DestroyInstance(stashSlot)
                 );
+            this.slotPool.Reserve(this.numberSlotsPreparedInAdvance);
         }
 
 #if UNITY_EDITOR

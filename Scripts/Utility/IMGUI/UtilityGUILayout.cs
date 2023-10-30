@@ -18,23 +18,26 @@ namespace FrigidBlackwaters.Utility
                 GUILayoutOption removeButtonWidthOption = GUILayout.Width(EditorStyles.iconButton.CalcSize(removeButtonContent).x + EditorGUIUtility.singleLineHeight);
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField(label, EditorStyles.largeLabel);
+                    EditorGUILayout.LabelField(label);
                     GUIContent countContent = new GUIContent("Count");
                     EditorGUILayout.LabelField(countContent, GUILayout.MaxWidth(EditorStyles.label.CalcSize(countContent).x));
-                    int newCount = EditorGUILayout.IntField(count);
-                    if (newCount != count)
+                    using (new EditorGUI.DisabledScope(onAdd == null || onRemove == null))
                     {
-                        for (int i = count; i < newCount; i++)
+                        int newCount = EditorGUILayout.IntField(count);
+                        if (newCount != count)
                         {
-                            onAdd.Invoke(i);
+                            for (int i = count; i < newCount; i++)
+                            {
+                                onAdd.Invoke(i);
+                            }
+                            for (int i = count - 1; i > newCount - 1; i--)
+                            {
+                                onRemove.Invoke(i);
+                            }
+                            count = newCount;
                         }
-                        for (int i = count - 1; i > newCount - 1; i--)
-                        {
-                            onRemove.Invoke(i);
-                        }
-                        count = newCount;
                     }
-                    if (GUILayout.Button(addButtonContent, addButtonWidthOption))
+                    if (onAdd != null && GUILayout.Button(addButtonContent, addButtonWidthOption))
                     {
                         onAdd.Invoke(0);
                     }
@@ -45,13 +48,16 @@ namespace FrigidBlackwaters.Utility
                     {
                         GUIContent indexContent = new GUIContent("[" + i + "]");
                         EditorGUILayout.LabelField(indexContent, GUILayout.MaxWidth(EditorStyles.label.CalcSize(indexContent).x));
-                        onDrawElement.Invoke(i);
-                        if (GUILayout.Button(addButtonContent, addButtonWidthOption))
+                        using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                        {
+                            onDrawElement.Invoke(i);
+                        }
+                        if (onAdd != null && GUILayout.Button(addButtonContent, addButtonWidthOption))
                         {
                             onAdd.Invoke(i + 1);
                             break;
                         }
-                        if (GUILayout.Button(removeButtonContent, removeButtonWidthOption))
+                        if (onRemove != null && GUILayout.Button(removeButtonContent, removeButtonWidthOption))
                         {
                             onRemove.Invoke(i);
                             break;

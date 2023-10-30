@@ -1,47 +1,15 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    public class MobEquipmentState : MobEquipmentStateNode
+    public abstract class MobEquipmentState : MobEquipmentStateNode
     {
         [SerializeField]
         private bool isFiring;
-        [SerializeField]
-        private AbilityResource activeAbilityResource;
-        [SerializeField]
-        private string equipmentAnimationName;
-        [SerializeField]
-        private Direction facingDirection;
-        [Space]
-        [SerializeField]
-        private List<MobStatusTag> statusTags;
 
-        private bool equipmentAnimationFinished;
-
-        public override MobEquipmentState InitialState
-        {
-            get
-            {
-                return this;
-            }
-        }
-
-        public override HashSet<MobEquipmentStateNode> ReferencedStateNodes
-        {
-            get
-            {
-                return new HashSet<MobEquipmentStateNode>();
-            }
-        }
-
-        public override bool AutoExit
-        {
-            get
-            {
-                return this.equipmentAnimationFinished;
-            }
-        }
+        private bool enteredSelf;
+        private float selfEnterDuration;
+        private float selfEnterDurationDelta;
 
         public bool IsFiring
         {
@@ -51,35 +19,51 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public AbilityResource ActiveAbilityResource
+        public override void Spawn()
+        {
+            base.Spawn();
+            this.enteredSelf = false;
+        }
+
+        public virtual void EnterSelf() 
+        {
+            this.enteredSelf = true;
+            this.selfEnterDuration = 0f;
+            this.selfEnterDurationDelta = 0f;
+        }
+
+        public virtual void ExitSelf() 
+        {
+            this.enteredSelf = false;
+        }
+
+        public virtual void RefreshSelf() 
+        {
+            this.selfEnterDurationDelta = Time.deltaTime * this.Owner.EquipPoint.Equipper.RequestedTimeScale;
+            this.selfEnterDuration += this.selfEnterDurationDelta;
+        }
+
+        protected bool EnteredSelf
         {
             get
             {
-                return this.activeAbilityResource;
+                return this.enteredSelf;
             }
         }
 
-        public override void Enter()
+        protected float SelfEnterDuration
         {
-            base.Enter();
-            if (!this.Owner.EquipPoint.Equipper.IsActingAndNotStunned) this.OwnerAnimatorBody.Direction = this.Owner.EquipPoint.Equipper.FacingDirection;
-            else this.OwnerAnimatorBody.Direction = this.facingDirection.Retrieve(this.Owner.FacingDirection, this.EnterDuration, this.EnterDurationDelta);
-            this.equipmentAnimationFinished = false;
-            this.OwnerAnimatorBody.Play(this.equipmentAnimationName, () => this.equipmentAnimationFinished = true);
-            foreach (MobStatusTag statusTag in this.statusTags)
+            get
             {
-                this.Owner.EquipPoint.Equipper.AddStatusTag(statusTag);
+                return this.selfEnterDuration;
             }
         }
 
-        public override void Refresh()
+        protected float SelfEnterDurationDelta
         {
-            base.Refresh();
-            if (!this.Owner.EquipPoint.Equipper.IsActingAndNotStunned) this.OwnerAnimatorBody.Direction = this.Owner.EquipPoint.Equipper.FacingDirection;
-            else this.OwnerAnimatorBody.Direction = this.facingDirection.Retrieve(this.Owner.FacingDirection, this.EnterDuration, this.EnterDurationDelta);
-            foreach (MobStatusTag statusTag in this.statusTags)
+            get
             {
-                this.Owner.EquipPoint.Equipper.RemoveStatusTag(statusTag);
+                return this.selfEnterDurationDelta;
             }
         }
     }

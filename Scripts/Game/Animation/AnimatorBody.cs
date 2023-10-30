@@ -1,17 +1,13 @@
-using UnityEngine;
-using System;
-using System.Collections.Generic;
-
 using FrigidBlackwaters.Core;
 using FrigidBlackwaters.Utility;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
     public class AnimatorBody : FrigidMonoBehaviourWithUpdate
     {
-        private const string NEW_ANIMATION_NAME = "New Animation";
-        private const float NEW_FRAME_RATE = 12f;
-
         [SerializeField]
         private bool rotateToDirection;
         [SerializeField]
@@ -22,7 +18,9 @@ namespace FrigidBlackwaters.Game
         private List<string> animationNames;
         [SerializeField]
         [HideInInspector]
-        private List<bool> loopings;
+        private List<float> loopDurations;
+        [SerializeField]
+        private List<LoopBehaviour> loopBehaviours;
         [SerializeField]
         [HideInInspector]
         private List<float> frameRates;
@@ -46,10 +44,9 @@ namespace FrigidBlackwaters.Game
         private Vector2 direction;
         private Action onDirectionChanged;
 
-        private bool playAnimationDirty;
         private int playedAnimationIndex;
         private float elapsedDuration;
-  
+        
         private int currAnimationIndex;
         private Action<int, int> onAnimationUpdated;
         private int currFrameIndex;
@@ -130,7 +127,7 @@ namespace FrigidBlackwaters.Game
                     this.direction = value.normalized;
                     if (this.gameObject.activeInHierarchy)
                     {
-                        this.RefreshOrientation();
+                        this.RefreshOrientation(false);
                     }
                     this.UpdateLocalRotation();
                     this.onDirectionChanged?.Invoke();
@@ -162,20 +159,12 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public Bounds AreaOccupied
+        public Bounds VisibleArea
         {
             get
             {
-                Bounds? totalAreaOccupied = this.RootProperty.GetAreaOccupied();
-                return totalAreaOccupied.HasValue ? totalAreaOccupied.Value : new Bounds(this.transform.position, Vector3.zero);
-            }
-        }
-
-        public bool IsLooping
-        {
-            get
-            {
-                return this.CurrAnimationIndex == -1 ? false : (this.GetLooping(this.CurrAnimationIndex) || this.RootProperty.GetLooped());
+                Bounds? totalVisibleArea = this.RootProperty.GetVisibleArea();
+                return totalVisibleArea.HasValue ? totalVisibleArea.Value : new Bounds(this.transform.position, Vector3.zero);
             }
         }
 
@@ -203,17 +192,52 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                if (this.CurrAnimationIndex == -1 || this.GetLooping(this.CurrAnimationIndex)) return float.MaxValue;
-                return Mathf.Max(this.GetFrameCount(this.CurrAnimationIndex) / this.GetFrameRate(this.CurrAnimationIndex), this.RootProperty.GetDuration());
+                return Mathf.Max(this.FramesCompletedDuration, this.RootProperty.GetDuration());
             }
         }
 
-        public int CurrentCycleIndex
+        public float FramesCompletedDuration
         {
             get
             {
-                if (this.CurrAnimationIndex == -1) return 0;
-                return Mathf.FloorToInt(this.ElapsedDuration / (this.GetFrameCount(this.CurrAnimationIndex) / this.GetFrameRate(this.CurrAnimationIndex)));
+                Debug.Assert(this.CurrAnimationIndex != -1, "No animation is playing!");
+                switch (this.GetLoopBehaviour(this.CurrAnimationIndex))
+                {
+                    case LoopBehaviour.NoLoop:
+                        return this.CycleDuration;
+                    case LoopBehaviour.LoopForDuration:
+                        return this.GetLoopDuration(this.CurrAnimationIndex);
+                    case LoopBehaviour.LoopInfinitely:
+                        return float.PositiveInfinity;
+                }
+                return 0f;
+            }
+        }
+
+        public float FrameDuration
+        {
+            get
+            {
+                Debug.Assert(this.CurrAnimationIndex != -1, "No animation is playing!");
+                return 1f / this.GetFrameRate(this.CurrAnimationIndex);
+            }
+        }
+
+        public int CycleIndex
+        {
+            get
+            {
+                Debug.Assert(this.CurrAnimationIndex != -1);
+                return (int)(this.ElapsedDuration / this.CycleDuration);
+            }
+        }
+
+        public float CycleDuration
+        {
+            get
+            {
+                Debug.Assert(this.CurrAnimationIndex != -1);
+                return this.GetFrameCount(this.CurrAnimationIndex) / this.GetFrameRate(this.CurrAnimationIndex);
             }
         }
 
@@ -304,7 +328,8 @@ namespace FrigidBlackwaters.Game
             body.animationCount = 0;
             body.animationNames = new List<string>();
             body.frameRates = new List<float>();
-            body.loopings = new List<bool>();
+            body.loopBehaviours = new List<LoopBehaviour>();
+            body.loopDurations = new List<float>();
             body.frameCounts = new List<int>();
             body.orientationCounts = new List<int>();
             body.orientationDirections = new Nested2DList<Vector2>();
@@ -328,16 +353,14 @@ namespace FrigidBlackwaters.Game
         {
             if (playedAnimationIndex != -1)
             {
-                this.playAnimationDirty = true;
                 this.playedAnimationIndex = playedAnimationIndex;
                 this.completed = false;
                 this.onComplete = onComplete;
                 this.ElapsedDuration = 0;
                 if (this.gameObject.activeInHierarchy)
                 {
-                    this.RefreshAnimation();
+                    this.RefreshAnimation(true);
                 }
-                this.playAnimationDirty = false;
                 return true;
             }
             return false;
@@ -350,7 +373,7 @@ namespace FrigidBlackwaters.Game
             this.ElapsedDuration = 0;
             if (this.gameObject.activeInHierarchy)
             {
-                this.RefreshAnimation();
+                this.RefreshAnimation(true);
             }
         }
 
@@ -458,9 +481,10 @@ namespace FrigidBlackwaters.Game
         {
             FrigidEdit.RecordChanges(this);
             this.animationCount++;
-            this.animationNames.Insert(animationIndex, NEW_ANIMATION_NAME);
-            this.frameRates.Insert(animationIndex, NEW_FRAME_RATE);
-            this.loopings.Insert(animationIndex, false);
+            this.animationNames.Insert(animationIndex, "New Animation");
+            this.frameRates.Insert(animationIndex, 12f);
+            this.loopBehaviours.Insert(animationIndex, LoopBehaviour.NoLoop);
+            this.loopDurations.Insert(animationIndex, 0f);
             this.frameCounts.Insert(animationIndex, 0);
             this.orientationCounts.Insert(animationIndex, 0);
             this.orientationDirections.Insert(animationIndex, new Nested1DList<Vector2>());
@@ -473,7 +497,8 @@ namespace FrigidBlackwaters.Game
             this.animationCount--;
             this.animationNames.RemoveAt(animationIndex);
             this.frameRates.RemoveAt(animationIndex);
-            this.loopings.RemoveAt(animationIndex);
+            this.loopBehaviours.RemoveAt(animationIndex);
+            this.loopDurations.RemoveAt(animationIndex);
             this.frameCounts.RemoveAt(animationIndex);
             this.orientationCounts.RemoveAt(animationIndex);
             this.orientationDirections.RemoveAt(animationIndex);
@@ -499,17 +524,31 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public bool GetLooping(int animationIndex)
+        public LoopBehaviour GetLoopBehaviour(int animationIndex)
         {
-            return this.loopings[animationIndex];
+            return this.loopBehaviours[animationIndex];
         }
 
-        public void SetLooping(int animationIndex, bool looping)
+        public void SetLoopBehaviour(int animationIndex, LoopBehaviour loopBehaviour)
         {
-            if (this.loopings[animationIndex] != looping)
+            if (this.loopBehaviours[animationIndex] != loopBehaviour)
             {
                 FrigidEdit.RecordChanges(this);
-                this.loopings[animationIndex] = looping;
+                this.loopBehaviours[animationIndex] = loopBehaviour;
+            }
+        }
+
+        public float GetLoopDuration(int animationIndex)
+        {
+            return this.loopDurations[animationIndex];
+        }
+
+        public void SetLoopDuration(int animationIndex, float loopDuration)
+        {
+            if (this.loopDurations[animationIndex] != loopDuration)
+            {
+                FrigidEdit.RecordChanges(this);
+                this.loopDurations[animationIndex]= loopDuration;
             }
         }
 
@@ -622,7 +661,8 @@ namespace FrigidBlackwaters.Game
                 this.SetOrientationDirection(toAnimationIndex, orientationIndex, this.GetOrientationDirection(fromAnimationIndex, orientationIndex));
             }
             this.SetFrameCount(toAnimationIndex, this.GetFrameCount(fromAnimationIndex));
-            this.SetLooping(toAnimationIndex, this.GetLooping(fromAnimationIndex));
+            this.SetLoopBehaviour(toAnimationIndex, this.GetLoopBehaviour(fromAnimationIndex));
+            this.SetLoopDuration(toAnimationIndex, this.GetLoopDuration(fromAnimationIndex));
             this.SetFrameRate(toAnimationIndex, this.GetFrameRate(fromAnimationIndex));
 
             List<AnimatorProperty> properties = this.GetProperties();
@@ -771,24 +811,56 @@ namespace FrigidBlackwaters.Game
         protected override void OnEnable()
         {
             base.OnEnable();
-            this.RefreshAnimation();
-            this.RefreshFrame();
-            this.RefreshOrientation();
+            this.RefreshAnimation(false);
+            this.RefreshFrame(false);
+            this.RefreshOrientation(false);
         }
 
         protected override void Update()
         {
             base.Update();
 
-            this.ElapsedDuration += Time.deltaTime * this.TimeScale;
-            this.RefreshFrame();
-            if (!this.completed)
+            if (this.CurrAnimationIndex == -1 || this.completed)
             {
-                if (this.CurrAnimationIndex != -1 && !this.IsLooping && this.RemainingDuration <= 0)
+                return;
+            }
+
+            float accumulatedTime = Time.deltaTime * this.TimeScale;
+            float remainingDuration = this.RemainingDuration;
+            if (remainingDuration <= accumulatedTime)
+            {
+                accumulatedTime = remainingDuration;
+                this.completed = true;
+            }
+
+            float frameDuration = this.FrameDuration;
+            float framesCompletedDuration = this.FramesCompletedDuration;
+            float previousElapsedDuration = this.ElapsedDuration;
+            while (accumulatedTime > frameDuration)
+            {
+                this.ElapsedDuration += frameDuration;
+                accumulatedTime -= frameDuration;
+                if (this.ElapsedDuration >= framesCompletedDuration)
                 {
-                    this.completed = true;
-                    this.onComplete?.Invoke();
+                    goto skipFrames;
                 }
+                this.RefreshFrame((int)(previousElapsedDuration / frameDuration) != (int)(this.ElapsedDuration / frameDuration));
+                previousElapsedDuration = this.ElapsedDuration;
+            }
+            this.ElapsedDuration += accumulatedTime;
+            accumulatedTime = 0f;
+            if (this.ElapsedDuration >= framesCompletedDuration)
+            {
+                goto skipFrames;
+            }
+            this.RefreshFrame((int)(previousElapsedDuration / frameDuration) != (int)(this.ElapsedDuration / frameDuration));
+
+        skipFrames:;
+            this.ElapsedDuration += accumulatedTime;
+            if (this.completed)
+            {
+                this.ElapsedDuration = framesCompletedDuration;
+                this.onComplete?.Invoke();
             }
         }
 
@@ -812,8 +884,15 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        private void RefreshAnimation()
+        private void RefreshAnimation(bool force)
         {
+            if (force)
+            {
+                this.HandleAnimationExit();
+                this.UpdateAnimationIndex(null, null);
+                this.HandleAnimationEnter();
+                return;
+            }
             this.UpdateAnimationIndex(this.HandleAnimationExit, this.HandleAnimationEnter);
         }
 
@@ -825,7 +904,7 @@ namespace FrigidBlackwaters.Game
 
         private void UpdateAnimationIndex(Action onUpdateBefore, Action onUpdateAfter)
         {
-            if (this.playAnimationDirty || this.CurrAnimationIndex != this.playedAnimationIndex)
+            if (this.CurrAnimationIndex != this.playedAnimationIndex)
             {
                 onUpdateBefore?.Invoke();
                 int prevAnimationIndex = this.CurrAnimationIndex;
@@ -857,8 +936,15 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        private void RefreshFrame()
+        private void RefreshFrame(bool force)
         {
+            if (force)
+            {
+                this.HandleFrameExit();
+                this.UpdateFrameIndex(null, null);
+                this.HandleFrameEnter();
+                return;
+            }
             this.UpdateFrameIndex(this.HandleFrameExit, this.HandleFrameEnter);
         }
 
@@ -867,8 +953,8 @@ namespace FrigidBlackwaters.Game
             int frameIndex = -1;
             if (animationIndex != -1 && this.GetFrameCount(animationIndex) > 0)
             {
-                int framesElapsed = Mathf.FloorToInt(elapsedDuration * this.GetFrameRate(animationIndex));
-                frameIndex = this.GetLooping(animationIndex) ? (framesElapsed % this.GetFrameCount(animationIndex)) : Mathf.Min(framesElapsed, this.GetFrameCount(animationIndex) - 1);
+                int framesElapsed = (int)(elapsedDuration * this.GetFrameRate(animationIndex));
+                frameIndex = this.GetLoopBehaviour(animationIndex) != LoopBehaviour.NoLoop ? (framesElapsed % this.GetFrameCount(animationIndex)) : Mathf.Min(framesElapsed, this.GetFrameCount(animationIndex) - 1);
             }
             return frameIndex;
         }
@@ -883,7 +969,6 @@ namespace FrigidBlackwaters.Game
                 this.CurrFrameIndex = newFrameIndex;
                 this.onFrameUpdated?.Invoke(prevFrameIndex, this.CurrFrameIndex);
                 this.UpdateOrientationIndex(null, null);
-                this.UpdateLocalRotation();
                 onUpdateAfter?.Invoke();
             }
         }
@@ -906,8 +991,15 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        private void RefreshOrientation()
+        private void RefreshOrientation(bool force)
         {
+            if (force)
+            {
+                this.HandleOrientationExit();
+                this.UpdateOrientationIndex(null, null);
+                this.HandleOrientationEnter();
+                return;
+            }
             this.UpdateOrientationIndex(this.HandleOrientationExit, this.HandleOrientationEnter);
         }
 
@@ -960,6 +1052,13 @@ namespace FrigidBlackwaters.Game
             {
                 this.RootProperty.OrientationExit();
             }
+        }
+
+        public enum LoopBehaviour
+        {
+            NoLoop,
+            LoopForDuration,
+            LoopInfinitely
         }
     }
 }

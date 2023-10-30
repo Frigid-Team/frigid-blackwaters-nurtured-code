@@ -14,10 +14,7 @@ namespace FrigidBlackwaters.Game
         private ParticleSystemRenderer particleSystemRenderer;
         [SerializeField]
         [HideInInspector]
-        private Nested2DList<bool> playedThisFrames;
-        [SerializeField]
-        [HideInInspector]
-        private Nested2DList<bool> onlyPlayOnFirstCycles;
+        private Nested2DList<PlayBehaviour> playBehaviours;
 
         public bool Loop
         {
@@ -36,31 +33,17 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public bool GetPlayThisFrame(int animationIndex, int frameIndex)
+        public PlayBehaviour GetPlayBehaviour(int animationIndex, int frameIndex)
         {
-            return this.playedThisFrames[animationIndex][frameIndex];
+            return this.playBehaviours[animationIndex][frameIndex];
         }
 
-        public void SetPlayThisFrame(int animationIndex, int frameIndex, bool playThisFrame)
+        public void SetPlayBehaviour(int animationIndex, int frameIndex, PlayBehaviour playBehaviour)
         {
-            if (this.playedThisFrames[animationIndex][frameIndex] != playThisFrame)
+            if (this.playBehaviours[animationIndex][frameIndex] != playBehaviour)
             {
                 FrigidEdit.RecordChanges(this);
-                this.playedThisFrames[animationIndex][frameIndex] = playThisFrame;
-            }
-        }
-
-        public bool GetOnlyPlayOnFirstCycle(int animationIndex, int frameIndex)
-        {
-            return this.onlyPlayOnFirstCycles[animationIndex][frameIndex];
-        }
-
-        public void SetOnlyPlayOnFirstCycle(int animationIndex, int frameIndex, bool onlyPlayOnFirstCycle)
-        {
-            if (this.onlyPlayOnFirstCycles[animationIndex][frameIndex] != onlyPlayOnFirstCycle)
-            {
-                FrigidEdit.RecordChanges(this);
-                this.onlyPlayOnFirstCycles[animationIndex][frameIndex] = onlyPlayOnFirstCycle;
+                this.playBehaviours[animationIndex][frameIndex] = playBehaviour;
             }
         }
 
@@ -69,16 +52,13 @@ namespace FrigidBlackwaters.Game
             FrigidEdit.RecordChanges(this);
             this.particleSystem = FrigidEdit.AddComponent<ParticleSystem>(this.gameObject);
             this.particleSystemRenderer = this.gameObject.GetComponent<ParticleSystemRenderer>();
-            this.playedThisFrames = new Nested2DList<bool>();
-            this.onlyPlayOnFirstCycles = new Nested2DList<bool>();
+            this.playBehaviours = new Nested2DList<PlayBehaviour>();
             for (int animationIndex = 0; animationIndex < this.Body.GetAnimationCount(); animationIndex++)
             {
-                this.playedThisFrames.Add(new Nested1DList<bool>());
-                this.onlyPlayOnFirstCycles.Add(new Nested1DList<bool>());
+                this.playBehaviours.Add(new Nested1DList<PlayBehaviour>());
                 for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
                 {
-                    this.playedThisFrames[animationIndex].Add(false);
-                    this.onlyPlayOnFirstCycles[animationIndex].Add(false);
+                    this.playBehaviours[animationIndex].Add(PlayBehaviour.NoPlay);
                 }
             }
             base.Created();
@@ -87,12 +67,10 @@ namespace FrigidBlackwaters.Game
         public override void AnimationAddedAt(int animationIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.playedThisFrames.Insert(animationIndex, new Nested1DList<bool>());
-            this.onlyPlayOnFirstCycles.Insert(animationIndex, new Nested1DList<bool>());
+            this.playBehaviours.Insert(animationIndex, new Nested1DList<PlayBehaviour>());
             for (int frameIndex = 0; frameIndex < this.Body.GetFrameCount(animationIndex); frameIndex++)
             {
-                this.playedThisFrames[animationIndex].Add(false);
-                this.onlyPlayOnFirstCycles[animationIndex].Add(false);
+                this.playBehaviours[animationIndex].Add(PlayBehaviour.NoPlay);
             }
             base.AnimationAddedAt(animationIndex);
         }
@@ -100,24 +78,21 @@ namespace FrigidBlackwaters.Game
         public override void AnimationRemovedAt(int animationIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.playedThisFrames.RemoveAt(animationIndex);
-            this.onlyPlayOnFirstCycles.RemoveAt(animationIndex);
+            this.playBehaviours.RemoveAt(animationIndex);
             base.AnimationRemovedAt(animationIndex);
         }
 
         public override void FrameAddedAt(int animationIndex, int frameIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.playedThisFrames[animationIndex].Insert(frameIndex, false);
-            this.onlyPlayOnFirstCycles[animationIndex].Insert(frameIndex, false);
+            this.playBehaviours[animationIndex].Insert(frameIndex, PlayBehaviour.NoPlay);
             base.FrameAddedAt(animationIndex, frameIndex);
         }
 
         public override void FrameRemovedAt(int animationIndex, int frameIndex)
         {
             FrigidEdit.RecordChanges(this);
-            this.playedThisFrames[animationIndex].RemoveAt(frameIndex);
-            this.onlyPlayOnFirstCycles[animationIndex].RemoveAt(frameIndex);
+            this.playBehaviours[animationIndex].RemoveAt(frameIndex);
             base.FrameRemovedAt(animationIndex, frameIndex);
         }
 
@@ -126,8 +101,7 @@ namespace FrigidBlackwaters.Game
             ParticleAnimatorProperty otherParticleProperty = otherProperty as ParticleAnimatorProperty;
             if (otherParticleProperty)
             {
-                otherParticleProperty.SetPlayThisFrame(toAnimationIndex, toFrameIndex, this.GetPlayThisFrame(fromAnimationIndex, fromFrameIndex));
-                otherParticleProperty.SetOnlyPlayOnFirstCycle(toAnimationIndex, toFrameIndex, this.GetOnlyPlayOnFirstCycle(fromAnimationIndex, fromFrameIndex));
+                otherParticleProperty.SetPlayBehaviour(toAnimationIndex, toFrameIndex, this.GetPlayBehaviour(fromAnimationIndex, fromFrameIndex));
             }
             base.CopyPasteToAnotherFrame(otherProperty, fromAnimationIndex, toAnimationIndex, fromFrameIndex, toFrameIndex);
         }
@@ -169,16 +143,29 @@ namespace FrigidBlackwaters.Game
 
         public override void FrameEnter()
         {
-            if (!this.Body.Previewing)
+            if (!this.Loop && !this.Body.Previewing)
             {
-                if (!this.Loop && this.GetPlayThisFrame(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex) && (this.Body.CurrentCycleIndex == 0 || !this.GetOnlyPlayOnFirstCycle(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex)))
+                switch (this.GetPlayBehaviour(this.Body.CurrAnimationIndex, this.Body.CurrFrameIndex))
                 {
-                    if (this.particleSystem.isPlaying)
-                    {
-                        this.particleSystem.Stop();
-                    }
-                    this.particleSystem.Play();
+                    case PlayBehaviour.NoPlay:
+                        goto skipPlay;
+                    case PlayBehaviour.PlayEveryCycle:
+                        break;
+                    case PlayBehaviour.PlayOnFirstCycle:
+                        if (this.Body.CycleIndex == 0)
+                        {
+                            break;
+                        }
+                        goto skipPlay;
                 }
+
+                if (this.particleSystem.isPlaying)
+                {
+                    this.particleSystem.Stop();
+                }
+                this.particleSystem.Play();
+
+            skipPlay:;
             }
             base.FrameEnter();
         }
@@ -189,6 +176,13 @@ namespace FrigidBlackwaters.Game
             {
                 return this.particleSystemRenderer;
             }
+        }
+
+        public enum PlayBehaviour
+        {
+            NoPlay,
+            PlayEveryCycle,
+            PlayOnFirstCycle
         }
     }
 }

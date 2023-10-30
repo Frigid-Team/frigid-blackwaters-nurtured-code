@@ -28,5 +28,15 @@ namespace FrigidBlackwaters
         {
             return masks[layer];
         }
+
+        public static LayerMask MakeMask(params FrigidLayer[] layers)
+        {
+            int mask = 0;
+            foreach (FrigidLayer layer in layers)
+            {
+                mask |= (1 << (int)layer);
+            }
+            return mask;
+        }
     }
 }

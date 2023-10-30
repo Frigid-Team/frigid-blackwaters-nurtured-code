@@ -18,7 +18,8 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return Color.green;
+                ColorUtility.TryParseHtmlString("#00ffa2", out Color color);
+                return color;
             }
         }
     }

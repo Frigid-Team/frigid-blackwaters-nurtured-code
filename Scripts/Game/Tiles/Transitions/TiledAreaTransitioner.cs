@@ -6,9 +6,9 @@ namespace FrigidBlackwaters.Game
 {
     public class TiledAreaTransitioner : FrigidMonoBehaviour
     {
-        private const string CLOSE_ANIMATION_NAME = "Close";
-        private const string OPEN_ANIMATION_NAME = "Open";
-        private const string SPEED_PARAMETER_NAME = "TransitionSpeed";
+        private const string CloseAnimationName = "Close";
+        private const string OpenAnimationName = "Open";
+        private const string SpeedParameterName = "TransitionSpeed";
 
         [SerializeField]
         private SpriteRenderer backgroundRenderer;
@@ -31,7 +31,7 @@ namespace FrigidBlackwaters.Game
 
         public void SetDimensions(Vector2Int dimensions)
         {
-            this.backgroundRenderer.transform.localScale = (Vector2)dimensions * 2 * FrigidConstants.UNIT_WORLD_SIZE;
+            this.backgroundRenderer.transform.localScale = (Vector2)dimensions * 2 * FrigidConstants.UnitWorldSize;
         }
 
         public void PlayTransitionTo(TiledAreaTransition transition, float duration, Vector2 entryPosition)
@@ -63,8 +63,8 @@ namespace FrigidBlackwaters.Game
                         float animationDuration = duration * this.animationDurationPercent;
                         this.focusAnimator.runtimeAnimatorController = transition.AnimatorController;
                         this.focusAnimator.enabled = true;
-                        this.focusAnimator.SetFloat(SPEED_PARAMETER_NAME, transition.BaseDuration / animationDuration);
-                        this.focusAnimator.Play(Animator.StringToHash(OPEN_ANIMATION_NAME));
+                        this.focusAnimator.SetFloat(SpeedParameterName, transition.BaseDuration / animationDuration);
+                        this.focusAnimator.Play(Animator.StringToHash(OpenAnimationName));
                         FrigidCoroutine.Run(
                             Tween.Delay(
                                 animationDuration, 
@@ -92,7 +92,7 @@ namespace FrigidBlackwaters.Game
                                         Tween.Value(
                                             centerDuration,
                                             this.focusMask.transform.localScale,
-                                            new Vector2(focusMaskMaxScale, focusMaskMaxScale) * FrigidConstants.UNIT_WORLD_SIZE,
+                                            new Vector2(focusMaskMaxScale, focusMaskMaxScale) * FrigidConstants.UnitWorldSize,
                                             EasingType.EaseInCirc,
                                             onValueUpdated: (Vector2 scale) => this.focusMask.transform.localScale = scale
                                             ),
@@ -122,7 +122,7 @@ namespace FrigidBlackwaters.Game
 
             this.focusMask.enabled = true;
             this.focusMask.transform.position = cameraBounds.center;
-            this.focusMask.transform.localScale = new Vector2(focusMaskMaxScale, focusMaskMaxScale) * FrigidConstants.UNIT_WORLD_SIZE;
+            this.focusMask.transform.localScale = new Vector2(focusMaskMaxScale, focusMaskMaxScale) * FrigidConstants.UnitWorldSize;
 
             float centerDuration = duration * this.centerDurationPercent;
             FrigidCoroutine.Run(
@@ -139,8 +139,8 @@ namespace FrigidBlackwaters.Game
                         this.focusSpriteRenderer.enabled = true;
                         this.focusAnimator.runtimeAnimatorController = transition.AnimatorController;
                         this.focusAnimator.enabled = true;
-                        this.focusAnimator.SetFloat(SPEED_PARAMETER_NAME, transition.BaseDuration / animationDuration);
-                        this.focusAnimator.Play(Animator.StringToHash(CLOSE_ANIMATION_NAME));
+                        this.focusAnimator.SetFloat(SpeedParameterName, transition.BaseDuration / animationDuration);
+                        this.focusAnimator.Play(Animator.StringToHash(CloseAnimationName));
                         FrigidCoroutine.Run(
                             Tween.Delay(
                                 animationDuration,

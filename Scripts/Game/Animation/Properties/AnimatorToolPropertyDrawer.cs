@@ -11,8 +11,8 @@ namespace FrigidBlackwaters.Game
 {
     public abstract class AnimatorToolPropertyDrawer
     {
-        protected const float WORLD_OBJECT_PREVIEW_ORDER = 0f;
-        protected const float GUI_PREVIEW_ORDER = 1f;
+        protected const float WorldObjectPreviewOrder = 0f;
+        protected const float GUIPreviewOrder = 1f;
 
         private AnimatorProperty property;
         private AnimatorBody body;
@@ -47,17 +47,17 @@ namespace FrigidBlackwaters.Game
             UtilityGUILayout.IndexedList(
                 "Child Properties",
                 this.Property.GetNumberChildProperties(),
-                (int index) => 
+                (int childIndex) => 
                 {
                     List<Type> propertyTypes = TypeUtility.GetCompleteTypesDerivedFrom(typeof(AnimatorProperty));
                     SearchPopup typeSelectionPopup = new SearchPopup(
                         propertyTypes.Select((Type type) => type.Name).ToArray(),
-                        (int typeIndex) => this.Property.AddChildPropertyAt(index, propertyTypes[typeIndex])
+                        (int typeIndex) => this.Property.AddChildPropertyAt(childIndex, propertyTypes[typeIndex])
                         );
                     FrigidPopup.Show(GUILayoutUtility.GetLastRect(), typeSelectionPopup);
                 },
                 this.Property.RemoveChildPropertyAt,
-                (int index) => EditorGUILayout.LabelField(this.Property.GetChildPropertyAt(index).PropertyName)
+                (int childIndex) => EditorGUILayout.LabelField(this.Property.GetChildPropertyAt(childIndex).PropertyName)
                 );
         }
 

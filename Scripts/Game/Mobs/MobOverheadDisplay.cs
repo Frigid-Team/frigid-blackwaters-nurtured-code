@@ -97,7 +97,7 @@ namespace FrigidBlackwaters.Game
                     if (!this.owner.ShowDisplays) return;
                     MobOverheadPopup overheadPopup = popupPools.Current[this.popupPrefab].Retrieve();
                     overheadPopup.transform.SetParent(this.popupsParent);
-                    overheadPopup.ShowHeal(heal, () => popupPools.Current[this.popupPrefab].Pool(overheadPopup));
+                    overheadPopup.ShowHeal(heal, () => popupPools.Current[this.popupPrefab].Return(overheadPopup));
                 };
             this.owner.OnDamaged +=
                 (int damage) =>
@@ -105,7 +105,7 @@ namespace FrigidBlackwaters.Game
                     if (!this.owner.ShowDisplays) return;
                     MobOverheadPopup overheadPopup = popupPools.Current[this.popupPrefab].Retrieve();
                     overheadPopup.transform.SetParent(this.popupsParent);
-                    overheadPopup.ShowDamage(damage, () => popupPools.Current[this.popupPrefab].Pool(overheadPopup));
+                    overheadPopup.ShowDamage(damage, () => popupPools.Current[this.popupPrefab].Return(overheadPopup));
                 };
         }
 

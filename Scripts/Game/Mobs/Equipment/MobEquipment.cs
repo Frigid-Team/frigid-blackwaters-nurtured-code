@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,6 +13,8 @@ namespace FrigidBlackwaters.Game
         private MobEquipmentStateNode rootStateNode;
         [SerializeField]
         private MaterialTweenOptionSetSerializedReference materialTweenOnSwitch;
+
+        private List<AbilityResource> abilityResources;
 
         private MobEquipPoint equipPoint;
         private bool equipped;
@@ -42,38 +43,40 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        public AbilityResource ActiveAbilityResource
+        public List<AbilityResource> AbilityResources
         {
             get
             {
-                return this.rootStateNode.CurrentState.ActiveAbilityResource;
+                return this.abilityResources;
             }
         }
 
-        public void Assign(MobEquipPoint equipPoint)
+        public void OwnedBy(MobEquipPoint equipPoint)
         {
-            this.equipPoint = equipPoint;
-            this.equipPoint.Equipper.OnRequestedTimeScaleChanged += this.HandleEquipperTimeScaleChange;
-            this.equipPoint.OnEquipChange += this.ShowEquipPointSwitch;
-            this.HandleEquipperTimeScaleChange();
-        }
-
-        public void Unassign()
-        {
-            this.equipPoint.Equipper.OnRequestedTimeScaleChanged -= this.HandleEquipperTimeScaleChange;
-            this.equipPoint.OnEquipChange -= this.ShowEquipPointSwitch;
-            this.equipPoint = null;
+            if (this.equipPoint != equipPoint)
+            {
+                if (this.equipPoint != null)
+                {
+                    this.equipPoint.Equipper.OnRequestedTimeScaleChanged -= this.HandleEquipperTimeScaleChange;
+                    this.equipPoint.OnEquipChange -= this.ShowEquipPointSwitch;
+                }
+                this.equipPoint = equipPoint;
+                if (this.equipPoint != null)
+                {
+                    this.equipPoint.Equipper.OnRequestedTimeScaleChanged += this.HandleEquipperTimeScaleChange;
+                    this.equipPoint.OnEquipChange += this.ShowEquipPointSwitch;
+                    this.HandleEquipperTimeScaleChange();
+                }
+            }
         }
 
         public void Spawn()
         {
-            this.VisitStateNodes(
-                (MobEquipmentStateNode stateNode) => 
-                {
-                    stateNode.Link(this, this.animatorBody); 
-                    stateNode.Init(); 
-                }
-                );
+            this.rootStateNode.OwnedBy(this, this.animatorBody);
+            this.abilityResources = new List<AbilityResource>();
+            this.rootStateNode.CollectAbilityResources(ref this.abilityResources);
+            this.rootStateNode.Spawn();
+
             this.equipped = false;
             FrigidCoroutine.Run(this.Refresh(), this.gameObject);
         }
@@ -108,8 +111,19 @@ namespace FrigidBlackwaters.Game
             }
             this.EquipPoint.Equipper.SubscribeToTotalStatChange(MobStat.Might, this.UpdateDamageBonusFromMightChange);
 
+            this.EquipPoint.Equipper.StopDealingDamage.OnFirstRequest += this.DisableDamageDealers;
+            this.EquipPoint.Equipper.StopDealingDamage.OnLastRelease += this.EnableDamageDealers;
+            if (this.EquipPoint.Equipper.StopDealingDamage)
+            {
+                this.DisableDamageDealers();
+            }
+            else
+            {
+                this.EnableDamageDealers();
+            }
+
             this.rootStateNode.OnCurrentStateChanged += this.HandleNewState;
-            this.VisitStateNodes((MobEquipmentStateNode stateNode) => stateNode.Equipped());
+            this.rootStateNode.Equipped();
             this.rootStateNode.Enter();
         }
 
@@ -118,7 +132,7 @@ namespace FrigidBlackwaters.Game
             this.equipped = false;
 
             this.rootStateNode.Exit();
-            this.VisitStateNodes((MobEquipmentStateNode stateNode) => stateNode.Unequipped());
+            this.rootStateNode.Unequipped();
             this.rootStateNode.OnCurrentStateChanged -= this.HandleNewState;
 
             foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>())
@@ -147,6 +161,9 @@ namespace FrigidBlackwaters.Game
             }
             this.EquipPoint.Equipper.UnsubscribeToTotalStatChange(MobStat.Might, this.UpdateDamageBonusFromMightChange);
 
+            this.EquipPoint.Equipper.StopDealingDamage.OnFirstRequest -= this.DisableDamageDealers;
+            this.EquipPoint.Equipper.StopDealingDamage.OnLastRelease -= this.EnableDamageDealers;
+
             this.animatorBody.Stop();
         }
 
@@ -159,25 +176,6 @@ namespace FrigidBlackwaters.Game
                     this.rootStateNode.Refresh();
                 }
                 yield return null;
-            }
-        }
-
-        private void VisitStateNodes(Action<MobEquipmentStateNode> onVisited)
-        {
-            HashSet<MobEquipmentStateNode> visitedStateNodes = new HashSet<MobEquipmentStateNode>();
-            Queue<MobEquipmentStateNode> nextStateNodes = new Queue<MobEquipmentStateNode>();
-            nextStateNodes.Enqueue(this.rootStateNode);
-            while (nextStateNodes.TryDequeue(out MobEquipmentStateNode stateNode))
-            {
-                if (!visitedStateNodes.Contains(stateNode))
-                {
-                    visitedStateNodes.Add(stateNode);
-                    foreach (MobEquipmentStateNode referencedStateNode in stateNode.ReferencedStateNodes)
-                    {
-                        nextStateNodes.Enqueue(referencedStateNode);
-                    }
-                    onVisited?.Invoke(stateNode);
-                }
             }
         }
 
@@ -209,6 +207,22 @@ namespace FrigidBlackwaters.Game
             {
                 attackProperty.DamageBonus += Mob.DamageBonusFromMight(currentMight) - Mob.DamageBonusFromMight(previousMight);
             }
+        }
+
+        private void EnableDamageDealers()
+        {
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = false;
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = false;
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = false;
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.IsIgnoringDamage = false;
+        }
+
+        private void DisableDamageDealers()
+        {
+            foreach (HitBoxAnimatorProperty hitBoxProperty in this.animatorBody.GetReferencedProperties<HitBoxAnimatorProperty>()) hitBoxProperty.IsIgnoringDamage = true;
+            foreach (BreakBoxAnimatorProperty breakBoxProperty in this.animatorBody.GetReferencedProperties<BreakBoxAnimatorProperty>()) breakBoxProperty.IsIgnoringDamage = true;
+            foreach (ThreatBoxAnimatorProperty threatBoxProperty in this.animatorBody.GetReferencedProperties<ThreatBoxAnimatorProperty>()) threatBoxProperty.IsIgnoringDamage = true;
+            foreach (AttackAnimatorProperty attackProperty in this.animatorBody.GetReferencedProperties<AttackAnimatorProperty>()) attackProperty.IsIgnoringDamage = true;
         }
     }
 }

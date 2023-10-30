@@ -28,13 +28,13 @@ namespace FrigidBlackwaters.Game
             }
         }
 
-        protected override void EnterSelf()
+        public override void EnterSelf()
         {
             base.EnterSelf();
             this.StartLeap();
         }
 
-        protected override void ExitSelf()
+        public override void ExitSelf()
         {
             base.ExitSelf();
             this.CancelLeap();

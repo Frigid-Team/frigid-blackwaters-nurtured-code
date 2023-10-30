@@ -58,7 +58,7 @@ namespace FrigidBlackwaters.Game
             Sprite sprite = spriteProperty.GetSpriteByReference(animationIndex, frameIndex, orientationIndex).ImmutableValue;
             if (sprite != null)
             {
-                Vector2 adjustedSize = sprite.rect.size / FrigidConstants.PIXELS_PER_UNIT * worldToWindowScalingFactor;
+                Vector2 adjustedSize = sprite.rect.size / FrigidConstants.PixelsPerUnit * worldToWindowScalingFactor;
                 Vector2 pivotOffset = adjustedSize * (Vector2.one - new Vector2(sprite.rect.size.x - sprite.pivot.x, sprite.pivot.y) / sprite.rect.size);
                 Rect spriteDrawRect = new Rect(previewSize / 2 - pivotOffset, adjustedSize);
                 using (new UtilityGUI.ColorScope(spriteProperty.GetColorByReference(animationIndex).ImmutableValue))

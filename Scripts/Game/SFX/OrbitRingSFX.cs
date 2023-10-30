@@ -39,7 +39,7 @@ namespace FrigidBlackwaters.Game
                 orbiter.transform.SetParent(this.transform);
                 orbiter.Stop();
             }
-            this.orbiterPool.Pool(this.orbiters);
+            this.orbiterPool.Return(this.orbiters);
             this.orbiters.Clear();
         }
 
@@ -51,22 +51,19 @@ namespace FrigidBlackwaters.Game
                 (ParticleSystem particle) => Object.Destroy(particle)
                 );
             this.orbiters = new List<ParticleSystem>();
-            if (this.orbiterSprites.Count == 0)
-            {
-                Debug.LogError("No sprites for the orbiter in " + this.name + "!");
-            }
+            Debug.Assert(this.orbiterSprites.Count > 0, "No sprites for the orbiter in " + this.name + "!");
         }
 
         private IEnumerator<FrigidCoroutine.Delay> Orbit(AnimatorBody animatorBody)
         {
             if (this.orbiterSprites.Count == 0) yield break;
 
-            float offsetAngleRad = 0;
+            float angleOffsetRad = 0;
             while (true)
             {
-                Bounds areaOccupied = animatorBody.AreaOccupied;
-                float orbitRadius = areaOccupied.extents.magnitude / 2;
-                offsetAngleRad = (offsetAngleRad + this.orbitSpeed.ImmutableValue / orbitRadius * FrigidCoroutine.DeltaTime) % (Mathf.PI * 2);
+                Bounds areaOccupied = animatorBody.VisibleArea;
+                float orbitRadius = Mathf.Max(FrigidConstants.WorldSizeEpsilon, areaOccupied.extents.magnitude / 2);
+                angleOffsetRad = (angleOffsetRad + this.orbitSpeed.ImmutableValue / orbitRadius * FrigidCoroutine.DeltaTime) % (Mathf.PI * 2);
                 Vector2 localOffset = areaOccupied.center - animatorBody.transform.position;
                 localOffset.y /= 2;
 
@@ -74,7 +71,7 @@ namespace FrigidBlackwaters.Game
                 {
                     ParticleSystem orbiter = this.orbiters[i];
                     if (!orbiter.isPlaying) orbiter.Play();
-                    float orbiterAngle = (offsetAngleRad + i * (Mathf.PI * 2) / this.orbiters.Count) % (Mathf.PI * 2);
+                    float orbiterAngle = (angleOffsetRad + i * (Mathf.PI * 2) / this.orbiters.Count) % (Mathf.PI * 2);
                     int spriteIndex = Mathf.RoundToInt(orbiterAngle / (Mathf.PI * 2) * this.orbiterSprites.Count) % this.orbiterSprites.Count;
                     Sprite sprite = this.orbiterSprites[spriteIndex];
 

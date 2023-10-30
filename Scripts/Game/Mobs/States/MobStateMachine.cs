@@ -11,49 +11,7 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private List<Transition> transitions;
         [SerializeField]
-        private bool returnToStartingNodeOnEnter;
-
-        private MobStateNode chosenStartingStateNode;
-        private MobStateNode chosenStateNode;
-
-        public override HashSet<MobState> InitialStates
-        {
-            get
-            {
-                HashSet<MobState> initialStates = new HashSet<MobState>();
-                foreach (MobStateNode startingStateNode in this.startingStateNodes)
-                {
-                    initialStates.UnionWith(startingStateNode.InitialStates);
-                }
-                return initialStates;
-            }
-        }
-
-        public override HashSet<MobState> MoveStates
-        {
-            get
-            {
-                return this.chosenStateNode.MoveStates;
-            }
-        }
-
-        public override HashSet<MobStateNode> ReferencedStateNodes
-        {
-            get
-            {
-                HashSet<MobStateNode> referencedStateNodes = new HashSet<MobStateNode>();
-                foreach (MobStateNode startingStateNode in this.startingStateNodes)
-                {
-                    referencedStateNodes.Add(startingStateNode);
-                }
-                foreach (Transition transition in this.transitions)
-                {
-                    referencedStateNodes.Add(transition.FromStateNode);
-                    referencedStateNodes.Add(transition.NextStateNode);
-                }
-                return referencedStateNodes;
-            }
-        }
+        private ReturnToStartingNodeBehaviour returnToStartingNodeBehaviour;
 
         public override bool AutoEnter
         {
@@ -75,7 +33,7 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.chosenStateNode.ShouldEnter;
+                return this.ChosenStateNode.ShouldEnter;
             }
         }
 
@@ -83,127 +41,112 @@ namespace FrigidBlackwaters.Game
         {
             get
             {
-                return this.chosenStateNode.ShouldExit;
-            }
-        }
-
-        public override void Init()
-        {
-            base.Init();
-            foreach (MobStateNode startingStateNode in this.startingStateNodes)
-            {
-                this.chosenStartingStateNode = startingStateNode;
-                this.chosenStateNode = startingStateNode;
-                if (startingStateNode.InitialStates.Contains(this.CurrentState))
-                {
-                    break;
-                }
+                return this.ChosenStateNode.ShouldExit;
             }
         }
 
         public override void Enter()
         {
-            if (this.returnToStartingNodeOnEnter)
+            if (this.returnToStartingNodeBehaviour == ReturnToStartingNodeBehaviour.OnEnter)
             {
-                this.SetChosenStateNode(this.chosenStartingStateNode);
+                bool foundStartingNode = false;
+                foreach (MobStateNode startingStateNode in this.startingStateNodes)
+                {
+                    if (this.CanSetChosenStateNode(startingStateNode))
+                    {
+                        foundStartingNode = true;
+                        this.SetChosenStateNode(startingStateNode);
+                        break;
+                    }
+                }
+                if (!foundStartingNode)
+                {
+                    Debug.LogWarning("MobStateMachine " + this.name + " could not find a starting node to return to.");
+                }
             }
             base.Enter();
-            this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
-            this.chosenStateNode.Enter();
-
             this.CheckTransitions();
-        }
-
-        public override void Exit()
-        {
-            base.Exit();
-            this.chosenStateNode.Exit();
-            this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
         }
 
         public override void Refresh()
         {
             base.Refresh();
-
             this.CheckTransitions();
-            this.chosenStateNode.Refresh();
+        }
+
+        protected override HashSet<MobStateNode> SpawnStateNodes
+        {
+            get
+            {
+                return new HashSet<MobStateNode>(this.startingStateNodes);
+            }
+        }
+
+        protected override HashSet<MobStateNode> MoveStateNodes
+        {
+            get
+            {
+                return new HashSet<MobStateNode> { this.ChosenStateNode };
+            }
+        }
+
+        protected override HashSet<MobStateNode> ChildStateNodes
+        {
+            get
+            {
+                HashSet<MobStateNode> childStateNodes = new HashSet<MobStateNode>(this.startingStateNodes);
+                foreach (Transition transition in this.transitions)
+                {
+                    childStateNodes.Add(transition.FromStateNode);
+                    childStateNodes.Add(transition.NextStateNode);
+                }
+                return childStateNodes;
+            }
         }
 
         private void CheckTransitions()
         {
             if (!this.Owner.IsActingAndNotStunned) return;
-            if (this.chosenStateNode.ShouldExit)
+            if (this.ChosenStateNode.ShouldExit)
             {
                 List<Transition> validTransitions = new List<Transition>();
                 foreach (Transition transition in this.transitions)
                 {
-                    if (transition.FromStateNode == this.chosenStateNode &&
+                    if (transition.FromStateNode == this.ChosenStateNode &&
                         transition.NextStateNode.ShouldEnter &&
-                        (transition.FromStateNode.AutoExit || transition.NextStateNode.AutoEnter || transition.TransitionCondition.Evaluate(this.EnterDuration, this.EnterDurationDelta)))
+                        (transition.FromStateNode.AutoExit || transition.NextStateNode.AutoEnter || transition.TriggerCondition.Evaluate(this.EnterDuration, this.EnterDurationDelta)))
                     {
                         validTransitions.Add(transition);
                     }
                 }
 
-                if (validTransitions.Count > 0)
+                foreach (Transition validTransition in validTransitions)
                 {
-                    Transition chosenTransition = validTransitions[0];
-                    this.SetChosenStateNode(chosenTransition.NextStateNode);
+                    if (!this.CanSetChosenStateNode(validTransition.NextStateNode))
+                    {
+                        continue;
+                    }
+                    this.SetChosenStateNode(validTransition.NextStateNode);
+                    break;
                 }
             }
-        }
-
-        private bool CanSetChosenStateNode(MobStateNode chosenStateNode)
-        {
-            return this.CanSetCurrentState(chosenStateNode.CurrentState);
-        }
-
-        private void SetChosenStateNode(MobStateNode chosenStateNode)
-        {
-            if (this.CanSetChosenStateNode(chosenStateNode))
-            {
-                if (this.Entered)
-                {
-                    this.chosenStateNode.Exit();
-                    this.chosenStateNode.OnCurrentStateChanged -= this.SetCurrentStateFromChosenStateNode;
-                }
-
-                this.chosenStateNode = chosenStateNode;
-                this.SetCurrentStateFromChosenStateNode();
-
-                if (this.Entered)
-                {
-                    this.chosenStateNode.OnCurrentStateChanged += this.SetCurrentStateFromChosenStateNode;
-                    this.chosenStateNode.Enter();
-                }
-            }
-        }
-
-        private void SetCurrentStateFromChosenStateNode(MobState previousState, MobState currentState)
-        {
-            this.SetCurrentStateFromChosenStateNode();
-        }
-
-        private void SetCurrentStateFromChosenStateNode()
-        {
-            this.SetCurrentState(this.chosenStateNode.CurrentState);
         }
 
         [Serializable]
         private struct Transition
         {
             [SerializeField]
-            private Conditional transitionCondition;
+            private Conditional triggerCondition;
             [SerializeField]
             private MobStateNode fromStateNode;
             [SerializeField]
             private MobStateNode nextStateNode;
 
-            public Conditional TransitionCondition
+            public Conditional TriggerCondition
             {
                 get
                 {
-                    return this.transitionCondition;
+                    return this.triggerCondition;
                 }
             }
 
@@ -222,6 +165,12 @@ namespace FrigidBlackwaters.Game
                     return this.nextStateNode;
                 }
             }
+        }
+
+        private enum ReturnToStartingNodeBehaviour
+        {
+            None,
+            OnEnter
         }
     }
 }

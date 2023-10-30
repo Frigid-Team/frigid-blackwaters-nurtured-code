@@ -87,6 +87,11 @@ namespace FrigidBlackwaters.Utility
             this.items.CopyTo(array, arrayIndex);
         }
 
+        public T[] ToArray()
+        {
+            return this.items.ToArray();
+        }
+
         public IEnumerator<T> GetEnumerator()
         {
             return this.items.GetEnumerator();
@@ -210,6 +215,11 @@ namespace FrigidBlackwaters.Utility
             this.items.CopyTo(array, arrayIndex);
         }
 
+        public Nested1DList<T>[] ToArray()
+        {
+            return this.items.ToArray();
+        }
+
         public IEnumerator<Nested1DList<T>> GetEnumerator()
         {
             return this.items.GetEnumerator();
@@ -331,6 +341,11 @@ namespace FrigidBlackwaters.Utility
         public void CopyTo(Nested2DList<T>[] array, int arrayIndex)
         {
             this.items.CopyTo(array, arrayIndex);
+        }
+
+        public Nested2DList<T>[] ToArray()
+        {
+            return this.items.ToArray();
         }
 
         public IEnumerator<Nested2DList<T>> GetEnumerator()

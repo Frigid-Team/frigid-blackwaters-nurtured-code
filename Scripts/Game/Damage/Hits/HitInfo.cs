@@ -5,9 +5,8 @@ namespace FrigidBlackwaters.Game
 {
     public class HitInfo : DamageInfo
     {
-        private const float SCRATCH_DAMAGE_PERCENT = 0.15f;
+        private const float ScratchDamagePercent = 0.15f;
 
-        private float timeHit;
         private Vector2 hitPosition;
         private Vector2 hitDirection;
 
@@ -18,17 +17,20 @@ namespace FrigidBlackwaters.Game
 
         public HitInfo(int baseDamage, int bonusDamage, int mitigatedDamage, Vector2 hitPosition, Vector2 hitDirection, List<HitModifier> hitModifiers, Collider2D collision) : base(collision)
         {
-            this.timeHit = Time.time;
             this.hitPosition = hitPosition;
             this.hitDirection = hitDirection;
             int incomingDamage = Mathf.Max(baseDamage + bonusDamage, 0);
-            this.damage = Mathf.Max(Mathf.Max(incomingDamage - mitigatedDamage, 0), Mathf.CeilToInt(incomingDamage * SCRATCH_DAMAGE_PERCENT));
+            this.damage = Mathf.Max(Mathf.Max(incomingDamage - mitigatedDamage, 0), Mathf.CeilToInt(incomingDamage * ScratchDamagePercent));
             this.appliedHitModifiers = new List<HitModifier>();
             foreach (HitModifier hitModifier in hitModifiers)
             {
-                if (hitModifier.ApplyOnHit(hitPosition, hitDirection, ref this.damage))
+                if (hitModifier.TryApplyOnHit(hitPosition, hitDirection, ref this.damage, out bool evaluateFollowingModifiers))
                 {
                     this.appliedHitModifiers.Add(hitModifier);
+                    if (!evaluateFollowingModifiers)
+                    {
+                        break;
+                    }
                 }
             }
             this.increasedDamage = Mathf.Max(this.damage - baseDamage, 0);
@@ -40,14 +42,6 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.damage > 0;
-            }
-        }
-
-        public float TimeHit
-        {
-            get
-            {
-                return this.timeHit;
             }
         }
 

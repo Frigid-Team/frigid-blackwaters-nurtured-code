@@ -44,10 +44,10 @@ namespace FrigidBlackwaters.Game
             while (true)
             {
                 // This has to be here since particle systems automatically pause and do not replay when enabled -> disabled.
-                Bounds areaOccupied = animatorBody.AreaOccupied;
+                Bounds areaOccupied = animatorBody.VisibleArea;
                 shape.scale = new Vector3(areaOccupied.size.x / 2, areaOccupied.size.y / 2);
                 shape.position = areaOccupied.center - animatorBody.transform.position + (Vector3)this.offset.ImmutableValue;
-                this.childParticleSystemRenderer.sortingFudge = -shape.position.y - areaOccupied.size.y - FrigidConstants.SMALLEST_WORLD_SIZE;
+                this.childParticleSystemRenderer.sortingFudge = -shape.position.y - areaOccupied.size.y - FrigidConstants.WorldSizeEpsilon;
 
                 yield return null;
 

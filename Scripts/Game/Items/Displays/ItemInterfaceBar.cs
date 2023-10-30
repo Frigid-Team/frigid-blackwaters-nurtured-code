@@ -205,10 +205,11 @@ namespace FrigidBlackwaters.Game
             base.Awake();
             this.currentSlots = new List<ItemInterfaceContainerSlot>();
             this.slotPool = new RecyclePool<ItemInterfaceContainerSlot>(
-                this.numberSlotsPreparedInAdvance,
                 () => CreateInstance<ItemInterfaceContainerSlot>(this.slotPrefab, this.contentTransform, false),
                 (ItemInterfaceContainerSlot slot) => DestroyInstance(slot)
                 );
+            this.slotPool.Reserve(this.numberSlotsPreparedInAdvance);
+
             this.originalCurrencyCountTextColor = this.currencyCountText.color;
             this.originalPowerCountTextColor = this.powerCountText.color;
         }

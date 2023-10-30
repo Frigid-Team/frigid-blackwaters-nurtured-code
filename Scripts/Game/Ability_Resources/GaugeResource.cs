@@ -59,16 +59,17 @@ namespace FrigidBlackwaters.Game
             this.currentAmount = Mathf.Clamp01(this.currentAmount + this.onUnuseDelta.MutableValue);
         }
 
-        protected override void UpdateInUse()
+        protected override void Update()
         {
-            base.UpdateInUse();
-            this.currentAmount = Mathf.Max(0, this.currentAmount - this.drainRate.ImmutableValue * Time.deltaTime * this.LocalTimeScale);
-        }
-
-        protected override void UpdateOutOfUse()
-        {
-            base.UpdateOutOfUse();
-            this.currentAmount = Mathf.Min(1f, this.currentAmount + this.gainRate.ImmutableValue * Time.deltaTime * this.LocalTimeScale);
+            base.Update();
+            if (this.InUse)
+            {
+                this.currentAmount = Mathf.Max(0, this.currentAmount - this.drainRate.ImmutableValue * this.LocalDeltaTime);
+            }
+            else
+            {
+                this.currentAmount = Mathf.Min(1f, this.currentAmount + this.gainRate.ImmutableValue * this.LocalDeltaTime);
+            }
         }
     }
 }

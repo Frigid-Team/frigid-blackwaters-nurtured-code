@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "AnimatorBodyToolConfig", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.ANIMATION + "AnimatorBodyToolConfig")]
+    [CreateAssetMenu(fileName = "AnimatorBodyToolConfig", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Animation + "AnimatorBodyToolConfig")]
     public class AnimatorBodyToolConfig : FrigidScriptableObject
     {
         [SerializeField]

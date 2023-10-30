@@ -121,7 +121,7 @@ namespace FrigidBlackwaters.Game
             if (!this.moveMap.ContainsKey(move))
             {
                 this.moveMap.Add(move, (priority, ignoreTimeScale, onFinished, false, onBeginMotion, onEndMotion, false));
-                move.Assign(this);
+                move.MovedBy(this);
                 move.StartMoving();
                 if (move.IsFinished)
                 {
@@ -152,7 +152,7 @@ namespace FrigidBlackwaters.Game
             if (this.moveMap.ContainsKey(move))
             {
                 move.StopMoving();
-                move.Unassign();
+                move.MovedBy(null);
                 this.moveMap.Remove(move);
                 this.UpdateHighestPriority();
                 this.UpdateVelocity();

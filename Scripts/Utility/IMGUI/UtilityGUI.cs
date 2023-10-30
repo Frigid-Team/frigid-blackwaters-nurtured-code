@@ -38,6 +38,17 @@ namespace FrigidBlackwaters.Utility
             Handles.EndGUI();
         }
 
+        public static void DrawLineSegments(Vector2[] points)
+        {
+            if (points.Length > 1)
+            {
+                for (int i = 0; i < points.Length - 1; i++)
+                {
+                    DrawLine(points[i], points[i + 1]);
+                }
+            }
+        }
+
         public static void DrawLinePolygon(Vector2[] points)
         {
             if (points.Length > 2)

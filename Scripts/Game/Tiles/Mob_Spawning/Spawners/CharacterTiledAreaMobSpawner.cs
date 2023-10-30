@@ -5,7 +5,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "CharacterTiledAreaMobSpawner", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "CharacterTiledAreaMobSpawner")]
+    [CreateAssetMenu(fileName = "CharacterTiledAreaMobSpawner", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "CharacterTiledAreaMobSpawner")]
     public class CharacterTiledAreaMobSpawner : TiledAreaMobSpawner
     {
         private SceneVariable<List<MobSpawnable>> mobSpawnablesRemaining;

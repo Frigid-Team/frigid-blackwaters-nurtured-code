@@ -36,6 +36,10 @@ namespace FrigidBlackwaters.Game
         private Text effectDescriptionText;
         [SerializeField]
         private Text loreDescriptionText;
+
+        [Header("Unique Use Plate")]
+        [SerializeField]
+        private GameObject uniqueUsePlate;
         
         [Header("Storage Lock Plate")]
         [SerializeField]
@@ -61,6 +65,8 @@ namespace FrigidBlackwaters.Game
 
                 this.effectDescriptionText.text = TextFormatting.ManualWrap(storable.EffectDescription, this.maxNumDescriptionCharsPerLine);
                 this.loreDescriptionText.text = TextFormatting.ManualWrap(storable.LoreDescription, this.maxNumDescriptionCharsPerLine);
+
+                this.uniqueUsePlate.SetActive(storable.IsUniqueUse);
 
                 this.storageLockPlate.SetActive(!hoveredStash.AllStorageChangeable);
                 return;

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "TiledAreaBlueprintGroup", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TiledAreaBlueprintGroup")]
+    [CreateAssetMenu(fileName = "TiledAreaBlueprintGroup", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TiledAreaBlueprintGroup")]
     public class TiledAreaBlueprintGroup : FrigidScriptableObject
     {
         [SerializeField]

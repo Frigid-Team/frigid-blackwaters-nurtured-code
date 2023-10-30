@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "TiledEntranceAsset", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TiledEntranceAsset")]
+    [CreateAssetMenu(fileName = "TiledEntranceAsset", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TiledEntranceAsset")]
     public class TiledEntranceAsset : FrigidScriptableObject
     {
         [SerializeField]
@@ -56,15 +56,8 @@ namespace FrigidBlackwaters.Game
         {
             base.Initialize();
 
-            if (this.minWidth <= 0 || this.maxWidth <= 0)
-            {
-                Debug.LogError("Widths of TiledEntranceAsset " + this.name + " are less or equal to 0.");
-            }
-
-            if (this.maxWidth < this.minWidth)
-            {
-                Debug.LogError("Max width is lower than min width of TiledEntranceAsset " + this.name + ".");
-            }
+            Debug.Assert(this.minWidth > 0 && this.maxWidth > 0, "Widths of TiledEntranceAsset " + this.name + " are less or equal to 0.");
+            Debug.Assert(this.maxWidth >= this.minWidth, "Max width is lower than min width of TiledEntranceAsset " + this.name + ".");
 
             this.contextMap = new Dictionary<(TiledAreaBlueprintGroup, TiledAreaBlueprintGroup), List<PrefabEntry>>();
             foreach (EntranceContext entranceContext in this.entranceContexts)

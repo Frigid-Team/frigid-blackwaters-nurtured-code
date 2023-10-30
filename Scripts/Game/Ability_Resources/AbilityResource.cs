@@ -1,3 +1,5 @@
+using UnityEngine;
+
 using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
@@ -7,6 +9,8 @@ namespace FrigidBlackwaters.Game
         private ControlCounter inUse;
         private float localTimeScale;
 
+        private float localDeltaTime;
+
         public ControlCounter InUse
         {
             get
@@ -14,7 +18,19 @@ namespace FrigidBlackwaters.Game
                 return this.inUse;
             }
         }
-        
+
+        public float LocalTimeScale
+        {
+            get
+            {
+                return this.localTimeScale;
+            }
+            set
+            {
+                this.localTimeScale = value;
+            }
+        }
+
         public abstract int Quantity
         {
             get;
@@ -30,18 +46,6 @@ namespace FrigidBlackwaters.Game
             get;
         }
 
-        public float LocalTimeScale
-        {
-            get
-            {
-                return this.localTimeScale;
-            }
-            set
-            {
-                this.localTimeScale = value;
-            }
-        }
-
         protected override void Awake()
         {
             base.Awake();
@@ -54,16 +58,19 @@ namespace FrigidBlackwaters.Game
         protected override void Update()
         {
             base.Update();
-            if (this.inUse) this.UpdateInUse();
-            else this.UpdateOutOfUse();
+            this.localDeltaTime = Time.deltaTime * this.localTimeScale;
+        }
+
+        protected float LocalDeltaTime
+        {
+            get
+            {
+                return this.localDeltaTime;
+            }
         }
 
         protected virtual void Use() { }
 
-        protected virtual void UpdateInUse() { }
-
         protected virtual void Unuse() { }
-
-        protected virtual void UpdateOutOfUse() { }
     }
 }

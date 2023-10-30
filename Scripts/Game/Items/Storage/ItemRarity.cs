@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "ItemRarity", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.ITEMS + "ItemRarity")]
+    [CreateAssetMenu(fileName = "ItemRarity", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Items + "ItemRarity")]
     public class ItemRarity : FrigidScriptableObject
     {
         [SerializeField]

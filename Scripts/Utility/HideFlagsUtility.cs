@@ -6,7 +6,7 @@ namespace FrigidBlackwaters.Utility
 {
     public static class HideFlagsUtility
     {
-        [MenuItem(FrigidPaths.MenuItem.HELP + "Show All Hidden Objects")]
+        [MenuItem(FrigidPaths.MenuItem.Help + "Show All Hidden Objects")]
         private static void ShowAllHiddenObjects()
         {
             var allGameObjects = Object.FindObjectsOfType<GameObject>();

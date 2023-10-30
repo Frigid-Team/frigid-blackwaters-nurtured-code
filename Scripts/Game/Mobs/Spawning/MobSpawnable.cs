@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "MobSpawnable", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.MOBS + "MobSpawnable")]
+    [CreateAssetMenu(fileName = "MobSpawnable", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Mobs + "MobSpawnable")]
     public class MobSpawnable : FrigidScriptableObject
     {
         [SerializeField]
@@ -51,11 +51,7 @@ namespace FrigidBlackwaters.Game
 
         public Mob SpawnMob(Vector2 spawnPosition, Vector2 facingDirection)
         {
-            if (!this.CanSpawnMobAt(spawnPosition))
-            {
-                Debug.LogError("Attempted to spawn Mob from MobSpawnable " + this.name + " at an invalid position.");
-                return null;
-            }
+            Debug.Assert(this.CanSpawnMobAt(spawnPosition), "Attempted to spawn Mob from MobSpawnable " + this.name + " at an invalid position.");
 
             Mob mob = FrigidMonoBehaviour.CreateInstance<Mob>(this.mobPrefab);
             mob.Spawn(spawnPosition, facingDirection);

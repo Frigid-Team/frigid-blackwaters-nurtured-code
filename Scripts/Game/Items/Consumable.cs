@@ -16,12 +16,12 @@ namespace FrigidBlackwaters.Game
         private bool hasConsumedEffect;
         [SerializeField]
         [ShowIfBool("hasConsumedEffect", true)]
-        private ItemNode consumedRootNode;
+        private ItemEffectNode consumedRootEffectNode;
         [SerializeField]
         private bool hasUnconsumedEffect;
         [SerializeField]
         [ShowIfBool("hasUnconsumedEffect", true)]
-        private ItemNode unconsumedRootNode;
+        private ItemEffectNode unconsumedRootEffectNode;
 
         public override bool IsUsable
         {
@@ -35,49 +35,45 @@ namespace FrigidBlackwaters.Game
         {
             if (this.Storage.PowerBudget.TryUsePower(this, this.consumePowerUsage.ImmutableValue) && this.Storage.PowerBudget.TryIncreaseMaxPower(this, this.consumeMaxPowerIncrease.ImmutableValue))
             {
-                if (this.hasUnconsumedEffect) this.DeactivateRootNode(this.unconsumedRootNode);
-                if (this.hasConsumedEffect) this.ActivateRootNode(this.consumedRootNode);
-                this.OnInEffectChanged += () => this.InUse = this.InEffect;
+                if (this.hasUnconsumedEffect) this.RemoveRootEffectNode(this.unconsumedRootEffectNode);
+                if (this.hasConsumedEffect) this.AddRootEffectNode(this.consumedRootEffectNode);
+                this.OnInEffectChanged += 
+                    () =>
+                    {
+                        this.InUse = this.InEffect;
+                        this.StorageChangeable = !this.InEffect;
+                    };
                 this.InUse = this.InEffect;
+                this.StorageChangeable = !this.InEffect;
                 return true;
             }
             return false;
         }
 
-        public override void Stored()
+        public override void Created()
         {
-            base.Stored();
-            if (this.InUse)
-            {
-                if (this.hasConsumedEffect) this.ActivateRootNode(this.consumedRootNode);
-            }
-            else
-            {
-                if (this.hasUnconsumedEffect) this.ActivateRootNode(this.unconsumedRootNode);
-            }
+            base.Created();
+            this.InUse = false;
+            this.StorageChangeable = true;
         }
 
-        public override void Unstored()
-        {
-            base.Unstored();
-            if (this.InUse)
-            {
-                if (this.hasConsumedEffect) this.DeactivateRootNode(this.consumedRootNode);
-            }
-            else
-            {
-                if (this.hasUnconsumedEffect) this.DeactivateRootNode(this.unconsumedRootNode);
-            }
-        }
-
-        protected override HashSet<ItemNode> RootNodes
+        protected override HashSet<ItemEffectNode> InitialRootEffectNodes
         {
             get
             {
-                HashSet<ItemNode> rootNodes = new HashSet<ItemNode>();
-                if (this.hasConsumedEffect) rootNodes.Add(this.consumedRootNode);
-                if (this.hasUnconsumedEffect) rootNodes.Add(this.unconsumedRootNode);
-                return rootNodes;
+                if (this.hasUnconsumedEffect) return new HashSet<ItemEffectNode>() { this.unconsumedRootEffectNode };
+                return new HashSet<ItemEffectNode>();
+            }
+        }
+
+        protected override HashSet<ItemEffectNode> ReferencedRootEffectNodes
+        {
+            get
+            {
+                HashSet<ItemEffectNode> referencedRootEffectNodes = new HashSet<ItemEffectNode>();
+                if (this.hasConsumedEffect) referencedRootEffectNodes.Add(this.consumedRootEffectNode);
+                if (this.hasUnconsumedEffect) referencedRootEffectNodes.Add(this.unconsumedRootEffectNode);
+                return referencedRootEffectNodes;
             }
         }
     }

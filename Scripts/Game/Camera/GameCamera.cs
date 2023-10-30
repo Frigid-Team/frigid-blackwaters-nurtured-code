@@ -1,16 +1,29 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+using FrigidBlackwaters.Core;
+using FrigidBlackwaters.Utility;
+
 namespace FrigidBlackwaters.Game
 {
     public class GameCamera : FrigidMonoBehaviour
     {
-        private const float CAMERA_SLIDE_SPEED = 10f;
-
         [SerializeField]
         private Camera camera;
         [SerializeField]
         private Vector2 wallViewportPadding;
+        
+        [SerializeField]
+        private FollowCursorSetting followCursorSetting;
+        [SerializeField]
+        [ShowIfInt("followCursorSetting", 2, true)]
+        private float smartDelayDuration;
+        [SerializeField]
+        private float cursorOffsetDistance;
+        [SerializeField]
+        private float movementOffsetDistance;
+        [SerializeField]
+        private float slideSpeed;
 
         private FrigidCoroutine currentFollowRoutine;
 
@@ -40,7 +53,6 @@ namespace FrigidBlackwaters.Game
         {
             if (PlayerMob.TryGet(out PlayerMob player))
             {
-                this.transform.position = this.CalculateCameraPosition();
                 player.OnTiledAreaChanged += this.RenewFollowRoutine;
                 this.BeginFollowRoutine();
             }
@@ -63,7 +75,6 @@ namespace FrigidBlackwaters.Game
         private void RenewFollowRoutine()
         {
             this.FinishFollowRoutine();
-            this.transform.position = this.CalculateCameraPosition();
             this.BeginFollowRoutine();
         }
 
@@ -79,36 +90,64 @@ namespace FrigidBlackwaters.Game
 
         private IEnumerator<FrigidCoroutine.Delay> FollowPlayerInTiledArea()
         {
+            Vector2 currentLeanOffset = Vector2.zero;
+            float lastLeanTime = Time.time;
+
+            this.transform.position = this.CalculateCameraTargetPosition(ref currentLeanOffset, ref lastLeanTime, true);
+
+            const float MinSlideDistance = 4f / FrigidConstants.PixelsPerUnit;
             while (true)
             {
-                Vector3 target = this.CalculateCameraPosition();
-                Vector3 delta = (target - this.transform.position).normalized * Mathf.Min(FrigidCoroutine.DeltaTime * CAMERA_SLIDE_SPEED, Vector2.Distance(this.transform.position, target));
-
-                if (delta.magnitude < FrigidConstants.SMALLEST_WORLD_SIZE) this.transform.position = target;
-                else this.transform.position += delta;
-
+                Vector3 target = this.CalculateCameraTargetPosition(ref currentLeanOffset, ref lastLeanTime, false);
+                Vector3 difference = target - this.transform.position;
+                float distance = difference.magnitude;
+                float distanceDelta = Mathf.Min(distance, FrigidCoroutine.DeltaTime * Mathf.Max(MinSlideDistance, distance) * this.slideSpeed);
+                Vector3 delta = difference.normalized * distanceDelta;
+                this.transform.position += delta;
                 yield return null;
             }
         }
 
-        private Vector3 CalculateCameraPosition()
+        private Vector3 CalculateCameraTargetPosition(ref Vector2 currentLeanOffset, ref float lastLeanTime, bool cameraPanDisabled)
         {
-            if (TiledArea.TryGetFocusedArea(out TiledArea focusedTiledArea) && PlayerMob.TryGet(out PlayerMob player) && player.TiledArea == focusedTiledArea)
+            if (!TiledArea.TryGetFocusedArea(out TiledArea focusedTiledArea) || !PlayerMob.TryGet(out PlayerMob player) || player.TiledArea != focusedTiledArea)
             {
-                Vector2 coverageSize = new Vector2(this.camera.orthographicSize * 2 * this.camera.aspect, this.camera.orthographicSize * 2);
-                Vector2 viewportSize = 
-                    focusedTiledArea.HasVisibleWalls ? 
-                    (FrigidConstants.UNIT_WORLD_SIZE * (Vector2)focusedTiledArea.WallAreaDimensions + this.wallViewportPadding) : 
-                    (FrigidConstants.UNIT_WORLD_SIZE * (Vector2)focusedTiledArea.MainAreaDimensions);
-                Vector2 extent = new Vector2(Mathf.Max((viewportSize.x - coverageSize.x) / 2f, 0f), Mathf.Max((viewportSize.y - coverageSize.y) / 2f, 0f));
-                Vector3 target =
-                    new Vector3(
-                        Mathf.Clamp(player.Position.x, focusedTiledArea.CenterPosition.x - extent.x, focusedTiledArea.CenterPosition.x + extent.x),
-                        Mathf.Clamp(player.Position.y, focusedTiledArea.CenterPosition.y - extent.y, focusedTiledArea.CenterPosition.y + extent.y)
-                        );
-                return target;
+                return this.transform.position;
             }
-            return this.transform.position;
+
+            Vector2 coverageSize = new Vector2(this.camera.orthographicSize * 2 * this.camera.aspect, this.camera.orthographicSize * 2);
+            Vector2 viewportSize = 
+                focusedTiledArea.HasVisibleWalls ? 
+                (FrigidConstants.UnitWorldSize * (Vector2)focusedTiledArea.WallAreaDimensions + this.wallViewportPadding) : 
+                (FrigidConstants.UnitWorldSize * (Vector2)focusedTiledArea.MainAreaDimensions);
+            Vector2 extent = new Vector2(Mathf.Max((viewportSize.x - coverageSize.x) / 2f, 0f), Mathf.Max((viewportSize.y - coverageSize.y) / 2f, 0f));
+
+            Vector2 targetPosition = player.Position;
+            if (!cameraPanDisabled)
+            {
+                if (this.followCursorSetting == FollowCursorSetting.Following || this.followCursorSetting == FollowCursorSetting.SmartFollow && CharacterInput.AttackHeld)
+                {
+                    float doubleLeanDistance = Vector2.Distance(CharacterInput.AimWorldPosition, targetPosition);
+                    doubleLeanDistance = Mathf.Min(this.cursorOffsetDistance * 2f, doubleLeanDistance);
+                    currentLeanOffset = (CharacterInput.AimWorldPosition - targetPosition).normalized * doubleLeanDistance / 2f;
+                    lastLeanTime = Time.time;
+                }
+                if (this.followCursorSetting != FollowCursorSetting.SmartFollow || Time.time < lastLeanTime + this.smartDelayDuration)
+                {
+                    targetPosition = targetPosition + currentLeanOffset;
+                }
+                targetPosition = targetPosition + CharacterInput.CurrentMovementVector.normalized * this.movementOffsetDistance * 2f;
+            }
+            targetPosition.x = Mathf.Clamp(targetPosition.x, focusedTiledArea.CenterPosition.x - extent.x, focusedTiledArea.CenterPosition.x + extent.x);
+            targetPosition.y = Mathf.Clamp(targetPosition.y, focusedTiledArea.CenterPosition.y - extent.y, focusedTiledArea.CenterPosition.y + extent.y);
+            return targetPosition;
+        }
+
+        private enum FollowCursorSetting
+        {
+            Disabled,
+            Following,
+            SmartFollow
         }
     }
 }

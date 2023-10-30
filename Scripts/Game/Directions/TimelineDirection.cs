@@ -22,9 +22,7 @@ namespace FrigidBlackwaters.Game
                 }
                 cumulativeDuration += timeStamp.ActiveDuration;
             }
-            Vector2[] directions = new Vector2[currDirections.Length];
-            for (int i = 0; i < directions.Length; i++) directions[i] = Vector2.zero;
-            return directions;
+            return currDirections;
         }
 
         [Serializable]

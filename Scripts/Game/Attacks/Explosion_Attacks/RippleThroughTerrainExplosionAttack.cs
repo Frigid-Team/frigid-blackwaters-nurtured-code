@@ -25,9 +25,9 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private FloatSerializedReference arcLength;
 
-        protected override List<ExplosionSpawnParameters> GetExplosionSpawnParameters(TiledArea tiledArea, float elapsedDuration)
+        public override List<ExplosionSpawnSetting> GetSpawnSettings(TiledArea tiledArea, float elapsedDuration)
         {
-            List<ExplosionSpawnParameters> explosionSpawnParameters = new List<ExplosionSpawnParameters>();
+            List<ExplosionSpawnSetting> spawnSettings = new List<ExplosionSpawnSetting>();
 
             int currNumberRipples = this.numberRipples.MutableValue;
             Vector2[] originPositions = this.originTargeter.Retrieve(new Vector2[currNumberRipples], elapsedDuration, 0);
@@ -45,13 +45,13 @@ namespace FrigidBlackwaters.Game
                         Vector2Int tileIndexPosition = AreaTiling.RectIndexPositionFromPosition(spawnPosition, tiledArea.CenterPosition, tiledArea.MainAreaDimensions, this.rippleDimensions);
                         if (tiledArea.NavigationGrid.IsTraversable(tileIndexPosition, this.rippleDimensions, this.traversableTerrain, this.traversableResistance))
                         {
-                            explosionSpawnParameters.Add(new ExplosionSpawnParameters(spawnPosition, spawnAngleRad * Mathf.Rad2Deg, 0, this.explosionPrefab));
+                            spawnSettings.Add(new ExplosionSpawnSetting(spawnPosition, 0, this.explosionPrefab, spawnAngleRad * Mathf.Rad2Deg));
                         }
                     }
                 }
             }
 
-            return explosionSpawnParameters;
+            return spawnSettings;
         }
     }
 }

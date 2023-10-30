@@ -6,7 +6,7 @@ using FrigidBlackwaters.Core;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "WallContentAsset", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "WallContentAsset")]
+    [CreateAssetMenu(fileName = "WallContentAsset", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "WallContentAsset")]
     public class WallContentAsset : FrigidScriptableObject
     {
         [SerializeField]
@@ -57,10 +57,7 @@ namespace FrigidBlackwaters.Game
         protected override void Initialize()
         {
             base.Initialize();
-            if (this.baseWidth <= 0)
-            {
-                Debug.LogError("Width of WallContentAsset " + this.name + " is less or equal to 0.");
-            }
+            Debug.Assert(this.baseWidth > 0, "Width of WallContentAsset " + this.name + " is less or equal to 0.");
         }
 
         [Serializable]

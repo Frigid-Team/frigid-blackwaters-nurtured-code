@@ -9,11 +9,11 @@ namespace FrigidBlackwaters.Game
         [SerializeField]
         private Direction originalDirection;
         [SerializeField]
-        private FloatSerializedReference offsetAngle;
+        private FloatSerializedReference angleOffset;
 
         protected override Vector2[] CustomRetrieve(Vector2[] currDirections, float elapsedDuration, float elapsedDurationDelta)
         {
-            float angle = this.offsetAngle.MutableValue;
+            float angle = this.angleOffset.MutableValue;
             Vector2[] directions = this.originalDirection.Retrieve(currDirections, elapsedDuration, elapsedDurationDelta);
             for (int i = 0; i < directions.Length; i++)
             {

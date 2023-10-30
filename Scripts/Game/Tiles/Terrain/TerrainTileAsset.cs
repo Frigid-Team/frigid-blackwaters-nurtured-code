@@ -4,11 +4,13 @@ using UnityEngine;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "TerrainTileAsset", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.TILES + "TerrainTileAsset")]
+    [CreateAssetMenu(fileName = "TerrainTileAsset", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Tiles + "TerrainTileAsset")]
     public class TerrainTileAsset : FrigidScriptableObject
     {
         [SerializeField]
         private TileTerrain terrain;
+        [SerializeField]
+        private int elevationFudgeFactor;
         [SerializeField]
         private TerrainTile terrainTilePrefab;
         [SerializeField]
@@ -21,6 +23,14 @@ namespace FrigidBlackwaters.Game
             get
             {
                 return this.terrain;
+            }
+        }
+
+        public int ElevationFudgeFactor
+        {
+            get
+            {
+                return this.elevationFudgeFactor;
             }
         }
 

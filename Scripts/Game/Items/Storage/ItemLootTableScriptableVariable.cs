@@ -4,6 +4,6 @@ using FrigidBlackwaters.Utility;
 
 namespace FrigidBlackwaters.Game
 {
-    [CreateAssetMenu(fileName = "ItemLootTableScriptableVariable", menuName = FrigidPaths.CreateAssetMenu.GAME + FrigidPaths.CreateAssetMenu.ITEMS + "ItemLootTableScriptableVariable")]
+    [CreateAssetMenu(fileName = "ItemLootTableScriptableVariable", menuName = FrigidPaths.CreateAssetMenu.Game + FrigidPaths.CreateAssetMenu.Items + "ItemLootTableScriptableVariable")]
     public class ItemLootTableScriptableVariable : ScriptableVariable<ItemLootTable> { }
 }

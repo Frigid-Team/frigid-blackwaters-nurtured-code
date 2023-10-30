@@ -38,7 +38,7 @@ namespace FrigidBlackwaters.Game
                 damageDealerBoxProperty.GetNumberMaterialTweensOnDealt(),
                 damageDealerBoxProperty.AddMaterialTweenOnDealtAt,
                 damageDealerBoxProperty.RemoveMaterialTweenOnDealtAt,
-                (int index) => damageDealerBoxProperty.SetMaterialTweenOnDealtByReferenceAt(index, CoreGUILayout.MaterialTweenTemplateSerializedReferenceField("Material Tweens On Dealt", damageDealerBoxProperty.GetMaterialTweenOnDealtByReferenceAt(index)))
+                (int tweenIndex) => damageDealerBoxProperty.SetMaterialTweenOnDealtByReferenceAt(tweenIndex, CoreGUILayout.MaterialTweenTemplateSerializedReferenceField("Material Tweens On Dealt", damageDealerBoxProperty.GetMaterialTweenOnDealtByReferenceAt(tweenIndex)))
                 );
             base.DrawGeneralEditFields();
         }

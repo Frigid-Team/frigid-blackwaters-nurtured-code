@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
@@ -18,15 +17,8 @@ namespace FrigidBlackwaters.Game
             TileTerrain connectionTerrain = TileTerrain.None
             )
         {
-            if (!WallTiling.IsValidWallIndexDirection(indexDirection))
-            {
-                throw new ArgumentException("TiledLevelPlanConnection has invalid wall direction.");
-            }
-
-            if (firstEntrance.Area == secondEntrance.Area)
-            {
-                throw new ArgumentException("TiledLevelPlanConnection connects to the same area.");
-            }
+            Debug.Assert(WallTiling.IsValidWallIndexDirection(indexDirection), "TiledLevelPlanConnection has invalid wall direction.");
+            Debug.Assert(firstEntrance.Area != secondEntrance.Area, "TiledLevelPlanConnection connects to the same area.");
 
             this.firstEntrance = firstEntrance;
             this.secondEntrance = secondEntrance;

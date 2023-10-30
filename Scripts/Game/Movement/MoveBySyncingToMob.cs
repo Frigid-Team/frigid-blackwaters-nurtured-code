@@ -1,3 +1,4 @@
+using FrigidBlackwaters.Core;
 using UnityEngine;
 
 namespace FrigidBlackwaters.Game
@@ -6,12 +7,14 @@ namespace FrigidBlackwaters.Game
     {
         [SerializeField]
         private MobSerializedHandle syncedMob;
+        [SerializeField]
+        private FloatSerializedReference speedMultiplier;
 
         public override Vector2 Velocity
         {
             get
             {
-                return this.syncedMob.TryGetValue(out Mob mob) ? mob.CurrentVelocity : Vector2.zero;
+                return (this.syncedMob.TryGetValue(out Mob mob) ? mob.CurrentVelocity : Vector2.zero) * this.speedMultiplier.ImmutableValue;
             }
         }
     }

@@ -21,8 +21,8 @@ namespace FrigidBlackwaters.Game
             this.secondConnectorImage.enabled = isRevealed;
             if (!isRevealed) return;
 
-            Vector2 firstPosition = firstEntrance.ContainedArea.ContainedLevel == level ? firstEntrance.EntryPosition : (secondEntrance.EntryPosition + (Vector2)secondEntrance.EntryIndexDirection * FrigidConstants.UNIT_WORLD_SIZE * TiledArea.MAX_WALL_DEPTH * 2);
-            Vector2 secondPosition = secondEntrance.ContainedArea.ContainedLevel == level ? secondEntrance.EntryPosition : (firstEntrance.EntryPosition + (Vector2)firstEntrance.EntryIndexDirection * FrigidConstants.UNIT_WORLD_SIZE * TiledArea.MAX_WALL_DEPTH * 2);
+            Vector2 firstPosition = firstEntrance.ContainedArea.ContainedLevel == level ? firstEntrance.EntryPosition : (secondEntrance.EntryPosition + (Vector2)secondEntrance.EntryIndexDirection * FrigidConstants.UnitWorldSize * TiledArea.MaxWallDepth * 2);
+            Vector2 secondPosition = secondEntrance.ContainedArea.ContainedLevel == level ? secondEntrance.EntryPosition : (firstEntrance.EntryPosition + (Vector2)firstEntrance.EntryIndexDirection * FrigidConstants.UnitWorldSize * TiledArea.MaxWallDepth * 2);
             Vector2 halfwayPosition = (firstPosition + secondPosition) / 2;
             Vector2 firstIntermediatePosition;
             Vector2 secondIntermediatePosition;
@@ -42,7 +42,7 @@ namespace FrigidBlackwaters.Game
             void PositionConnector(Image connectorImage, Vector2 startPosition, Vector2 endPosition)
             {
                 float distanceBetween = Vector2.Distance(startPosition, endPosition);
-                if (distanceBetween < FrigidConstants.SMALLEST_WORLD_SIZE)
+                if (distanceBetween < FrigidConstants.WorldSizeEpsilon)
                 {
                     connectorImage.enabled = false;
                     return;

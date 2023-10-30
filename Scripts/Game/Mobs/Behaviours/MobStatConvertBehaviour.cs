@@ -24,21 +24,31 @@ namespace FrigidBlackwaters.Game
             base.Enter();
             foreach (StatConversion statConversion in this.statConversions)
             {
+                int convertedStatAmount = this.Owner.GetStatAmount(MobStatLayer.Primary, statConversion.StatConverted);
                 this.Owner.SetStatAmount(
                     MobStatLayer.Secondary,
                     statConversion.ModifiedStat,
-                    this.Owner.GetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat) + Mathf.FloorToInt(this.Owner.GetStatAmount(MobStatLayer.Primary, statConversion.StatConverted) * statConversion.PercentConverted.ImmutableValue)
+                    this.Owner.GetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat) + Mathf.FloorToInt(convertedStatAmount * statConversion.PercentConverted.ImmutableValue)
                     );
 
-                Action<int, int> statCallback = (int before, int after) => this.UpdateStat(before, after, statConversion);
+                Action<int, int> statCallback = (int amountBefore, int amountAfter) => this.UpdateStat(amountBefore, amountAfter, statConversion);
                 this.statCallbacks.Add(statConversion, statCallback);
                 this.Owner.SubscribeToStatChange(MobStatLayer.Primary, statConversion.StatConverted, statCallback);
             }
         }
 
-        private void UpdateStat(int before, int after, StatConversion statConversion)
+        private void UpdateStat(int amountBefore, int amountAfter, StatConversion statConversion)
         {
-            this.Owner.SetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat, this.Owner.GetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat) + Mathf.RoundToInt((after - before) * statConversion.PercentConverted.ImmutableValue));
+            this.Owner.SetStatAmount(
+                MobStatLayer.Secondary,
+                statConversion.ModifiedStat,
+                this.Owner.GetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat) - Mathf.FloorToInt(amountBefore * statConversion.PercentConverted.ImmutableValue)
+                );
+            this.Owner.SetStatAmount(
+                MobStatLayer.Secondary, 
+                statConversion.ModifiedStat, 
+                this.Owner.GetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat) + Mathf.FloorToInt(amountAfter * statConversion.PercentConverted.ImmutableValue)
+                );
         }
 
         public override void Exit()
@@ -46,10 +56,11 @@ namespace FrigidBlackwaters.Game
             base.Exit();
             foreach (StatConversion statConversion in this.statConversions)
             {
+                int convertedStatAmount = this.Owner.GetStatAmount(MobStatLayer.Primary, statConversion.StatConverted);
                 this.Owner.SetStatAmount(
                     MobStatLayer.Secondary,
                     statConversion.ModifiedStat,
-                    this.Owner.GetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat) - Mathf.FloorToInt(this.Owner.GetStatAmount(MobStatLayer.Primary, statConversion.StatConverted) * statConversion.PercentConverted.ImmutableValue)
+                    this.Owner.GetStatAmount(MobStatLayer.Secondary, statConversion.ModifiedStat) - Mathf.FloorToInt(convertedStatAmount * statConversion.PercentConverted.ImmutableValue)
                     );
 
                 Action<int, int> statCallback = this.statCallbacks[statConversion];

@@ -21,7 +21,7 @@ namespace FrigidBlackwaters.Game
             base.Awake();
             this.displayedBosses = new Dictionary<BossMob, (BarHUD barHUD, Action<int, int> onRemainingHealthChanged, Action<int, int> onMaxHealthChanged)>();
             this.barHUDPool = new RecyclePool<BarHUD>(() => CreateInstance<BarHUD>(this.childHealthBarHUD, this.transform, false), (BarHUD instance) => DestroyInstance(instance));
-            this.barHUDPool.Pool(this.childHealthBarHUD);
+            this.barHUDPool.Return(this.childHealthBarHUD);
         }
 
         protected override void OnEnable()
@@ -74,7 +74,7 @@ namespace FrigidBlackwaters.Game
             boss.OnRemainingHealthChanged -= this.displayedBosses[boss].onRemainingHealthChanged;
             boss.OnMaxHealthChanged -= this.displayedBosses[boss].onMaxHealthChanged;
 
-            this.barHUDPool.Pool(this.displayedBosses[boss].barHUD);
+            this.barHUDPool.Return(this.displayedBosses[boss].barHUD);
             this.displayedBosses.Remove(boss);
         }
 

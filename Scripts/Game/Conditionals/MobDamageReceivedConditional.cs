@@ -1,39 +1,17 @@
-using UnityEngine;
-
-using FrigidBlackwaters.Core;
+using System.Collections.Generic;
 
 namespace FrigidBlackwaters.Game
 {
-    public class MobDamageReceivedConditional : Conditional
+    public class MobDamageReceivedConditional : MobDamageInfoConditional<HitInfo>
     {
-        [SerializeField]
-        private MobSerializedHandle mob;
-        [SerializeField]
-        private FloatSerializedReference lastingDuration;
-
-        protected override bool CustomEvaluate(float elapsedDuration, float elapsedDurationDelta)
+        protected override LinkedList<HitInfo> GetDamageInfos(Mob mob)
         {
-            return this.Tally(elapsedDuration, elapsedDurationDelta) > 0;
+            return mob.HitsReceived;
         }
 
-        protected override int CustomTally(float elapsedDuration, float elapsedDurationDelta)
+        protected override int TallyDamageInfo(HitInfo hitInfo)
         {
-            if (!this.mob.TryGetValue(out Mob mob))
-            {
-                return 0;
-            }
-
-            int damageTaken = 0;
-            foreach (HitInfo hitInfo in mob.HitsReceived)
-            {
-                if (Time.time - hitInfo.TimeHit >= this.lastingDuration.ImmutableValue + Time.deltaTime)
-                {
-                    break;
-                }
-                damageTaken += hitInfo.Damage;
-
-            }
-            return damageTaken;
+            return hitInfo.Damage;
         }
     }
 }
