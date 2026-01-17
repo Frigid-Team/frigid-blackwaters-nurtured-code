@@ -33,7 +33,9 @@ To increase the speed of curating rooms for dungeons, I implemented a Unity edit
 ### Some Of My Proudest Drawings
 I spent a lot of time drawing assets for the game, and some of my proudest drawings were created through this process (including the banner at the top of this README). 
 
+<p align="center">
 <img width="256" height="384" alt="Tabitha_Portrait" src="https://github.com/user-attachments/assets/f2089180-0133-4095-bf61-1a18ba39ef87" />
 <img width="597" height="512" alt="Screenshot 2024-05-01 194657" src="https://github.com/user-attachments/assets/b7850256-fc50-4cdf-8e27-20ed7ab7540b" />
 <img width="3100" height="1563" alt="Screenshot 2024-10-16 100036" src="https://github.com/user-attachments/assets/46b50ee5-3b9b-44cb-bea0-d73fdad230c3" />
 <img width="2015" height="1452" alt="Screenshot 2024-05-18 155050" src="https://github.com/user-attachments/assets/144b1306-d646-4702-883e-337136c47006" />
+</p>
